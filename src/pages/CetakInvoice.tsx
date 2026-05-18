@@ -89,7 +89,98 @@ const CetakInvoice = () => {
   };
 
   const handlePrint = () => {
-    setTimeout(() => { window.print(); }, 800);
+    const itemsHtml = items.filter((i) => i.nama_barang).map((item) => `
+      <tr>
+        <td style="padding:8px;border-top:1px solid #ddd;">${item.nama_barang}</td>
+        <td style="padding:8px;border-top:1px solid #ddd;text-align:right;">Rp ${fmt(item.harga)}</td>
+        <td style="padding:8px;border-top:1px solid #ddd;text-align:center;">${item.jumlah}</td>
+        <td style="padding:8px;border-top:1px solid #ddd;text-align:right;">Rp ${fmt(item.subtotal)}</td>
+      </tr>
+    `).join("");
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Invoice ${noInvoice}</title>
+<style>
+  @page { size: A4; margin: 12mm; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, system-ui, sans-serif; color:#111; margin:0; padding:16px; font-size:13px; }
+  .head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
+  .head img { width:140px; height:auto; }
+  .info { text-align:right; line-height:1.5; }
+  .info span { color:#666; }
+  h2 { text-align:center; color:#2E7D32; margin:8px 0 16px; }
+  table { width:100%; border-collapse:collapse; margin-bottom:12px; }
+  thead th { background:#A5D6A7; padding:8px; text-align:left; font-weight:600; }
+  thead th.r { text-align:right; } thead th.c { text-align:center; }
+  .sum { border-top:1px solid #ddd; padding-top:8px; }
+  .row { display:flex; justify-content:space-between; padding:2px 0; }
+  .bold { font-weight:700; }
+  .green { color:#2E7D32; }
+  .red { color:#c0392b; }
+  .foot { border-top:1px solid #ddd; padding-top:8px; margin-top:12px; font-size:11px; color:#555; }
+  .foot b { color:#111; display:block; margin-bottom:4px; }
+</style></head><body>
+  <div class="head">
+    <img src="https://i.ibb.co.com/Q7dCXq9q/logo-tanabrew-hijau.png" alt="Tanabrew" />
+    <div class="info">
+      <div><span>No Invoice:</span> ${noInvoice}</div>
+      <div><span>Tanggal:</span> ${tanggal}</div>
+      <div><span>Customer:</span> ${customer}</div>
+    </div>
+  </div>
+  <h2>INVOICE</h2>
+  <table>
+    <thead><tr><th>Nama Barang</th><th class="r">Harga</th><th class="c">Jumlah</th><th class="r">Subtotal</th></tr></thead>
+    <tbody>${itemsHtml}</tbody>
+  </table>
+  <div class="sum">
+    <div class="row"><span>Subtotal</span><span>Rp ${fmt(subtotal)}</span></div>
+    ${diskon > 0 ? `<div class="row"><span>Diskon</span><span>- Rp ${fmt(diskon)}</span></div>` : ""}
+    <div class="row bold"><span>Total</span><span>Rp ${fmt(total)}</span></div>
+    <div class="row"><span>Jumlah Dibayar</span><span>Rp ${fmt(jumlahDibayar)}</span></div>
+    <div class="row"><span>Sisa Pembayaran</span><span>Rp ${fmt(sisa)}</span></div>
+    <div class="row bold"><span>Status</span><span class="${status === "LUNAS" ? "green" : "red"}">${status}</span></div>
+  </div>
+  <div class="foot">
+    <b>Instruksi Pembayaran</b>
+    <div>Transfer ke Seabank a.n. AHMAD FARID MUSADDAD</div>
+    <div>No. Rekening 9011 2193 2420</div>
+    <div style="margin-top:6px;">Transfer ke BSI a.n. AHMAD FARID MUSADDAD</div>
+    <div>No. Rekening 7196999501</div>
+  </div>
+  <script>
+    window.addEventListener('load', function(){
+      setTimeout(function(){ window.focus(); window.print(); }, 300);
+    });
+  <\/script>
+</body></html>`;
+
+    const w = window.open("", "_blank");
+    if (!w) {
+      // Fallback: write into iframe and print (popup blocked on some mobiles)
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "0";
+      document.body.appendChild(iframe);
+      const idoc = iframe.contentWindow?.document;
+      if (idoc) {
+        idoc.open();
+        idoc.write(html);
+        idoc.close();
+        setTimeout(() => {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+          setTimeout(() => document.body.removeChild(iframe), 1000);
+        }, 500);
+      }
+      return;
+    }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
   };
 
   if (saved) {
