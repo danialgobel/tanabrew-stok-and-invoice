@@ -169,30 +169,38 @@ const baseStyles = `
   .status-orange { color: #7a5200; background: #fff0bd; border: 1px solid #f2d283; }
   .empty { border: 1px dashed #a5d6a7; border-radius: 8px; padding: 10px; color: #49624f; }
   .report-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 10px;
+    justify-content: flex-start;
+    gap: 8px;
     border: 1px solid #a5d6a7;
-    border-radius: 10px;
-    background: #f4fbf4;
-    margin-bottom: 12px;
-    padding: 10px;
+    border-radius: 12px;
+    background: rgba(244, 251, 244, 0.98);
+    box-shadow: 0 8px 18px rgba(22, 78, 33, 0.08);
+    margin-bottom: 14px;
+    padding: 8px;
   }
   .report-back-button {
     border: 0;
-    border-radius: 8px;
+    border-radius: 10px;
     background: #2e7d32;
     color: #ffffff;
     cursor: pointer;
+    font-size: 15px;
     font-weight: 700;
-    padding: 8px 12px;
+    line-height: 1.2;
+    min-height: 44px;
+    padding: 10px 14px;
+    width: 100%;
   }
   .report-back-hint {
     color: #49624f;
-    font-size: 11px;
+    font-size: 12px;
     line-height: 1.45;
-    text-align: right;
+    margin-top: 6px;
   }
   .manual-print-note {
     border: 1px solid #a5d6a7;
@@ -220,6 +228,8 @@ const baseStyles = `
   .loading-card p { color: #49624f; line-height: 1.55; margin: 0; }
   @media (max-width: 640px) {
     body { padding: 12px; }
+    .report-toolbar { padding: 8px; }
+    .report-back-button { font-size: 16px; min-height: 44px; }
     .header { align-items: flex-start; flex-direction: column; gap: 10px; }
     .meta { text-align: left; white-space: normal; }
     .summary { grid-template-columns: repeat(2, 1fr); }
@@ -340,8 +350,10 @@ const reportShellHtml = (title: string, bodyHtml: string, autoPrint = true) => {
   return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
 <style>${baseStyles}</style></head><body>
   <div class="report-toolbar no-print">
-    <button class="report-back-button" type="button" onclick="tanabrewBack()">Kembali</button>
-    <span id="tanabrew-back-hint" class="report-back-hint">Kembali ke Tanabrew</span>
+    <div style="width:100%;">
+      <button class="report-back-button" type="button" onclick="tanabrewBack()">← Kembali ke Tanabrew</button>
+      <div id="tanabrew-back-hint" class="report-back-hint" aria-live="polite"></div>
+    </div>
   </div>
   ${bodyHtml}
   <div class="manual-print-note no-print">Jika dialog print tidak muncul otomatis, gunakan menu browser untuk Print atau Save as PDF.</div>

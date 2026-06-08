@@ -398,7 +398,7 @@ const CetakInvoice = () => {
   }
 
   return (
-    <div className="px-4 pb-24 pt-6 max-w-lg mx-auto">
+    <div className="mx-auto w-full max-w-lg overflow-x-hidden px-4 pb-24 pt-6">
       {actionNotice && (
         <AnimatedNotification
           key={actionNotice.id}
@@ -409,8 +409,8 @@ const CetakInvoice = () => {
 
       <h1 className="text-lg font-bold text-primary mb-4">Cetak Invoice</h1>
 
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <div className="bg-card rounded-xl border border-border p-4 space-y-3">
+      <form onSubmit={handleSubmit} className="max-w-full space-y-3">
+        <div className="max-w-full bg-card rounded-xl border border-border p-4 space-y-3">
           <input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)}
             className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" required />
           <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5">
@@ -433,7 +433,7 @@ const CetakInvoice = () => {
         </div>
 
         {/* Items */}
-        <div className="bg-card rounded-xl border border-border p-4 space-y-4">
+        <div className="max-w-full overflow-hidden bg-card rounded-xl border border-border p-4 space-y-4">
           <h2 className="text-sm font-semibold text-primary">Item</h2>
           {loadingProducts && (
             <div className="space-y-2 rounded-lg bg-primary/5 p-3">
@@ -444,18 +444,23 @@ const CetakInvoice = () => {
           {items.map((item, idx) => (
             <div key={idx} className="max-w-full space-y-2 overflow-hidden border-b border-border pb-3 last:border-0">
               <div className="flex min-w-0 items-start gap-2">
-                <select
-                  value={item.nama_barang}
-                  onChange={(e) => updateItem(idx, "nama_barang", e.target.value)}
-                  className="min-w-0 flex-1 rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="">Pilih Barang</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.nama_barang}>
-                      {p.nama_barang} - Stok {stockLocation}: {stockLocation === "Jogja" ? p.stok_jogja : p.stok_lombok}
-                    </option>
-                  ))}
-                </select>
+                <div className="min-w-0 flex-1">
+                  <select
+                    value={item.nama_barang}
+                    onChange={(e) => updateItem(idx, "nama_barang", e.target.value)}
+                    className="w-full min-w-0 max-w-full truncate rounded-lg border border-input bg-background px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-ring sm:text-sm"
+                  >
+                    <option value="">Pilih Barang</option>
+                    {products.map((p) => (
+                      <option key={p.id} value={p.nama_barang}>
+                        {p.nama_barang} - Stok {stockLocation}: {stockLocation === "Jogja" ? p.stok_jogja : p.stok_lombok}
+                      </option>
+                    ))}
+                  </select>
+                  {item.nama_barang && (
+                    <p className="mt-1 break-words text-xs text-muted-foreground">{item.nama_barang}</p>
+                  )}
+                </div>
                 {items.length > 1 && (
                   <button type="button" onClick={() => removeItem(idx)} className="shrink-0 p-2 text-destructive hover:bg-muted rounded-lg">
                     <Trash2 size={16} />

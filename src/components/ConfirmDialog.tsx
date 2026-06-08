@@ -28,7 +28,7 @@ const ConfirmDialog = ({
       className="fixed inset-0 z-[100] flex items-center justify-center bg-foreground/45 px-4 py-6"
       style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
     >
-      <div className="tanabrew-dialog-enter flex max-h-[85vh] w-[calc(100vw-2rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-xl">
+      <div className="tanabrew-dialog-enter flex max-h-[85vh] w-full max-w-sm flex-col overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-xl">
         <div className="min-h-0 flex-1 overflow-y-auto">
           <h2 className="text-base font-bold text-primary">{title}</h2>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{description}</p>
