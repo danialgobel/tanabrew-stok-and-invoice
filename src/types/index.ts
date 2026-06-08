@@ -48,6 +48,11 @@ export interface Invoice {
   printed_by_uid?: string;
   printed_by_role?: string;
   print_count?: number;
+  paid_at?: unknown;
+  paid_by?: string;
+  paid_by_uid?: string;
+  paid_by_role?: string;
+  updated_at?: unknown;
 }
 
 export interface ActivityLog {

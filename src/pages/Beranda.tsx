@@ -22,6 +22,8 @@ const actionLabel = (action?: string) => {
       return "Buat Invoice";
     case "PRINT_INVOICE":
       return "Cetak Invoice";
+    case "UPDATE_PAYMENT_STATUS":
+      return "Tandai Lunas";
     default:
       return action || "Aktivitas";
   }

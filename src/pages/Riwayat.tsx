@@ -18,11 +18,12 @@ import { Activity, Eye, FileText, Package, Printer, RotateCcw, Search, X } from 
 import { db } from "@/lib/firebase";
 import { addActivityLog } from "@/lib/activityLog";
 import AnimatedNotification from "@/components/AnimatedNotification";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { CardSkeleton } from "@/components/Skeleton";
 import { useAuth } from "@/context/AuthContext";
 import { useProducts } from "@/hooks/useProducts";
 import { useToast } from "@/hooks/use-toast";
-import { printInvoiceReport, printStockReport, printTanabrewReport } from "@/lib/reportPrint";
+import { openReportWindow, printInvoiceReport, printStockReport, printTanabrewReport, writeReportError } from "@/lib/reportPrint";
 import type { ActivityLog, Invoice, InvoiceItem, StockMovement } from "@/types";
 
 type ActiveTab = "invoice" | "stok" | "aktivitas";
@@ -114,6 +115,8 @@ const actionLabel = (action?: string) => {
       return "Buat Invoice";
     case "PRINT_INVOICE":
       return "Cetak Invoice";
+    case "UPDATE_PAYMENT_STATUS":
+      return "Tandai Lunas";
     default:
       return action || "-";
   }
@@ -288,6 +291,8 @@ const Riwayat = () => {
   const [loadingLogs, setLoadingLogs] = useState(true);
   const [loadingStockMovements, setLoadingStockMovements] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [paymentTarget, setPaymentTarget] = useState<Invoice | null>(null);
+  const [payingInvoiceId, setPayingInvoiceId] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [payStatusFilter, setPayStatusFilter] = useState<PayStatusFilter>("semua");
@@ -471,6 +476,12 @@ const Riwayat = () => {
   };
 
   const handlePrintInvoiceReport = async () => {
+    const reportWindow = openReportWindow();
+    if (!reportWindow) {
+      toast({ title: "Error", description: "Gagal membuka jendela cetak. Izinkan pop-up untuk situs ini.", variant: "destructive" });
+      return;
+    }
+
     setLoadingReport("invoice");
 
     try {
@@ -481,12 +492,13 @@ const Riwayat = () => {
         filterLabel: getInvoiceFilterLabel(),
         printedBy: userProfile?.name || currentUser?.email || "-",
         roleLabel: formatRole(userProfile?.role),
-      });
+      }, reportWindow);
 
       if (!ok) {
         toast({ title: "Error", description: "Gagal membuka jendela cetak laporan invoice.", variant: "destructive" });
       }
     } catch {
+      writeReportError(reportWindow, "Gagal menyiapkan laporan invoice.");
       toast({ title: "Error", description: "Gagal menyiapkan laporan invoice.", variant: "destructive" });
     } finally {
       setLoadingReport(null);
@@ -494,6 +506,12 @@ const Riwayat = () => {
   };
 
   const handlePrintStockReport = () => {
+    const reportWindow = openReportWindow();
+    if (!reportWindow) {
+      toast({ title: "Error", description: "Gagal membuka jendela cetak. Izinkan pop-up untuk situs ini.", variant: "destructive" });
+      return;
+    }
+
     setLoadingReport("stok");
 
     try {
@@ -502,17 +520,26 @@ const Riwayat = () => {
         filterLabel: "Semua stok",
         printedBy: userProfile?.name || currentUser?.email || "-",
         roleLabel: formatRole(userProfile?.role),
-      });
+      }, reportWindow);
 
       if (!ok) {
         toast({ title: "Error", description: "Gagal membuka jendela cetak laporan stok.", variant: "destructive" });
       }
+    } catch {
+      writeReportError(reportWindow, "Gagal menyiapkan laporan stok.");
+      toast({ title: "Error", description: "Gagal menyiapkan laporan stok.", variant: "destructive" });
     } finally {
       setLoadingReport(null);
     }
   };
 
   const handlePrintCombinedReport = async () => {
+    const reportWindow = openReportWindow();
+    if (!reportWindow) {
+      toast({ title: "Error", description: "Gagal membuka jendela cetak. Izinkan pop-up untuk situs ini.", variant: "destructive" });
+      return;
+    }
+
     setLoadingReport("gabungan");
 
     try {
@@ -532,7 +559,7 @@ const Riwayat = () => {
         printedBy: userProfile?.name || currentUser?.email || "-",
         roleLabel: formatRole(userProfile?.role),
         summary,
-      });
+      }, reportWindow);
 
       if (!ok) {
         toast({ title: "Error", description: "Gagal membuka jendela cetak laporan gabungan.", variant: "destructive" });
@@ -541,9 +568,73 @@ const Riwayat = () => {
       const description = error instanceof Error && error.message
         ? error.message
         : "Gagal menyiapkan laporan gabungan.";
+      writeReportError(reportWindow, description);
       toast({ title: "Error", description, variant: "destructive" });
     } finally {
       setLoadingReport(null);
+    }
+  };
+
+  const handleMarkInvoicePaid = async () => {
+    if (!paymentTarget?.id) {
+      toast({ title: "Error", description: "Data invoice tidak lengkap.", variant: "destructive" });
+      return;
+    }
+
+    if (!currentUser || !userProfile) {
+      toast({ title: "Error", description: "Data user belum siap, silakan coba lagi.", variant: "destructive" });
+      return;
+    }
+
+    if (userProfile.role !== "admin") {
+      toast({ title: "Error", description: "Hanya admin yang dapat menandai invoice lunas.", variant: "destructive" });
+      return;
+    }
+
+    setPayingInvoiceId(paymentTarget.id);
+
+    try {
+      await updateDoc(doc(db, "invoices", paymentTarget.id), {
+        jumlah_dibayar: paymentTarget.total || 0,
+        sisa: 0,
+        status: "LUNAS",
+        paid_at: serverTimestamp(),
+        paid_by: userProfile.name,
+        paid_by_uid: currentUser.uid,
+        paid_by_role: userProfile.role,
+        updated_at: serverTimestamp(),
+      });
+
+      await addActivityLog({
+        user: { uid: currentUser.uid, name: userProfile.name, role: userProfile.role },
+        action: "UPDATE_PAYMENT_STATUS",
+        targetType: "invoice",
+        targetId: paymentTarget.id,
+        targetName: paymentTarget.no_invoice,
+        description: `Invoice ${paymentTarget.no_invoice} ditandai lunas oleh ${userProfile.name}.`,
+      });
+
+      const paidInvoice: Invoice = {
+        ...paymentTarget,
+        jumlah_dibayar: paymentTarget.total || 0,
+        sisa: 0,
+        status: "LUNAS",
+        paid_at: new Date(),
+        paid_by: userProfile.name,
+        paid_by_uid: currentUser.uid,
+        paid_by_role: userProfile.role,
+        updated_at: new Date(),
+      };
+
+      setInvoices((prev) => prev.map((invoice) => (invoice.id === paidInvoice.id ? paidInvoice : invoice)));
+      setSelectedInvoice((prev) => (prev?.id === paidInvoice.id ? paidInvoice : prev));
+      setPaymentTarget(null);
+      showActionNotice("Invoice berhasil ditandai lunas", `No Invoice: ${paidInvoice.no_invoice}`);
+      toast({ title: "Berhasil", description: `Invoice ${paidInvoice.no_invoice} sudah LUNAS.` });
+    } catch {
+      toast({ title: "Error", description: "Gagal menandai invoice lunas.", variant: "destructive" });
+    } finally {
+      setPayingInvoiceId(null);
     }
   };
 
@@ -931,6 +1022,15 @@ const Riwayat = () => {
                     Cetak Ulang
                   </button>
                 </div>
+                {isAdmin && invoice.status === "BELUM LUNAS" && (
+                  <button
+                    onClick={() => setPaymentTarget(invoice)}
+                    disabled={payingInvoiceId === invoice.id}
+                    className="mt-2 w-full rounded-lg bg-primary/10 px-3 py-2 text-xs font-bold text-primary hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {payingInvoiceId === invoice.id ? "Memproses..." : "Tandai Lunas"}
+                  </button>
+                )}
                 {!isAdmin && (
                   <p className="mt-2 text-center text-xs text-destructive">Hanya admin yang dapat mencetak ulang invoice.</p>
                 )}
@@ -1084,6 +1184,12 @@ const Riwayat = () => {
                   <span className={statusClass(selectedInvoice.status)}>{selectedInvoice.status}</span>
                 </div>
                 <div className="flex justify-between"><span>Dibuat Oleh</span><span>{selectedInvoice.dibuat_oleh || "Tidak diketahui"}</span></div>
+                {selectedInvoice.paid_by && (
+                  <>
+                    <div className="flex justify-between"><span>Dilunasi Oleh</span><span>{selectedInvoice.paid_by}</span></div>
+                    <div className="flex justify-between"><span>Waktu Lunas</span><span>{formatDate(selectedInvoice.paid_at)}</span></div>
+                  </>
+                )}
               </div>
 
               <div className="rounded-lg bg-muted px-3 py-2 text-xs mb-4">
@@ -1130,9 +1236,27 @@ const Riwayat = () => {
             {!isAdmin && (
               <p className="mt-2 text-center text-xs text-destructive">Hanya admin yang dapat mencetak ulang invoice.</p>
             )}
+            {isAdmin && selectedInvoice.status === "BELUM LUNAS" && (
+              <button
+                onClick={() => setPaymentTarget(selectedInvoice)}
+                disabled={payingInvoiceId === selectedInvoice.id}
+                className="mt-2 w-full rounded-lg bg-primary/10 px-3 py-2.5 text-sm font-bold text-primary hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {payingInvoiceId === selectedInvoice.id ? "Memproses..." : "Tandai Lunas"}
+              </button>
+            )}
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={Boolean(paymentTarget)}
+        title="Tandai invoice sebagai lunas?"
+        description="Status pembayaran invoice ini akan diubah menjadi LUNAS dan sisa pembayaran menjadi Rp 0."
+        confirmLabel="Tandai Lunas"
+        loading={Boolean(paymentTarget?.id && payingInvoiceId === paymentTarget.id)}
+        onCancel={() => setPaymentTarget(null)}
+        onConfirm={() => void handleMarkInvoicePaid()}
+      />
     </div>
   );
 };

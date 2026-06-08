@@ -29,6 +29,8 @@ interface PrintCombinedReportInput extends ReportMeta {
   summary?: CombinedReportSummary;
 }
 
+type ReportWindow = Window | null;
+
 const logoUrl = "https://i.ibb.co.com/Q7dCXq9q/logo-tanabrew-hijau.png";
 
 const escapeHtml = (value: unknown) =>
@@ -166,9 +168,33 @@ const baseStyles = `
   .status-red { color: #9f1d1d; background: #ffe1e1; border: 1px solid #f3b8b8; }
   .status-orange { color: #7a5200; background: #fff0bd; border: 1px solid #f2d283; }
   .empty { border: 1px dashed #a5d6a7; border-radius: 8px; padding: 10px; color: #49624f; }
+  .manual-print-note {
+    border: 1px solid #a5d6a7;
+    border-radius: 8px;
+    background: #f4fbf4;
+    color: #49624f;
+    margin-top: 14px;
+    padding: 10px;
+  }
+  .loading-wrap {
+    min-height: 72vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+  .loading-card {
+    border: 1px solid #a5d6a7;
+    border-radius: 14px;
+    background: #f4fbf4;
+    padding: 22px;
+    max-width: 340px;
+  }
+  .loading-card h1 { font-size: 18px; margin-bottom: 8px; }
+  .loading-card p { color: #49624f; line-height: 1.55; margin: 0; }
   @media print {
     body { padding: 0; }
-    .summary-card, th, td, .status { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .summary-card, th, td, .status, .manual-print-note { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
 `;
 
@@ -266,18 +292,67 @@ const stockTableHtml = (products: Product[]) => {
   `;
 };
 
-const openPrintWindow = (title: string, bodyHtml: string) => {
+const reportShellHtml = (title: string, bodyHtml: string, autoPrint = true) => {
+  const script = autoPrint
+    ? `<script>
+    window.addEventListener('load', function(){
+      setTimeout(function(){
+        try { window.focus(); window.print(); } catch (error) {}
+      }, 300);
+    });
+  <\/script>`
+    : "";
+
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
+<style>${baseStyles}</style></head><body>
+  ${bodyHtml}
+  <div class="manual-print-note">Jika dialog print tidak muncul otomatis, gunakan menu browser untuk Print atau Save as PDF.</div>
+  ${script}
+</body></html>`;
+};
+
+export const openReportWindow = () => {
+  const popup = window.open("", "_blank");
+  if (!popup) return null;
+
+  popup.document.open();
+  popup.document.write(reportShellHtml(
+    "Menyiapkan Laporan Tanabrew",
+    `<div class="loading-wrap"><div class="loading-card"><h1>Menyiapkan laporan Tanabrew...</h1><p>Mohon tunggu sebentar. Laporan akan tampil di halaman ini.</p></div></div>`,
+    false,
+  ));
+  popup.document.close();
+
+  return popup;
+};
+
+export const writeReportError = (reportWindow: ReportWindow, message: string) => {
+  if (!reportWindow) return;
+
+  reportWindow.document.open();
+  reportWindow.document.write(reportShellHtml(
+    "Laporan Tanabrew Gagal",
+    `<div class="loading-wrap"><div class="loading-card"><h1>Gagal menyiapkan laporan</h1><p>${escapeHtml(message)}</p></div></div>`,
+    false,
+  ));
+  reportWindow.document.close();
+};
+
+const openPrintWindow = (title: string, bodyHtml: string, reportWindow?: ReportWindow) => {
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
 <style>${baseStyles}</style></head><body>
   ${bodyHtml}
+  <div class="manual-print-note">Jika dialog print tidak muncul otomatis, gunakan menu browser untuk Print atau Save as PDF.</div>
   <script>
     window.addEventListener('load', function(){
-      setTimeout(function(){ window.focus(); window.print(); }, 300);
+      setTimeout(function(){
+        try { window.focus(); window.print(); } catch (error) {}
+      }, 300);
     });
   <\/script>
 </body></html>`;
 
-  const popup = window.open("", "_blank");
+  const popup = reportWindow || openReportWindow();
   if (!popup) return false;
   popup.document.open();
   popup.document.write(html);
@@ -285,7 +360,7 @@ const openPrintWindow = (title: string, bodyHtml: string) => {
   return true;
 };
 
-export const printInvoiceReport = ({ invoices, periodLabel, filterLabel, printedBy, roleLabel }: PrintInvoiceReportInput) => {
+export const printInvoiceReport = ({ invoices, periodLabel, filterLabel, printedBy, roleLabel }: PrintInvoiceReportInput, reportWindow?: ReportWindow) => {
   const summary = invoiceSummary(invoices);
   const bodyHtml = `
     ${headerHtml("LAPORAN INVOICE TANABREW", { periodLabel, filterLabel, printedBy, roleLabel })}
@@ -301,10 +376,10 @@ export const printInvoiceReport = ({ invoices, periodLabel, filterLabel, printed
     ${invoiceTableHtml(invoices)}
   `;
 
-  return openPrintWindow("Laporan Invoice Tanabrew", bodyHtml);
+  return openPrintWindow("Laporan Invoice Tanabrew", bodyHtml, reportWindow);
 };
 
-export const printStockReport = ({ products, filterLabel, printedBy, roleLabel }: PrintStockReportInput) => {
+export const printStockReport = ({ products, filterLabel, printedBy, roleLabel }: PrintStockReportInput, reportWindow?: ReportWindow) => {
   const summary = stockSummary(products);
   const bodyHtml = `
     ${headerHtml("LAPORAN STOK TANABREW", { filterLabel, printedBy, roleLabel })}
@@ -319,7 +394,7 @@ export const printStockReport = ({ products, filterLabel, printedBy, roleLabel }
     ${stockTableHtml(products)}
   `;
 
-  return openPrintWindow("Laporan Stok Tanabrew", bodyHtml);
+  return openPrintWindow("Laporan Stok Tanabrew", bodyHtml, reportWindow);
 };
 
 export const printTanabrewReport = ({
@@ -329,7 +404,7 @@ export const printTanabrewReport = ({
   printedBy,
   roleLabel,
   summary,
-}: PrintCombinedReportInput) => {
+}: PrintCombinedReportInput, reportWindow?: ReportWindow) => {
   const stockInfo = stockSummary(products);
   const invoiceInfo = invoiceSummary(invoices);
   const combinedSummary = summary || {
@@ -358,5 +433,5 @@ export const printTanabrewReport = ({
     ${stockTableHtml(problemProducts)}
   `;
 
-  return openPrintWindow("Laporan Tanabrew", bodyHtml);
+  return openPrintWindow("Laporan Tanabrew", bodyHtml, reportWindow);
 };
