@@ -20,6 +20,7 @@ interface UserProfile {
   created_at?: unknown;
   last_seen_activity_id?: string;
   last_seen_activity_at?: unknown;
+  dismissed_activity_ids?: string[];
 }
 
 interface AuthContextValue {

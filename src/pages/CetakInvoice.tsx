@@ -1,27 +1,40 @@
-import { useState } from "react";
-import { collection, addDoc, doc, updateDoc, getDocs, query, where, serverTimestamp, increment } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import { doc, updateDoc, serverTimestamp, increment } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { addActivityLog } from "@/lib/activityLog";
+import AnimatedNotification from "@/components/AnimatedNotification";
+import { createInvoiceWithNumberAndStock } from "@/lib/invoiceNumber";
 import { useProducts } from "@/hooks/useProducts";
 import { useAuth } from "@/context/AuthContext";
 import type { InvoiceItem } from "@/types";
 import { Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "@/components/Skeleton";
+
+type ActionNotice = {
+  id: number;
+  title: string;
+  description?: string;
+};
+type StockLocation = "Jogja" | "Lombok";
 
 const CetakInvoice = () => {
-  const { products } = useProducts();
+  const { products, loading: loadingProducts } = useProducts();
   const { currentUser, userProfile } = useAuth();
   const { toast } = useToast();
   const [tanggal, setTanggal] = useState("");
   const [noInvoice, setNoInvoice] = useState("");
   const [customer, setCustomer] = useState("");
+  const [stockLocation, setStockLocation] = useState<StockLocation>("Jogja");
   
   const [items, setItems] = useState<InvoiceItem[]>([{ nama_barang: "", harga: 0, jumlah: 1, subtotal: 0 }]);
   const [diskon, setDiskon] = useState(0);
   const [jumlahDibayar, setJumlahDibayar] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const [saved, setSaved] = useState(false);
   const [savedInvoiceId, setSavedInvoiceId] = useState("");
+  const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
 
   const subtotal = items.reduce((s, i) => s + i.subtotal, 0);
   const total = subtotal - (diskon || 0);
@@ -31,13 +44,29 @@ const CetakInvoice = () => {
 
   const fmt = (n: number) => new Intl.NumberFormat("id-ID").format(n);
 
+  useEffect(() => {
+    if (!actionNotice) return;
+
+    const timer = window.setTimeout(() => setActionNotice(null), 2600);
+    return () => window.clearTimeout(timer);
+  }, [actionNotice]);
+
+  const showActionNotice = (title: string, description?: string) => {
+    setActionNotice({ id: Date.now(), title, description });
+  };
+
   const updateItem = (idx: number, field: string, value: string | number) => {
     setItems((prev) => {
       const next = [...prev];
       const item = { ...next[idx], [field]: value };
       if (field === "nama_barang") {
         const prod = products.find((p) => p.nama_barang === value);
-        if (prod) item.harga = prod.harga;
+        if (prod) {
+          item.product_id = prod.id;
+          item.harga = prod.harga;
+        } else {
+          item.product_id = "";
+        }
       }
       item.subtotal = (item.harga || 0) * (item.jumlah || 0);
       next[idx] = item;
@@ -48,36 +77,10 @@ const CetakInvoice = () => {
   const addItem = () => setItems([...items, { nama_barang: "", harga: 0, jumlah: 1, subtotal: 0 }]);
   const removeItem = (idx: number) => items.length > 1 && setItems(items.filter((_, i) => i !== idx));
 
-  const reduceStock = async () => {
-    for (const item of items) {
-      if (!item.nama_barang || !item.jumlah) continue;
-      const q = query(collection(db, "products"), where("nama_barang", "==", item.nama_barang));
-      const snap = await getDocs(q);
-      if (snap.empty) continue;
-      const prodDoc = snap.docs[0];
-      const prod = prodDoc.data();
-      let remaining = item.jumlah;
-      let jogja = prod.stok_jogja || 0;
-      let lombok = prod.stok_lombok || 0;
-
-      // Prioritize Jogja
-      const fromJogja = Math.min(jogja, remaining);
-      jogja -= fromJogja;
-      remaining -= fromJogja;
-      const fromLombok = Math.min(lombok, remaining);
-      lombok -= fromLombok;
-
-      await updateDoc(doc(db, "products", prodDoc.id), {
-        stok_jogja: jogja,
-        stok_lombok: lombok,
-        total_stok: jogja + lombok,
-      });
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!noInvoice.trim() || !customer.trim() || items.every((i) => !i.nama_barang)) return;
+    const invoiceItems = items.filter((i) => i.nama_barang && i.jumlah > 0);
+    if (!customer.trim() || invoiceItems.length === 0) return;
     if (!currentUser || !userProfile) {
       toast({ title: "Error", description: "Data user belum siap, silakan coba lagi", variant: "destructive" });
       return;
@@ -85,9 +88,26 @@ const CetakInvoice = () => {
 
     setSaving(true);
     try {
-      const invoiceRef = await addDoc(collection(db, "invoices"), {
-        tanggal, no_invoice: noInvoice, customer,
-        items, subtotal, diskon, total, jumlah_dibayar: jumlahDibayar, sisa, status,
+      const stockItems = invoiceItems.map((item) => {
+        const product = item.product_id
+          ? products.find((p) => p.id === item.product_id)
+          : products.find((p) => p.nama_barang === item.nama_barang);
+
+        if (!product?.id) {
+          throw new Error(`Produk ${item.nama_barang} tidak ditemukan.`);
+        }
+
+        return {
+          productId: product.id,
+          productName: product.nama_barang,
+          quantity: Number(item.jumlah) || 0,
+        };
+      });
+      const { invoiceId, noInvoice: generatedNoInvoice } = await createInvoiceWithNumberAndStock({
+        invoiceData: {
+        tanggal, customer,
+          items: invoiceItems,
+          subtotal, diskon, total, jumlah_dibayar: jumlahDibayar, sisa, status,
         dibuat_oleh: userProfile.name,
         dibuat_oleh_uid: currentUser.uid,
         dibuat_oleh_role: userProfile.role,
@@ -98,21 +118,20 @@ const CetakInvoice = () => {
         printed_by_uid: "",
         printed_by_role: "",
         print_count: 0,
-      });
-      await reduceStock();
-      await addActivityLog({
+        },
+        stockItems,
+        stockLocation,
         user: { uid: currentUser.uid, name: userProfile.name, role: userProfile.role },
-        action: "CREATE_INVOICE",
-        targetType: "invoice",
-        targetId: invoiceRef.id,
-        targetName: noInvoice,
-        description: `${userProfile.name} membuat invoice ${noInvoice} untuk customer ${customer}`,
+        customer,
       });
-      setSavedInvoiceId(invoiceRef.id);
+      setNoInvoice(generatedNoInvoice);
+      setSavedInvoiceId(invoiceId);
       setSaved(true);
+      showActionNotice("Invoice berhasil dibuat", `No Invoice: ${generatedNoInvoice}`);
       toast({ title: "Berhasil", description: "Invoice tersimpan" });
-    } catch {
-      toast({ title: "Error", description: "Gagal menyimpan", variant: "destructive" });
+    } catch (error) {
+      const description = error instanceof Error && error.message ? error.message : "Gagal menyimpan";
+      toast({ title: "Error", description, variant: "destructive" });
     }
     setSaving(false);
   };
@@ -156,6 +175,8 @@ const CetakInvoice = () => {
     } catch {
       toast({ title: "Perhatian", description: "Status cetak tersimpan, tetapi log aktivitas gagal dibuat." });
     }
+
+    showActionNotice("Invoice diproses untuk dicetak", "Status cetak diperbarui");
   };
 
   const handlePrint = async () => {
@@ -169,6 +190,7 @@ const CetakInvoice = () => {
       return;
     }
 
+    setPrinting(true);
     const itemsHtml = items.filter((i) => i.nama_barang).map((item) => `
       <tr>
         <td style="padding:8px;border-top:1px solid #ddd;">${item.nama_barang}</td>
@@ -205,6 +227,7 @@ const CetakInvoice = () => {
       <div><span>No Invoice:</span> ${noInvoice}</div>
       <div><span>Tanggal:</span> ${tanggal}</div>
       <div><span>Customer:</span> ${customer}</div>
+      <div><span>Stok Keluar:</span> ${stockLocation}</div>
     </div>
   </div>
   <h2>INVOICE</h2>
@@ -257,6 +280,7 @@ const CetakInvoice = () => {
         }, 500);
         await updatePrintStatus();
       }
+      setPrinting(false);
       return;
     }
     w.document.open();
@@ -264,13 +288,22 @@ const CetakInvoice = () => {
     w.document.close();
 
     await updatePrintStatus();
+    setPrinting(false);
   };
 
   if (saved) {
     return (
       <div className="px-4 pb-24 pt-6 max-w-lg mx-auto">
+        {actionNotice && (
+          <AnimatedNotification
+            key={actionNotice.id}
+            title={actionNotice.title}
+            description={actionNotice.description}
+          />
+        )}
+
         {/* Invoice Preview */}
-        <div id="invoice" className="bg-card rounded-xl border border-border p-5">
+        <div id="invoice" className="tanabrew-page-enter bg-card rounded-xl border border-border p-5">
           <div className="flex justify-between items-start mb-4">
             <img
               src="https://i.ibb.co.com/Q7dCXq9q/logo-tanabrew-hijau.png"
@@ -281,6 +314,7 @@ const CetakInvoice = () => {
               <p><span className="text-muted-foreground">No Invoice:</span> {noInvoice}</p>
               <p><span className="text-muted-foreground">Tanggal:</span> {tanggal}</p>
               <p><span className="text-muted-foreground">Customer:</span> {customer}</p>
+              <p><span className="text-muted-foreground">Stok Keluar:</span> {stockLocation}</p>
             </div>
           </div>
           <h2 className="text-center text-xl font-bold text-primary mb-4">INVOICE</h2>
@@ -343,17 +377,17 @@ const CetakInvoice = () => {
           <div className="flex-1">
             <button
               onClick={handlePrint}
-              disabled={!isAdmin}
+              disabled={!isAdmin || printing}
               className="w-full bg-primary text-primary-foreground rounded-lg py-2.5 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Cetak Invoice
+              {printing ? "Memproses Cetak..." : "Cetak Invoice"}
             </button>
             {!isAdmin && (
               <p className="mt-2 text-xs text-destructive text-center">Hanya admin yang dapat mencetak invoice.</p>
             )}
           </div>
           <button
-            onClick={() => { setSaved(false); setSavedInvoiceId(""); setItems([{ nama_barang: "", harga: 0, jumlah: 1, subtotal: 0 }]); setDiskon(0); setJumlahDibayar(0); setNoInvoice(""); setCustomer(""); setTanggal(""); }}
+            onClick={() => { setSaved(false); setSavedInvoiceId(""); setItems([{ nama_barang: "", harga: 0, jumlah: 1, subtotal: 0 }]); setDiskon(0); setJumlahDibayar(0); setNoInvoice(""); setCustomer(""); setTanggal(""); setStockLocation("Jogja"); }}
             className="flex-1 bg-muted text-muted-foreground rounded-lg py-2.5 text-sm font-medium"
           >
             Invoice Baru
@@ -365,21 +399,48 @@ const CetakInvoice = () => {
 
   return (
     <div className="px-4 pb-24 pt-6 max-w-lg mx-auto">
+      {actionNotice && (
+        <AnimatedNotification
+          key={actionNotice.id}
+          title={actionNotice.title}
+          description={actionNotice.description}
+        />
+      )}
+
       <h1 className="text-lg font-bold text-primary mb-4">Cetak Invoice</h1>
 
       <form onSubmit={handleSubmit} className="space-y-3">
         <div className="bg-card rounded-xl border border-border p-4 space-y-3">
           <input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)}
             className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" required />
-          <input placeholder="No Invoice" value={noInvoice} onChange={(e) => setNoInvoice(e.target.value)}
-            className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" required />
+          <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5">
+            <p className="text-sm font-semibold text-primary">Nomor invoice akan dibuat otomatis saat invoice disimpan.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Format: INV/TNB/YYYY/MM/0001</p>
+          </div>
           <input placeholder="Customer" value={customer} onChange={(e) => setCustomer(e.target.value)}
             className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" required />
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">Lokasi Stok Keluar</label>
+            <select
+              value={stockLocation}
+              onChange={(e) => setStockLocation(e.target.value as StockLocation)}
+              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="Jogja">Jogja</option>
+              <option value="Lombok">Lombok</option>
+            </select>
+          </div>
         </div>
 
         {/* Items */}
         <div className="bg-card rounded-xl border border-border p-4 space-y-4">
           <h2 className="text-sm font-semibold text-primary">Item</h2>
+          {loadingProducts && (
+            <div className="space-y-2 rounded-lg bg-primary/5 p-3">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          )}
           {items.map((item, idx) => (
             <div key={idx} className="space-y-2 pb-3 border-b border-border last:border-0">
               <div className="flex gap-2 items-start">
@@ -390,7 +451,9 @@ const CetakInvoice = () => {
                 >
                   <option value="">Pilih Barang</option>
                   {products.map((p) => (
-                    <option key={p.id} value={p.nama_barang}>{p.nama_barang}</option>
+                    <option key={p.id} value={p.nama_barang}>
+                      {p.nama_barang} - Stok {stockLocation}: {stockLocation === "Jogja" ? p.stok_jogja : p.stok_lombok}
+                    </option>
                   ))}
                 </select>
                 {items.length > 1 && (
@@ -452,9 +515,9 @@ const CetakInvoice = () => {
           </div>
         </div>
 
-        <button type="submit" disabled={saving}
+        <button type="submit" disabled={saving || loadingProducts}
           className="w-full bg-primary text-primary-foreground rounded-lg py-3 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
-          {saving ? "Menyimpan..." : "Simpan & Lihat Invoice"}
+          {saving ? "Menyimpan Invoice..." : loadingProducts ? "Memuat Produk..." : "Simpan & Lihat Invoice"}
         </button>
       </form>
     </div>

@@ -1,13 +1,41 @@
-import { useEffect, useMemo, useState } from "react";
-import { collection, doc, increment, onSnapshot, serverTimestamp, updateDoc } from "firebase/firestore";
-import { Activity, Eye, FileText, Package, Printer, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  collection,
+  doc,
+  getDocs,
+  increment,
+  limit as firestoreLimit,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  startAfter,
+  updateDoc,
+  type DocumentData,
+  type QueryDocumentSnapshot,
+} from "firebase/firestore";
+import { Activity, Eye, FileText, Package, Printer, RotateCcw, Search, X } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { addActivityLog } from "@/lib/activityLog";
+import AnimatedNotification from "@/components/AnimatedNotification";
+import { CardSkeleton } from "@/components/Skeleton";
 import { useAuth } from "@/context/AuthContext";
+import { useProducts } from "@/hooks/useProducts";
 import { useToast } from "@/hooks/use-toast";
-import type { ActivityLog, Invoice, InvoiceItem } from "@/types";
+import { printInvoiceReport, printStockReport, printTanabrewReport } from "@/lib/reportPrint";
+import type { ActivityLog, Invoice, InvoiceItem, StockMovement } from "@/types";
 
 type ActiveTab = "invoice" | "stok" | "aktivitas";
+type PayStatusFilter = "semua" | "LUNAS" | "BELUM LUNAS";
+type PrintStatusFilter = "semua" | "belum" | "sudah";
+type DateFilter = "semua" | "hari_ini" | "bulan_ini" | "custom";
+type ReportType = "invoice" | "stok" | "gabungan";
+
+type ActionNotice = {
+  id: number;
+  title: string;
+  description?: string;
+};
 
 const paymentInstructions = [
   "Transfer ke Seabank a.n. AHMAD FARID MUSADDAD",
@@ -16,7 +44,14 @@ const paymentInstructions = [
   "No. Rekening 7196999501",
 ];
 
-const productActions = ["CREATE_PRODUCT", "UPDATE_PRODUCT", "DELETE_PRODUCT"];
+const toInputDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const todayInputValue = () => toInputDate(new Date());
 
 const formatCurrency = (value?: number) =>
   new Intl.NumberFormat("id-ID", {
@@ -32,13 +67,9 @@ const getDateValue = (value: unknown) => {
     return value.toDate().getTime();
   }
 
-  if (value instanceof Date) {
-    return value.getTime();
-  }
+  if (value instanceof Date) return value.getTime();
 
-  if (typeof value === "number") {
-    return value;
-  }
+  if (typeof value === "number") return value;
 
   if (typeof value === "string") {
     const parsed = Date.parse(value);
@@ -48,9 +79,10 @@ const getDateValue = (value: unknown) => {
   return 0;
 };
 
+const getInvoiceDateValue = (invoice: Invoice) => getDateValue(invoice.created_at) || getDateValue(invoice.tanggal);
+
 const formatDate = (value: unknown, fallback?: string) => {
   if (!value) return fallback || "-";
-
   if (typeof value === "string") return value;
 
   const time = getDateValue(value);
@@ -87,6 +119,23 @@ const actionLabel = (action?: string) => {
   }
 };
 
+const movementLabel = (movementType?: string) => {
+  switch (movementType) {
+    case "STOCK_IN":
+      return "Stok Masuk";
+    case "STOCK_EDIT":
+      return "Edit Stok";
+    case "STOCK_OUT_INVOICE":
+      return "Stok Keluar Invoice";
+    case "PRODUCT_CREATE":
+      return "Produk Dibuat";
+    case "PRODUCT_DELETE":
+      return "Produk Dihapus";
+    default:
+      return movementType || "Mutasi Stok";
+  }
+};
+
 const statusClass = (status?: string) =>
   status === "LUNAS" ? "text-primary" : status === "BELUM LUNAS" ? "text-destructive" : "text-foreground";
 
@@ -97,6 +146,55 @@ const escapeHtml = (value: unknown) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+
+const getDateRange = (filter: DateFilter, startDate: string, endDate: string) => {
+  const now = new Date();
+  let start: Date | null = null;
+  let end: Date | null = null;
+
+  if (filter === "hari_ini") {
+    start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  }
+
+  if (filter === "bulan_ini") {
+    start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  }
+
+  if (filter === "custom") {
+    start = startDate ? new Date(`${startDate}T00:00:00`) : null;
+    end = endDate ? new Date(`${endDate}T23:59:59`) : null;
+  }
+
+  return { start, end };
+};
+
+const matchesDateFilter = (invoice: Invoice, filter: DateFilter, startDate: string, endDate: string) => {
+  if (filter === "semua") return true;
+
+  const time = getInvoiceDateValue(invoice);
+  if (!time) return false;
+
+  const { start, end } = getDateRange(filter, startDate, endDate);
+  if (start && time < start.getTime()) return false;
+  if (end && time > end.getTime()) return false;
+  return true;
+};
+
+const getPeriodLabel = (filter: DateFilter, startDate: string, endDate: string) => {
+  if (filter === "hari_ini") return "Hari Ini";
+  if (filter === "bulan_ini") return "Bulan Ini";
+  if (filter === "custom") return `${startDate || "-"} sampai ${endDate || "-"}`;
+  return "Semua Tanggal";
+};
+
+const getStockStatus = (total?: number) => {
+  const value = total || 0;
+  if (value === 0) return "Habis";
+  if (value > 0 && value <= 3) return "Menipis";
+  return "Aman";
+};
 
 const buildInvoicePrintHtml = (invoice: Invoice, autoPrint: boolean) => {
   const itemsHtml = (invoice.items || [])
@@ -177,34 +275,75 @@ const buildInvoicePrintHtml = (invoice: Invoice, autoPrint: boolean) => {
 const Riwayat = () => {
   const { toast } = useToast();
   const { currentUser, userProfile } = useAuth();
+  const { products } = useProducts();
   const [activeTab, setActiveTab] = useState<ActiveTab>("invoice");
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
   const [loadingInvoices, setLoadingInvoices] = useState(true);
+  const [loadingMoreInvoices, setLoadingMoreInvoices] = useState(false);
+  const [invoiceError, setInvoiceError] = useState(false);
+  const [hasMoreInvoices, setHasMoreInvoices] = useState(false);
+  const [invoiceCursor, setInvoiceCursor] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [loadingLogs, setLoadingLogs] = useState(true);
+  const [loadingStockMovements, setLoadingStockMovements] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [payStatusFilter, setPayStatusFilter] = useState<PayStatusFilter>("semua");
+  const [printStatusFilter, setPrintStatusFilter] = useState<PrintStatusFilter>("semua");
+  const [dateFilter, setDateFilter] = useState<DateFilter>("semua");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [reportPeriod, setReportPeriod] = useState<DateFilter>("bulan_ini");
+  const [reportStartDate, setReportStartDate] = useState(todayInputValue());
+  const [reportEndDate, setReportEndDate] = useState(todayInputValue());
+  const [loadingReport, setLoadingReport] = useState<ReportType | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(
-      collection(db, "invoices"),
-      (snap) => {
-        const data = snap.docs.map((invoiceDoc) => ({ id: invoiceDoc.id, ...invoiceDoc.data() } as Invoice));
-        data.sort((a, b) => {
-          const aDate = getDateValue(a.created_at) || getDateValue(a.tanggal);
-          const bDate = getDateValue(b.created_at) || getDateValue(b.tanggal);
-          return bDate - aDate;
-        });
-        setInvoices(data);
-        setLoadingInvoices(false);
-      },
-      () => {
-        toast({ title: "Error", description: "Gagal memuat riwayat invoice.", variant: "destructive" });
-        setLoadingInvoices(false);
-      },
-    );
+    if (!actionNotice) return;
 
-    return () => unsubscribe();
-  }, [toast]);
+    const timer = window.setTimeout(() => setActionNotice(null), 2600);
+    return () => window.clearTimeout(timer);
+  }, [actionNotice]);
+
+  const showActionNotice = (title: string, description?: string) => {
+    setActionNotice({ id: Date.now(), title, description });
+  };
+
+  const loadInvoices = useCallback(
+    async (reset = false) => {
+      if (reset) {
+        setLoadingInvoices(true);
+        setInvoiceError(false);
+      } else {
+        setLoadingMoreInvoices(true);
+      }
+
+      try {
+        const invoiceQuery = reset || !invoiceCursor
+          ? query(collection(db, "invoices"), orderBy("created_at", "desc"), firestoreLimit(20))
+          : query(collection(db, "invoices"), orderBy("created_at", "desc"), startAfter(invoiceCursor), firestoreLimit(20));
+        const snap = await getDocs(invoiceQuery);
+        const data = snap.docs.map((invoiceDoc) => ({ id: invoiceDoc.id, ...invoiceDoc.data() } as Invoice));
+
+        setInvoices((prev) => (reset ? data : [...prev, ...data]));
+        setInvoiceCursor(snap.docs[snap.docs.length - 1] || null);
+        setHasMoreInvoices(snap.docs.length === 20);
+      } catch {
+        setInvoiceError(true);
+        toast({ title: "Error", description: "Gagal memuat riwayat invoice.", variant: "destructive" });
+      } finally {
+        setLoadingInvoices(false);
+        setLoadingMoreInvoices(false);
+      }
+    },
+    [invoiceCursor, toast],
+  );
+
+  useEffect(() => {
+    void loadInvoices(true);
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(
@@ -224,11 +363,189 @@ const Riwayat = () => {
     return () => unsubscribe();
   }, [toast]);
 
-  const stockLogs = useMemo(
-    () => activityLogs.filter((log) => log.target_type === "product" || productActions.includes(log.action || "")),
-    [activityLogs],
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      collection(db, "stock_movements"),
+      (snap) => {
+        const data = snap.docs.map((movementDoc) => ({ id: movementDoc.id, ...movementDoc.data() } as StockMovement));
+        data.sort((a, b) => getDateValue(b.created_at) - getDateValue(a.created_at));
+        setStockMovements(data);
+        setLoadingStockMovements(false);
+      },
+      () => {
+        toast({ title: "Error", description: "Gagal memuat riwayat mutasi stok.", variant: "destructive" });
+        setLoadingStockMovements(false);
+      },
+    );
+
+    return () => unsubscribe();
+  }, [toast]);
+
+  const filteredInvoices = useMemo(() => {
+    const keyword = searchTerm.trim().toLowerCase();
+
+    return invoices.filter((invoice) => {
+      const matchesSearch = !keyword
+        || (invoice.no_invoice || "").toLowerCase().includes(keyword)
+        || (invoice.customer || "").toLowerCase().includes(keyword);
+      const matchesPayStatus = payStatusFilter === "semua" || invoice.status === payStatusFilter;
+      const matchesPrintStatus = printStatusFilter === "semua"
+        || (printStatusFilter === "sudah" && invoice.is_printed === true)
+        || (printStatusFilter === "belum" && invoice.is_printed !== true);
+      const matchesDate = matchesDateFilter(invoice, dateFilter, startDate, endDate);
+
+      return matchesSearch && matchesPayStatus && matchesPrintStatus && matchesDate;
+    });
+  }, [dateFilter, endDate, invoices, payStatusFilter, printStatusFilter, searchTerm, startDate]);
+
+  const reportInvoices = useMemo(
+    () => invoices.filter((invoice) => matchesDateFilter(invoice, reportPeriod, reportStartDate, reportEndDate)),
+    [invoices, reportEndDate, reportPeriod, reportStartDate],
   );
+
+  const reportSummary = useMemo(() => {
+    const stokHabis = products.filter((product) => (product.total_stok || 0) === 0).length;
+    const stokMenipis = products.filter((product) => (product.total_stok || 0) > 0 && (product.total_stok || 0) <= 3).length;
+
+    return {
+      totalInvoice: reportInvoices.length,
+      totalPemasukan: reportInvoices.reduce((sum, invoice) => sum + (invoice.total || 0), 0),
+      invoiceBelumLunas: reportInvoices.filter((invoice) => invoice.status === "BELUM LUNAS").length,
+      stokHabis,
+      stokMenipis,
+    };
+  }, [products, reportInvoices]);
+
   const isAdmin = userProfile?.role === "admin";
+
+  const resetInvoiceFilters = () => {
+    setSearchTerm("");
+    setPayStatusFilter("semua");
+    setPrintStatusFilter("semua");
+    setDateFilter("semua");
+    setStartDate("");
+    setEndDate("");
+  };
+
+  const getInvoiceFilterLabel = () => {
+    const labels = [
+      searchTerm.trim() ? `Pencarian: ${searchTerm.trim()}` : "",
+      payStatusFilter !== "semua" ? `Status bayar: ${payStatusFilter}` : "",
+      printStatusFilter !== "semua" ? `Status cetak: ${printStatusFilter === "sudah" ? "Sudah Dicetak" : "Belum Dicetak"}` : "",
+      dateFilter !== "semua" ? `Tanggal: ${getPeriodLabel(dateFilter, startDate, endDate)}` : "",
+    ].filter(Boolean);
+
+    return labels.length ? labels.join(" | ") : "Semua invoice";
+  };
+
+  const fetchAllInvoicesForReport = async () => {
+    const snap = await getDocs(collection(db, "invoices"));
+    return snap.docs
+      .map((invoiceDoc) => ({ id: invoiceDoc.id, ...invoiceDoc.data() } as Invoice))
+      .sort((a, b) => getInvoiceDateValue(b) - getInvoiceDateValue(a));
+  };
+
+  const getFilteredInvoiceReportData = (sourceInvoices: Invoice[]) => {
+    const keyword = searchTerm.trim().toLowerCase();
+
+    return sourceInvoices.filter((invoice) => {
+      const matchesSearch = !keyword
+        || (invoice.no_invoice || "").toLowerCase().includes(keyword)
+        || (invoice.customer || "").toLowerCase().includes(keyword);
+      const matchesPayStatus = payStatusFilter === "semua" || invoice.status === payStatusFilter;
+      const matchesPrintStatus = printStatusFilter === "semua"
+        || (printStatusFilter === "sudah" && invoice.is_printed === true)
+        || (printStatusFilter === "belum" && invoice.is_printed !== true);
+      const matchesDate = matchesDateFilter(invoice, dateFilter, startDate, endDate);
+
+      return matchesSearch && matchesPayStatus && matchesPrintStatus && matchesDate;
+    });
+  };
+
+  const getCombinedReportData = (sourceInvoices: Invoice[]) => {
+    if (reportPeriod === "custom" && reportStartDate && reportEndDate && reportStartDate > reportEndDate) {
+      throw new Error("Rentang tanggal tidak valid.");
+    }
+
+    return sourceInvoices.filter((invoice) => matchesDateFilter(invoice, reportPeriod, reportStartDate, reportEndDate));
+  };
+
+  const handlePrintInvoiceReport = async () => {
+    setLoadingReport("invoice");
+
+    try {
+      const reportData = getFilteredInvoiceReportData(await fetchAllInvoicesForReport());
+      const ok = printInvoiceReport({
+        invoices: reportData,
+        periodLabel: dateFilter === "semua" ? "Semua Tanggal" : getPeriodLabel(dateFilter, startDate, endDate),
+        filterLabel: getInvoiceFilterLabel(),
+        printedBy: userProfile?.name || currentUser?.email || "-",
+        roleLabel: formatRole(userProfile?.role),
+      });
+
+      if (!ok) {
+        toast({ title: "Error", description: "Gagal membuka jendela cetak laporan invoice.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Gagal menyiapkan laporan invoice.", variant: "destructive" });
+    } finally {
+      setLoadingReport(null);
+    }
+  };
+
+  const handlePrintStockReport = () => {
+    setLoadingReport("stok");
+
+    try {
+      const ok = printStockReport({
+        products,
+        filterLabel: "Semua stok",
+        printedBy: userProfile?.name || currentUser?.email || "-",
+        roleLabel: formatRole(userProfile?.role),
+      });
+
+      if (!ok) {
+        toast({ title: "Error", description: "Gagal membuka jendela cetak laporan stok.", variant: "destructive" });
+      }
+    } finally {
+      setLoadingReport(null);
+    }
+  };
+
+  const handlePrintCombinedReport = async () => {
+    setLoadingReport("gabungan");
+
+    try {
+      const reportData = getCombinedReportData(await fetchAllInvoicesForReport());
+      const summary = {
+        totalInvoice: reportData.length,
+        totalPemasukan: reportData.reduce((sum, invoice) => sum + (invoice.total || 0), 0),
+        invoiceBelumLunas: reportData.filter((invoice) => invoice.status === "BELUM LUNAS").length,
+        stokHabis: products.filter((product) => (product.total_stok || 0) === 0).length,
+        stokMenipis: products.filter((product) => (product.total_stok || 0) > 0 && (product.total_stok || 0) <= 3).length,
+      };
+
+      const ok = printTanabrewReport({
+        invoices: reportData,
+        products,
+        periodLabel: getPeriodLabel(reportPeriod, reportStartDate, reportEndDate),
+        printedBy: userProfile?.name || currentUser?.email || "-",
+        roleLabel: formatRole(userProfile?.role),
+        summary,
+      });
+
+      if (!ok) {
+        toast({ title: "Error", description: "Gagal membuka jendela cetak laporan gabungan.", variant: "destructive" });
+      }
+    } catch (error) {
+      const description = error instanceof Error && error.message
+        ? error.message
+        : "Gagal menyiapkan laporan gabungan.";
+      toast({ title: "Error", description, variant: "destructive" });
+    } finally {
+      setLoadingReport(null);
+    }
+  };
 
   const updateInvoicePrintStatus = async (invoice: Invoice) => {
     if (!currentUser || !userProfile) {
@@ -255,6 +572,20 @@ const Riwayat = () => {
         printed_by_role: userProfile.role,
         print_count: increment(1),
       });
+      setInvoices((prev) =>
+        prev.map((item) =>
+          item.id === invoice.id
+            ? {
+                ...item,
+                is_printed: true,
+                printed_by: userProfile.name,
+                printed_by_uid: currentUser.uid,
+                printed_by_role: userProfile.role,
+                print_count: (item.print_count || 0) + 1,
+              }
+            : item,
+        ),
+      );
     } catch {
       toast({ title: "Error", description: "Gagal memperbarui status cetak invoice.", variant: "destructive" });
       return;
@@ -272,6 +603,8 @@ const Riwayat = () => {
     } catch {
       toast({ title: "Perhatian", description: "Status cetak tersimpan, tetapi log aktivitas gagal dibuat." });
     }
+
+    showActionNotice("Invoice diproses untuk dicetak", "Status cetak diperbarui");
   };
 
   const handlePrintInvoice = async (invoice: Invoice) => {
@@ -339,6 +672,14 @@ const Riwayat = () => {
 
   return (
     <div className="px-4 pb-24 pt-6 max-w-lg mx-auto">
+      {actionNotice && (
+        <AnimatedNotification
+          key={actionNotice.id}
+          title={actionNotice.title}
+          description={actionNotice.description}
+        />
+      )}
+
       <h1 className="text-lg font-bold text-primary mb-4">Riwayat</h1>
 
       <div className="grid grid-cols-3 gap-2 mb-4">
@@ -363,13 +704,167 @@ const Riwayat = () => {
 
       {activeTab === "invoice" && (
         <div className="space-y-3">
+          <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+            <div>
+              <h2 className="text-sm font-bold text-primary">Cetak / Export Laporan</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Laporan bisa dicetak atau disimpan sebagai PDF dari browser.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground">Periode Laporan Gabungan</label>
+              <select
+                value={reportPeriod}
+                onChange={(e) => setReportPeriod(e.target.value as DateFilter)}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="bulan_ini">Bulan Ini</option>
+                <option value="hari_ini">Hari Ini</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            {reportPeriod === "custom" && (
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="date"
+                  value={reportStartDate}
+                  onChange={(e) => setReportStartDate(e.target.value)}
+                  className="rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <input
+                  type="date"
+                  value={reportEndDate}
+                  onChange={(e) => setReportEndDate(e.target.value)}
+                  className="rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+            )}
+            <div className="grid grid-cols-1 gap-2">
+              <button
+                onClick={handlePrintInvoiceReport}
+                disabled={loadingReport !== null}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                <Printer size={16} />
+                {loadingReport === "invoice" ? "Menyiapkan Laporan..." : "Cetak Laporan Invoice"}
+              </button>
+              <button
+                onClick={handlePrintStockReport}
+                disabled={loadingReport !== null}
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5 text-sm font-semibold text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                <Printer size={16} />
+                {loadingReport === "stok" ? "Menyiapkan Laporan..." : "Cetak Laporan Stok"}
+              </button>
+              <button
+                onClick={handlePrintCombinedReport}
+                disabled={loadingReport !== null}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-700 px-3 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                <Printer size={16} />
+                {loadingReport === "gabungan" ? "Menyiapkan Laporan..." : "Cetak Laporan Gabungan"}
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-lg bg-primary/5 px-3 py-2">
+                <p className="text-muted-foreground">Total Invoice</p>
+                <p className="font-bold text-primary">{reportSummary.totalInvoice}</p>
+              </div>
+              <div className="rounded-lg bg-primary/5 px-3 py-2">
+                <p className="text-muted-foreground">Total Pemasukan</p>
+                <p className="font-bold text-primary">{formatCurrency(reportSummary.totalPemasukan)}</p>
+              </div>
+              <div className="rounded-lg bg-primary/5 px-3 py-2">
+                <p className="text-muted-foreground">Belum Lunas</p>
+                <p className="font-bold text-destructive">{reportSummary.invoiceBelumLunas}</p>
+              </div>
+              <div className="rounded-lg bg-primary/5 px-3 py-2">
+                <p className="text-muted-foreground">Stok Bermasalah</p>
+                <p className="font-bold text-primary">{reportSummary.stokHabis + reportSummary.stokMenipis}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+            <div className="flex items-center gap-2 rounded-lg border border-input bg-background px-3 py-2.5">
+              <Search size={16} className="text-muted-foreground" />
+              <input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Cari no invoice atau customer"
+                className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={payStatusFilter}
+                onChange={(e) => setPayStatusFilter(e.target.value as PayStatusFilter)}
+                className="rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="semua">Semua Bayar</option>
+                <option value="LUNAS">Lunas</option>
+                <option value="BELUM LUNAS">Belum Lunas</option>
+              </select>
+              <select
+                value={printStatusFilter}
+                onChange={(e) => setPrintStatusFilter(e.target.value as PrintStatusFilter)}
+                className="rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="semua">Semua Cetak</option>
+                <option value="belum">Belum Dicetak</option>
+                <option value="sudah">Sudah Dicetak</option>
+              </select>
+            </div>
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value as DateFilter)}
+              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="semua">Semua Tanggal</option>
+              <option value="hari_ini">Hari Ini</option>
+              <option value="bulan_ini">Bulan Ini</option>
+              <option value="custom">Custom</option>
+            </select>
+            {dateFilter === "custom" && (
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={resetInvoiceFilters}
+                className="col-span-2 inline-flex items-center justify-center gap-2 rounded-lg bg-muted px-3 py-2.5 text-sm font-semibold text-muted-foreground"
+              >
+                <RotateCcw size={15} />
+                Reset Filter
+              </button>
+            </div>
+          </div>
+
           {loadingInvoices ? (
-            <p className="rounded-xl border border-border bg-card px-4 py-5 text-center text-sm text-muted-foreground">Memuat riwayat invoice...</p>
-          ) : invoices.length === 0 ? (
-            <p className="rounded-xl border border-border bg-card px-4 py-5 text-center text-sm text-muted-foreground">Belum ada riwayat invoice.</p>
+            <>
+              <CardSkeleton lines={4} />
+              <CardSkeleton lines={4} />
+              <CardSkeleton lines={4} />
+            </>
+          ) : invoiceError ? (
+            <p className="rounded-xl border border-border bg-card px-4 py-5 text-center text-sm text-destructive">Gagal memuat riwayat invoice.</p>
+          ) : filteredInvoices.length === 0 ? (
+            <p className="rounded-xl border border-border bg-card px-4 py-5 text-center text-sm text-muted-foreground">Tidak ada invoice sesuai filter.</p>
           ) : (
-            invoices.map((invoice) => (
-              <div key={invoice.id} className="rounded-xl border border-border bg-card p-4">
+            filteredInvoices.map((invoice) => (
+              <div key={invoice.id} className="tanabrew-card-enter rounded-xl border border-border bg-card p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-primary truncate">{invoice.no_invoice || "-"}</p>
@@ -377,7 +872,6 @@ const Riwayat = () => {
                   </div>
                   <span className={`text-xs font-bold ${statusClass(invoice.status)}`}>{invoice.status || "-"}</span>
                 </div>
-
                 <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                   <div>
                     <p className="text-muted-foreground">Total</p>
@@ -396,7 +890,6 @@ const Riwayat = () => {
                     <p className="font-semibold text-foreground">{formatRole(invoice.dibuat_oleh_role)}</p>
                   </div>
                 </div>
-
                 <div className="mt-3 rounded-lg bg-muted px-3 py-2 text-xs">
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground">Status Cetak</span>
@@ -421,7 +914,6 @@ const Riwayat = () => {
                     </div>
                   )}
                 </div>
-
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setSelectedInvoice(invoice)}
@@ -445,34 +937,62 @@ const Riwayat = () => {
               </div>
             ))
           )}
+
+          {!loadingInvoices && hasMoreInvoices && (
+            <button
+              onClick={() => loadInvoices(false)}
+              disabled={loadingMoreInvoices}
+              className="w-full rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5 text-sm font-semibold text-primary disabled:opacity-50"
+            >
+              {loadingMoreInvoices ? "Memuat..." : "Muat Lagi"}
+            </button>
+          )}
+          {!loadingInvoices && !hasMoreInvoices && invoices.length > 0 && (
+            <p className="text-center text-xs text-muted-foreground">Semua data sudah ditampilkan.</p>
+          )}
         </div>
       )}
 
       {activeTab === "stok" && (
         <div className="space-y-3">
-          {loadingLogs ? (
-            <p className="rounded-xl border border-border bg-card px-4 py-5 text-center text-sm text-muted-foreground">Memuat riwayat stok...</p>
-          ) : stockLogs.length === 0 ? (
-            <p className="rounded-xl border border-border bg-card px-4 py-5 text-center text-sm text-muted-foreground">Belum ada riwayat stok.</p>
+          {loadingStockMovements ? (
+            <>
+              <CardSkeleton lines={4} />
+              <CardSkeleton lines={4} />
+              <CardSkeleton lines={4} />
+            </>
+          ) : stockMovements.length === 0 ? (
+            <p className="rounded-xl border border-border bg-card px-4 py-5 text-center text-sm text-muted-foreground">Belum ada mutasi stok.</p>
           ) : (
-            stockLogs.map((log) => (
-              <div key={log.id} className="rounded-xl border border-border bg-card p-4">
+            stockMovements.map((movement) => {
+              const quantity = movement.quantity_change || 0;
+              const isPositive = quantity >= 0;
+
+              return (
+              <div key={movement.id} className="tanabrew-card-enter rounded-xl border border-border bg-card p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-primary">{actionLabel(log.action)}</p>
-                    <p className="text-xs text-muted-foreground">{formatDate(log.created_at)}</p>
+                    <p className="text-sm font-bold text-primary">{movementLabel(movement.movement_type)}</p>
+                    <p className="text-xs text-muted-foreground">{formatDate(movement.created_at)}</p>
                   </div>
-                  <span className="shrink-0 rounded-full bg-muted px-2 py-1 text-[11px] font-semibold text-muted-foreground">
-                    {formatRole(log.user_role)}
+                  <span className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-bold ${
+                    isPositive ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"
+                  }`}>
+                    {isPositive ? "+" : ""}{quantity}
                   </span>
                 </div>
-                <div className="mt-3 space-y-1 text-xs">
-                  <p><span className="text-muted-foreground">User:</span> <span className="font-semibold">{log.user_name || "Tidak diketahui"}</span></p>
-                  <p><span className="text-muted-foreground">Nama Produk:</span> <span className="font-semibold">{log.target_name || "-"}</span></p>
-                  <p className="text-muted-foreground">{log.description || "-"}</p>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <p><span className="text-muted-foreground">Produk:</span><br /><span className="font-semibold">{movement.product_name || "-"}</span></p>
+                  <p><span className="text-muted-foreground">Lokasi:</span><br /><span className="font-semibold">{movement.location || "-"}</span></p>
+                  <p><span className="text-muted-foreground">Stok Sebelum:</span><br /><span className="font-semibold">{movement.stock_before ?? "-"}</span></p>
+                  <p><span className="text-muted-foreground">Stok Sesudah:</span><br /><span className="font-semibold">{movement.stock_after ?? "-"}</span></p>
+                  <p><span className="text-muted-foreground">User:</span><br /><span className="font-semibold">{movement.user_name || "Tidak diketahui"}</span></p>
+                  <p><span className="text-muted-foreground">Role:</span><br /><span className="font-semibold">{formatRole(movement.user_role)}</span></p>
                 </div>
+                <p className="mt-3 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">{movement.description || "-"}</p>
               </div>
-            ))
+              );
+            })
           )}
         </div>
       )}
@@ -480,12 +1000,16 @@ const Riwayat = () => {
       {activeTab === "aktivitas" && (
         <div className="space-y-3">
           {loadingLogs ? (
-            <p className="rounded-xl border border-border bg-card px-4 py-5 text-center text-sm text-muted-foreground">Memuat riwayat aktivitas...</p>
+            <>
+              <CardSkeleton lines={3} />
+              <CardSkeleton lines={3} />
+              <CardSkeleton lines={3} />
+            </>
           ) : activityLogs.length === 0 ? (
             <p className="rounded-xl border border-border bg-card px-4 py-5 text-center text-sm text-muted-foreground">Belum ada aktivitas.</p>
           ) : (
             activityLogs.map((log) => (
-              <div key={log.id} className="rounded-xl border border-border bg-card p-4">
+              <div key={log.id} className="tanabrew-card-enter rounded-xl border border-border bg-card p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-primary">{actionLabel(log.action)}</p>
@@ -508,7 +1032,7 @@ const Riwayat = () => {
 
       {selectedInvoice && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-foreground/40" onClick={() => setSelectedInvoice(null)}>
-          <div className="bg-card w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-5 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-card w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-5 max-h-[85vh] overflow-y-auto tanabrew-card-enter" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-primary">Detail Invoice</h2>
               <button onClick={() => setSelectedInvoice(null)} className="p-1 rounded-full hover:bg-muted">

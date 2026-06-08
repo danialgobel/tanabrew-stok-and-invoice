@@ -5,9 +5,18 @@ export interface Product {
   stok_lombok: number;
   total_stok: number;
   harga: number;
+  dibuat_oleh?: string;
+  dibuat_oleh_uid?: string;
+  dibuat_oleh_role?: string;
+  diedit_oleh?: string;
+  diedit_oleh_uid?: string;
+  diedit_oleh_role?: string;
+  created_at?: unknown;
+  updated_at?: unknown;
 }
 
 export interface InvoiceItem {
+  product_id?: string;
   nama_barang: string;
   harga: number;
   jumlah: number;
@@ -20,6 +29,7 @@ export interface Invoice {
   no_invoice: string;
   customer: string;
   nomor_rekening?: string;
+  stock_location?: "Jogja" | "Lombok";
   
   items: InvoiceItem[];
   subtotal?: number;
@@ -50,5 +60,24 @@ export interface ActivityLog {
   target_id?: string;
   target_name?: string;
   description?: string;
+  created_at?: unknown;
+}
+
+export interface StockMovement {
+  id?: string;
+  product_id?: string;
+  product_name?: string;
+  movement_type?: "STOCK_IN" | "STOCK_EDIT" | "STOCK_OUT_INVOICE" | "PRODUCT_CREATE" | "PRODUCT_DELETE";
+  location?: "Jogja" | "Lombok" | "Semua" | "System";
+  quantity_change?: number;
+  stock_before?: number;
+  stock_after?: number;
+  source?: "manual" | "invoice" | "product_create" | "product_update" | "product_delete";
+  reference_id?: string;
+  reference_label?: string;
+  description?: string;
+  user_id?: string;
+  user_name?: string;
+  user_role?: string;
   created_at?: unknown;
 }

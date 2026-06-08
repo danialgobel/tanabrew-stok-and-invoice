@@ -55,6 +55,305 @@
   }
 }
 
+@layer utilities {
+  .tanabrew-page-enter {
+    animation: tanabrew-page-enter 420ms ease-out both;
+  }
+
+  .tanabrew-card-enter {
+    animation: tanabrew-card-enter 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  .tanabrew-card-exit {
+    animation: tanabrew-card-exit 180ms ease-in both;
+  }
+
+  .tanabrew-floating-notice {
+    animation: tanabrew-floating-notice 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  .tanabrew-activity-stack {
+    position: relative;
+    min-height: 10.75rem;
+  }
+
+  .tanabrew-activity-card {
+    position: absolute;
+    inset: 0;
+    min-height: 9.75rem;
+    border: 1px solid rgba(46, 125, 50, 0.18);
+    border-radius: 0.9rem;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 14px 32px rgba(22, 78, 33, 0.12);
+    padding: 1rem;
+    transition:
+      opacity 240ms ease,
+      transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      box-shadow 240ms ease;
+  }
+
+  .tanabrew-activity-card-front {
+    cursor: grab;
+    touch-action: pan-y;
+    user-select: none;
+  }
+
+  .tanabrew-activity-card-front:active {
+    cursor: grabbing;
+  }
+
+  .tanabrew-activity-card-close-left {
+    animation: tanabrew-activity-close-left 240ms ease-in both;
+  }
+
+  .tanabrew-activity-card-close-right {
+    animation: tanabrew-activity-close-right 240ms ease-in both;
+  }
+
+  .tanabrew-welcome-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background:
+      radial-gradient(circle at 50% 30%, rgba(165, 214, 167, 0.28), transparent 36%),
+      linear-gradient(145deg, rgba(46, 125, 50, 0.96), rgba(102, 187, 106, 0.92));
+    animation: tanabrew-welcome-overlay-in 260ms ease-out both;
+  }
+
+  .tanabrew-welcome-overlay-exit {
+    animation: tanabrew-welcome-overlay-out 520ms ease-in both;
+  }
+
+  .tanabrew-welcome-panel {
+    width: min(100%, 22rem);
+    border: 1px solid rgba(255, 255, 255, 0.32);
+    border-radius: 1.25rem;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 24px 70px rgba(16, 64, 24, 0.28);
+    padding: 1.25rem;
+    text-align: center;
+    animation: tanabrew-welcome-panel 720ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  .tanabrew-welcome-mark {
+    display: inline-flex;
+    height: 4.25rem;
+    width: 4.25rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    background: #2e7d32;
+    border: 2px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 10px 26px rgba(46, 125, 50, 0.26);
+    overflow: hidden;
+    padding: 0.38rem;
+    opacity: 0;
+    animation: tanabrew-welcome-mark 420ms cubic-bezier(0.2, 0.8, 0.2, 1) 140ms both;
+  }
+
+  .tanabrew-welcome-logo {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 9999px;
+    object-fit: cover;
+    object-position: center;
+  }
+
+  .tanabrew-welcome-title {
+    margin-top: 1rem;
+    color: #1b5e20;
+    font-size: 1.1rem;
+    font-weight: 800;
+    line-height: 1.35;
+    opacity: 0;
+    animation: tanabrew-welcome-text 420ms ease-out 420ms both;
+  }
+
+  .tanabrew-welcome-subtitle {
+    margin-top: 0.35rem;
+    color: #3f6f45;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    opacity: 0;
+    animation: tanabrew-welcome-text 420ms ease-out 660ms both;
+  }
+
+  .tanabrew-skeleton {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(90deg, rgba(232, 242, 232, 0.9), rgba(207, 232, 209, 0.7), rgba(232, 242, 232, 0.9));
+    background-size: 220% 100%;
+    animation: tanabrew-skeleton 1200ms ease-in-out infinite;
+  }
+
+  .tanabrew-dialog-enter {
+    animation: tanabrew-dialog-enter 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+}
+
+@keyframes tanabrew-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes tanabrew-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes tanabrew-card-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+@keyframes tanabrew-floating-notice {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes tanabrew-activity-close-left {
+  from {
+    opacity: 1;
+    transform: translateX(0) rotate(0deg);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-8rem) rotate(-8deg);
+  }
+}
+
+@keyframes tanabrew-activity-close-right {
+  from {
+    opacity: 1;
+    transform: translateX(0) rotate(0deg);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(8rem) rotate(8deg);
+  }
+}
+
+@keyframes tanabrew-welcome-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes tanabrew-welcome-overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes tanabrew-welcome-panel {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes tanabrew-welcome-mark {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.84);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes tanabrew-welcome-text {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes tanabrew-skeleton {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
+    background-position: -120% 0;
+  }
+}
+
+@keyframes tanabrew-dialog-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tanabrew-page-enter,
+  .tanabrew-card-enter,
+  .tanabrew-card-exit,
+  .tanabrew-floating-notice,
+  .tanabrew-activity-card,
+  .tanabrew-activity-card-close-left,
+  .tanabrew-activity-card-close-right,
+  .tanabrew-welcome-overlay,
+  .tanabrew-welcome-overlay-exit,
+  .tanabrew-welcome-panel,
+  .tanabrew-welcome-mark,
+  .tanabrew-welcome-title,
+  .tanabrew-welcome-subtitle,
+  .tanabrew-skeleton,
+  .tanabrew-dialog-enter {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+}
+
 @media print {
   body * {
     visibility: hidden;

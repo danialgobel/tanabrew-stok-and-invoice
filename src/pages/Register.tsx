@@ -19,7 +19,8 @@ const Register = () => {
 
     try {
       await register(name, email, password, accessCode);
-      navigate("/", { replace: true });
+      sessionStorage.setItem("showWelcomeAnimation", "true");
+      navigate("/", { replace: true, state: { showWelcomeAnimation: true } });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Gagal daftar akun";
       setError(message);

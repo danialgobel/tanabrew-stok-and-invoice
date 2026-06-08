@@ -17,7 +17,8 @@ const Login = () => {
 
     try {
       await login(email, password);
-      navigate("/", { replace: true });
+      sessionStorage.setItem("showWelcomeAnimation", "true");
+      navigate("/", { replace: true, state: { showWelcomeAnimation: true } });
     } catch {
       setError("Email atau password salah");
     } finally {
