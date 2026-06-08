@@ -168,6 +168,32 @@ const baseStyles = `
   .status-red { color: #9f1d1d; background: #ffe1e1; border: 1px solid #f3b8b8; }
   .status-orange { color: #7a5200; background: #fff0bd; border: 1px solid #f2d283; }
   .empty { border: 1px dashed #a5d6a7; border-radius: 8px; padding: 10px; color: #49624f; }
+  .report-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border: 1px solid #a5d6a7;
+    border-radius: 10px;
+    background: #f4fbf4;
+    margin-bottom: 12px;
+    padding: 10px;
+  }
+  .report-back-button {
+    border: 0;
+    border-radius: 8px;
+    background: #2e7d32;
+    color: #ffffff;
+    cursor: pointer;
+    font-weight: 700;
+    padding: 8px 12px;
+  }
+  .report-back-hint {
+    color: #49624f;
+    font-size: 11px;
+    line-height: 1.45;
+    text-align: right;
+  }
   .manual-print-note {
     border: 1px solid #a5d6a7;
     border-radius: 8px;
@@ -192,9 +218,17 @@ const baseStyles = `
   }
   .loading-card h1 { font-size: 18px; margin-bottom: 8px; }
   .loading-card p { color: #49624f; line-height: 1.55; margin: 0; }
+  @media (max-width: 640px) {
+    body { padding: 12px; }
+    .header { align-items: flex-start; flex-direction: column; gap: 10px; }
+    .meta { text-align: left; white-space: normal; }
+    .summary { grid-template-columns: repeat(2, 1fr); }
+    table { display: block; overflow-x: auto; white-space: nowrap; max-width: 100%; }
+  }
   @media print {
     body { padding: 0; }
     .summary-card, th, td, .status, .manual-print-note { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .no-print { display: none !important; }
   }
 `;
 
@@ -305,8 +339,27 @@ const reportShellHtml = (title: string, bodyHtml: string, autoPrint = true) => {
 
   return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
 <style>${baseStyles}</style></head><body>
+  <div class="report-toolbar no-print">
+    <button class="report-back-button" type="button" onclick="tanabrewBack()">Kembali</button>
+    <span id="tanabrew-back-hint" class="report-back-hint">Kembali ke Tanabrew</span>
+  </div>
   ${bodyHtml}
-  <div class="manual-print-note">Jika dialog print tidak muncul otomatis, gunakan menu browser untuk Print atau Save as PDF.</div>
+  <div class="manual-print-note no-print">Jika dialog print tidak muncul otomatis, gunakan menu browser untuk Print atau Save as PDF.</div>
+  <script>
+    function tanabrewBack(){
+      var hint = document.getElementById('tanabrew-back-hint');
+      try {
+        window.close();
+        window.setTimeout(function(){
+          if (hint) hint.textContent = 'Gunakan tombol kembali browser untuk kembali.';
+          if (window.history && window.history.length > 1) window.history.back();
+        }, 160);
+      } catch (error) {
+        if (hint) hint.textContent = 'Gunakan tombol kembali browser untuk kembali.';
+        try { if (window.history && window.history.length > 1) window.history.back(); } catch (historyError) {}
+      }
+    }
+  <\/script>
   ${script}
 </body></html>`;
 };
@@ -339,18 +392,7 @@ export const writeReportError = (reportWindow: ReportWindow, message: string) =>
 };
 
 const openPrintWindow = (title: string, bodyHtml: string, reportWindow?: ReportWindow) => {
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
-<style>${baseStyles}</style></head><body>
-  ${bodyHtml}
-  <div class="manual-print-note">Jika dialog print tidak muncul otomatis, gunakan menu browser untuk Print atau Save as PDF.</div>
-  <script>
-    window.addEventListener('load', function(){
-      setTimeout(function(){
-        try { window.focus(); window.print(); } catch (error) {}
-      }, 300);
-    });
-  <\/script>
-</body></html>`;
+  const html = reportShellHtml(title, bodyHtml);
 
   const popup = reportWindow || openReportWindow();
   if (!popup) return false;

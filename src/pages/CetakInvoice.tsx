@@ -442,12 +442,12 @@ const CetakInvoice = () => {
             </div>
           )}
           {items.map((item, idx) => (
-            <div key={idx} className="space-y-2 pb-3 border-b border-border last:border-0">
-              <div className="flex gap-2 items-start">
+            <div key={idx} className="max-w-full space-y-2 overflow-hidden border-b border-border pb-3 last:border-0">
+              <div className="flex min-w-0 items-start gap-2">
                 <select
                   value={item.nama_barang}
                   onChange={(e) => updateItem(idx, "nama_barang", e.target.value)}
-                  className="flex-1 rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="min-w-0 flex-1 rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value="">Pilih Barang</option>
                   {products.map((p) => (
@@ -457,12 +457,12 @@ const CetakInvoice = () => {
                   ))}
                 </select>
                 {items.length > 1 && (
-                  <button type="button" onClick={() => removeItem(idx)} className="p-2 text-destructive hover:bg-muted rounded-lg">
+                  <button type="button" onClick={() => removeItem(idx)} className="shrink-0 p-2 text-destructive hover:bg-muted rounded-lg">
                     <Trash2 size={16} />
                   </button>
                 )}
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 <div>
                   <label className="text-xs text-muted-foreground">Harga</label>
                   <input type="number" value={item.harga || ""} onChange={(e) => updateItem(idx, "harga", Number(e.target.value))}
@@ -473,9 +473,9 @@ const CetakInvoice = () => {
                   <input type="number" value={item.jumlah || ""} onChange={(e) => updateItem(idx, "jumlah", Number(e.target.value))}
                     className="w-full rounded-lg border border-input bg-background px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" min={1} />
                 </div>
-                <div>
+                <div className="col-span-2 sm:col-span-1">
                   <label className="text-xs text-muted-foreground">Subtotal</label>
-                  <p className="px-2 py-2 text-sm font-medium text-primary">Rp {fmt(item.subtotal)}</p>
+                  <p className="break-words rounded-lg bg-primary/5 px-2 py-2 text-sm font-medium text-primary">Rp {fmt(item.subtotal)}</p>
                 </div>
               </div>
             </div>
