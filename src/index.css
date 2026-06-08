@@ -94,6 +94,14 @@
     animation: tanabrew-page-enter 420ms ease-out both;
   }
 
+  .tanabrew-route-enter {
+    animation: tanabrew-route-enter 380ms cubic-bezier(0.22, 0.85, 0.28, 1) both;
+  }
+
+  .tanabrew-tab-panel {
+    animation: tanabrew-tab-panel 340ms cubic-bezier(0.22, 0.85, 0.28, 1) both;
+  }
+
   .tanabrew-card-enter {
     animation: tanabrew-card-enter 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
   }
@@ -104,6 +112,38 @@
 
   .tanabrew-floating-notice {
     animation: tanabrew-floating-notice 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  .tanabrew-pull-refresh {
+    position: fixed;
+    top: 0;
+    left: 50%;
+    z-index: 80;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border: 1px solid rgba(46, 125, 50, 0.22);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 12px 30px rgba(22, 78, 33, 0.16);
+    padding: 0.45rem 0.7rem;
+    color: hsl(var(--primary));
+    font-size: 0.75rem;
+    font-weight: 700;
+    pointer-events: none;
+    transition: transform 120ms ease, opacity 120ms ease;
+  }
+
+  .tanabrew-pull-refresh-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: hsl(var(--primary));
+    box-shadow: 0 0 0 4px rgba(46, 125, 50, 0.12);
+  }
+
+  .tanabrew-pull-refresh-active .tanabrew-pull-refresh-dot {
+    animation: tanabrew-pull-dot 720ms ease-in-out infinite;
   }
 
   .tanabrew-activity-stack {
@@ -231,6 +271,28 @@
   .tanabrew-dialog-enter {
     animation: tanabrew-dialog-enter 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
   }
+
+  .tanabrew-edit-form-active {
+    box-shadow: 0 14px 36px rgba(46, 125, 50, 0.1);
+  }
+
+  .tanabrew-edit-form-highlight {
+    animation: tanabrew-edit-highlight 1400ms ease-out both;
+  }
+
+  .tanabrew-dashboard-panel {
+    overflow: hidden;
+  }
+
+  .tanabrew-dashboard-bar {
+    transform-origin: bottom;
+    animation: tanabrew-dashboard-bar 560ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  .tanabrew-dashboard-stat,
+  .tanabrew-dashboard-list-item {
+    animation: tanabrew-dashboard-item 420ms cubic-bezier(0.22, 0.85, 0.28, 1) both;
+  }
 }
 
 @keyframes tanabrew-page-enter {
@@ -241,6 +303,32 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes tanabrew-route-enter {
+  from {
+    opacity: 0;
+    filter: blur(2px);
+    transform: translateY(-14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes tanabrew-tab-panel {
+  from {
+    opacity: 0;
+    filter: blur(2px);
+    transform: translateY(-12px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -277,6 +365,17 @@
   }
 }
 
+@keyframes tanabrew-pull-dot {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.72;
+  }
+  50% {
+    transform: scale(1.45);
+    opacity: 1;
+  }
+}
+
 @keyframes tanabrew-activity-close-left {
   from {
     opacity: 1;
@@ -296,6 +395,43 @@
   to {
     opacity: 0;
     transform: translateX(115%) rotate(10deg) scale(0.96);
+  }
+}
+
+@keyframes tanabrew-edit-highlight {
+  0% {
+    box-shadow: 0 0 0 0 rgba(46, 125, 50, 0.28), 0 14px 36px rgba(46, 125, 50, 0.12);
+    transform: scale(1);
+  }
+  36% {
+    box-shadow: 0 0 0 5px rgba(46, 125, 50, 0.16), 0 18px 42px rgba(46, 125, 50, 0.14);
+    transform: scale(1.01);
+  }
+  100% {
+    box-shadow: 0 14px 36px rgba(46, 125, 50, 0.1);
+    transform: scale(1);
+  }
+}
+
+@keyframes tanabrew-dashboard-bar {
+  from {
+    opacity: 0.3;
+    transform: scaleY(0.12) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1) translateY(0);
+  }
+}
+
+@keyframes tanabrew-dashboard-item {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -372,12 +508,19 @@
 
 @media (prefers-reduced-motion: reduce) {
   .tanabrew-page-enter,
+  .tanabrew-route-enter,
+  .tanabrew-tab-panel,
   .tanabrew-card-enter,
   .tanabrew-card-exit,
   .tanabrew-floating-notice,
+  .tanabrew-pull-refresh-active .tanabrew-pull-refresh-dot,
   .tanabrew-activity-card,
   .tanabrew-activity-card-close-left,
   .tanabrew-activity-card-close-right,
+  .tanabrew-edit-form-highlight,
+  .tanabrew-dashboard-bar,
+  .tanabrew-dashboard-stat,
+  .tanabrew-dashboard-list-item,
   .tanabrew-welcome-overlay,
   .tanabrew-welcome-overlay-exit,
   .tanabrew-welcome-panel,
@@ -388,6 +531,7 @@
   .tanabrew-dialog-enter {
     animation: none !important;
     opacity: 1 !important;
+    filter: none !important;
   }
 }
 

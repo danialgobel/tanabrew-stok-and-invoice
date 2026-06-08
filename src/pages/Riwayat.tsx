@@ -19,6 +19,7 @@ import { db } from "@/lib/firebase";
 import { addActivityLog } from "@/lib/activityLog";
 import AnimatedNotification from "@/components/AnimatedNotification";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import PullToRefresh from "@/components/PullToRefresh";
 import { CardSkeleton } from "@/components/Skeleton";
 import { useAuth } from "@/context/AuthContext";
 import { useProducts } from "@/hooks/useProducts";
@@ -53,6 +54,26 @@ const toInputDate = (date: Date) => {
 };
 
 const todayInputValue = () => toInputDate(new Date());
+
+const parseInputDate = (value: string) => {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return null;
+
+  return new Date(year, month - 1, day);
+};
+
+const formatFullDate = (date: Date) =>
+  new Intl.DateTimeFormat("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+
+const formatMonthYear = (date: Date) =>
+  new Intl.DateTimeFormat("id-ID", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
 
 const formatCurrency = (value?: number) =>
   new Intl.NumberFormat("id-ID", {
@@ -186,9 +207,13 @@ const matchesDateFilter = (invoice: Invoice, filter: DateFilter, startDate: stri
 };
 
 const getPeriodLabel = (filter: DateFilter, startDate: string, endDate: string) => {
-  if (filter === "hari_ini") return "Hari Ini";
-  if (filter === "bulan_ini") return "Bulan Ini";
-  if (filter === "custom") return `${startDate || "-"} sampai ${endDate || "-"}`;
+  if (filter === "hari_ini") return formatFullDate(new Date());
+  if (filter === "bulan_ini") return formatMonthYear(new Date());
+  if (filter === "custom") {
+    const startLabel = startDate ? formatFullDate(parseInputDate(startDate) || new Date(startDate)) : "-";
+    const endLabel = endDate ? formatFullDate(parseInputDate(endDate) || new Date(endDate)) : "-";
+    return `${startLabel} - ${endLabel}`;
+  }
   return "Semua Tanggal";
 };
 
@@ -453,6 +478,10 @@ const Riwayat = () => {
   }, [products, reportInvoices]);
 
   const isAdmin = userProfile?.role === "admin";
+
+  const handleSafeRefresh = useCallback(() => {
+    window.setTimeout(() => window.location.reload(), 320);
+  }, []);
 
   const resetInvoiceFilters = () => {
     setSearchTerm("");
@@ -793,6 +822,9 @@ const Riwayat = () => {
     ));
 
   return (
+    <>
+    <PullToRefresh onRefresh={handleSafeRefresh} disabled={Boolean(selectedInvoice || paymentTarget)} />
+
     <div className="px-4 pb-24 pt-6 max-w-lg mx-auto">
       {actionNotice && (
         <AnimatedNotification
@@ -825,7 +857,7 @@ const Riwayat = () => {
       </div>
 
       {activeTab === "invoice" && (
-        <div className="space-y-3">
+        <div key="invoice" className="tanabrew-tab-panel space-y-3">
           <div className="rounded-xl border border-border bg-card p-4 space-y-3">
             <div>
               <h2 className="text-sm font-bold text-primary">Cetak / Export Laporan</h2>
@@ -1085,7 +1117,7 @@ const Riwayat = () => {
       )}
 
       {activeTab === "stok" && (
-        <div className="space-y-3">
+        <div key="stok" className="tanabrew-tab-panel space-y-3">
           {loadingStockMovements ? (
             <>
               <CardSkeleton lines={4} />
@@ -1129,7 +1161,7 @@ const Riwayat = () => {
       )}
 
       {activeTab === "aktivitas" && (
-        <div className="space-y-3">
+        <div key="aktivitas" className="tanabrew-tab-panel space-y-3">
           {loadingLogs ? (
             <>
               <CardSkeleton lines={3} />
@@ -1289,6 +1321,7 @@ const Riwayat = () => {
         onConfirm={() => void handleMarkInvoicePaid()}
       />
     </div>
+    </>
   );
 };
 

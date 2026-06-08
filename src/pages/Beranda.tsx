@@ -8,6 +8,7 @@ import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import WelcomeAnimation from "@/components/WelcomeAnimation";
 import { CardSkeleton, Skeleton } from "@/components/Skeleton";
+import PullToRefresh from "@/components/PullToRefresh";
 import type { ActivityLog, Invoice } from "@/types";
 
 const actionLabel = (action?: string) => {
@@ -276,6 +277,10 @@ const Beranda = () => {
     navigate(".", { replace: true, state: null });
   }, [navigate]);
 
+  const handleSafeRefresh = useCallback(() => {
+    window.setTimeout(() => window.location.reload(), 320);
+  }, []);
+
   const handleDismissActivity = async (activity: ActivityLog, direction: "left" | "right" = "right") => {
     if (!currentUser || !activity.id || closingActivity) return;
 
@@ -344,6 +349,8 @@ const Beranda = () => {
 
   return (
     <>
+      <PullToRefresh onRefresh={handleSafeRefresh} disabled={Boolean(modal)} />
+
       {showWelcomeAnimation && (
         <WelcomeAnimation name={displayName} role={userProfile?.role} onFinish={handleWelcomeFinish} />
       )}
@@ -532,7 +539,7 @@ const Beranda = () => {
           </div>
         )}
 
-        <div className="tanabrew-card-enter rounded-xl border border-border bg-card p-4 mb-6" style={{ animationDelay: "90ms" }}>
+        <div className="tanabrew-card-enter tanabrew-dashboard-panel rounded-xl border border-border bg-card p-4 mb-6" style={{ animationDelay: "90ms" }}>
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <h2 className="text-sm font-bold text-primary">Dashboard Operasional</h2>
@@ -558,11 +565,11 @@ const Beranda = () => {
                   <span className="text-muted-foreground">Rp {fmt(dashboardDays.reduce((sum, day) => sum + day.revenue, 0))}</span>
                 </div>
                 <div className="grid grid-cols-7 items-end gap-2 rounded-lg bg-primary/5 p-3" style={{ minHeight: 132 }}>
-                  {dashboardDays.map((day) => (
+                  {dashboardDays.map((day, index) => (
                     <div key={day.key} className="flex h-28 flex-col items-center justify-end gap-1">
                       <div
-                        className="w-full rounded-t-md bg-primary/80 transition-all"
-                        style={{ height: `${Math.max(8, (day.revenue / maxRevenue) * 88)}px` }}
+                        className="tanabrew-dashboard-bar w-full rounded-t-md bg-primary/80 transition-all"
+                        style={{ height: `${Math.max(8, (day.revenue / maxRevenue) * 88)}px`, animationDelay: `${index * 45}ms` }}
                         title={`Rp ${fmt(day.revenue)}`}
                       />
                       <span className="text-[10px] text-muted-foreground">{day.label}</span>
@@ -577,11 +584,11 @@ const Beranda = () => {
                   <span className="text-muted-foreground">{dashboardDays.reduce((sum, day) => sum + day.count, 0)} invoice</span>
                 </div>
                 <div className="grid grid-cols-7 items-end gap-2 rounded-lg bg-muted p-3" style={{ minHeight: 112 }}>
-                  {dashboardDays.map((day) => (
+                  {dashboardDays.map((day, index) => (
                     <div key={day.key} className="flex h-24 flex-col items-center justify-end gap-1">
                       <div
-                        className="w-full rounded-t-md bg-emerald-500/80 transition-all"
-                        style={{ height: `${Math.max(8, (day.count / maxInvoiceCount) * 72)}px` }}
+                        className="tanabrew-dashboard-bar w-full rounded-t-md bg-emerald-500/80 transition-all"
+                        style={{ height: `${Math.max(8, (day.count / maxInvoiceCount) * 72)}px`, animationDelay: `${80 + index * 45}ms` }}
                         title={`${day.count} invoice`}
                       />
                       <span className="text-[10px] text-muted-foreground">{day.label}</span>
@@ -591,23 +598,23 @@ const Beranda = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="rounded-lg bg-primary/10 px-3 py-2">
+                <div className="tanabrew-dashboard-stat rounded-lg bg-primary/10 px-3 py-2" style={{ animationDelay: "80ms" }}>
                   <p className="text-muted-foreground">Invoice Lunas</p>
                   <p className="font-bold text-primary">{dashboardStatus.lunas}</p>
                 </div>
-                <div className="rounded-lg bg-destructive/10 px-3 py-2">
+                <div className="tanabrew-dashboard-stat rounded-lg bg-destructive/10 px-3 py-2" style={{ animationDelay: "130ms" }}>
                   <p className="text-muted-foreground">Belum Lunas</p>
                   <p className="font-bold text-destructive">{dashboardStatus.belumLunas}</p>
                 </div>
-                <div className="rounded-lg bg-primary/10 px-3 py-2">
+                <div className="tanabrew-dashboard-stat rounded-lg bg-primary/10 px-3 py-2" style={{ animationDelay: "180ms" }}>
                   <p className="text-muted-foreground">Stok Aman</p>
                   <p className="font-bold text-primary">{safeStockProducts.length}</p>
                 </div>
-                <div className="rounded-lg bg-yellow-100/80 px-3 py-2">
+                <div className="tanabrew-dashboard-stat rounded-lg bg-yellow-100/80 px-3 py-2" style={{ animationDelay: "230ms" }}>
                   <p className="text-muted-foreground">Stok Menipis</p>
                   <p className="font-bold text-yellow-800">{lowStockProducts.length}</p>
                 </div>
-                <div className="rounded-lg bg-destructive/10 px-3 py-2">
+                <div className="tanabrew-dashboard-stat rounded-lg bg-destructive/10 px-3 py-2" style={{ animationDelay: "280ms" }}>
                   <p className="text-muted-foreground">Stok Habis</p>
                   <p className="font-bold text-destructive">{emptyStockProducts.length}</p>
                 </div>
@@ -619,8 +626,12 @@ const Beranda = () => {
                   <p className="rounded-lg bg-muted px-3 py-3 text-center text-xs text-muted-foreground">Belum ada produk di invoice.</p>
                 ) : (
                   <div className="space-y-2">
-                    {topInvoiceProducts.map((product) => (
-                      <div key={product.name} className="flex items-center justify-between gap-3 rounded-lg bg-muted px-3 py-2 text-xs">
+                    {topInvoiceProducts.map((product, index) => (
+                      <div
+                        key={product.name}
+                        className="tanabrew-dashboard-list-item flex items-center justify-between gap-3 rounded-lg bg-muted px-3 py-2 text-xs"
+                        style={{ animationDelay: `${index * 55}ms` }}
+                      >
                         <span className="font-semibold text-foreground truncate">{product.name}</span>
                         <span className="font-bold text-primary">{product.count} pcs</span>
                       </div>

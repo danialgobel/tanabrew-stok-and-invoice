@@ -28,15 +28,17 @@ const AppRoutes = () => {
 
   return (
     <>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/" element={<ProtectedPage><Beranda /></ProtectedPage>} />
-        <Route path="/update-stok" element={<ProtectedPage><UpdateStok /></ProtectedPage>} />
-        <Route path="/cetak-invoice" element={<ProtectedPage><CetakInvoice /></ProtectedPage>} />
-        <Route path="/riwayat" element={<ProtectedPage><Riwayat /></ProtectedPage>} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <div key={location.pathname} className="tanabrew-route-enter">
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/" element={<ProtectedPage><Beranda /></ProtectedPage>} />
+          <Route path="/update-stok" element={<ProtectedPage><UpdateStok /></ProtectedPage>} />
+          <Route path="/cetak-invoice" element={<ProtectedPage><CetakInvoice /></ProtectedPage>} />
+          <Route path="/riwayat" element={<ProtectedPage><Riwayat /></ProtectedPage>} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </div>
       {showBottomNav && <BottomNav />}
     </>
   );

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { collection, addDoc, doc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { addActivityLog } from "@/lib/activityLog";
@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { printStockReport } from "@/lib/reportPrint";
 import { Skeleton } from "@/components/Skeleton";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import PullToRefresh from "@/components/PullToRefresh";
 
 const emptyForm = { nama_barang: "", stok_jogja: 0, stok_lombok: 0, harga: 0 };
 type StockFilter = "semua" | "menipis" | "habis";
@@ -46,6 +47,10 @@ const UpdateStok = () => {
   const [pendingDelete, setPendingDelete] = useState<Product | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [stockFilter, setStockFilter] = useState<StockFilter>("semua");
+  const [editingProductName, setEditingProductName] = useState("");
+  const [highlightEditForm, setHighlightEditForm] = useState(false);
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const highlightTimerRef = useRef<number | null>(null);
 
   const totalStok = (form.stok_jogja || 0) + (form.stok_lombok || 0);
   const filteredProducts = useMemo(() => {
@@ -62,6 +67,19 @@ const UpdateStok = () => {
       return matchesSearch && matchesFilter;
     });
   }, [products, searchTerm, stockFilter]);
+
+  const formHasInput = Boolean(form.nama_barang.trim()) || form.stok_jogja !== 0 || form.stok_lombok !== 0 || form.harga !== 0;
+  const pullRefreshDisabled = formHasInput || saving || deletingId !== null || pendingDelete !== null;
+
+  const handleSafeRefresh = useCallback(() => {
+    window.setTimeout(() => window.location.reload(), 320);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimerRef.current) window.clearTimeout(highlightTimerRef.current);
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -168,6 +186,8 @@ const UpdateStok = () => {
       }
       setForm(emptyForm);
       setEditId(null);
+      setEditingProductName("");
+      setHighlightEditForm(false);
     } catch {
       toast({ title: "Error", description: "Gagal menyimpan", variant: "destructive" });
     }
@@ -177,6 +197,14 @@ const UpdateStok = () => {
   const handleEdit = (p: Product) => {
     setForm({ nama_barang: p.nama_barang, stok_jogja: p.stok_jogja, stok_lombok: p.stok_lombok, harga: p.harga });
     setEditId(p.id!);
+    setEditingProductName(p.nama_barang);
+    setHighlightEditForm(true);
+
+    if (highlightTimerRef.current) window.clearTimeout(highlightTimerRef.current);
+    window.requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    highlightTimerRef.current = window.setTimeout(() => setHighlightEditForm(false), 1400);
   };
 
   const handleDelete = async (p: Product) => {
@@ -260,10 +288,24 @@ const UpdateStok = () => {
   };
 
   return (
+    <>
+    <PullToRefresh onRefresh={handleSafeRefresh} disabled={pullRefreshDisabled} />
+
     <div className="px-4 pb-24 pt-6 max-w-lg mx-auto">
       <h1 className="text-lg font-bold text-primary mb-4">Update Stok</h1>
 
-      <form onSubmit={handleSubmit} className="space-y-3 mb-6 bg-card rounded-xl border border-border p-4">
+      <form
+        ref={formRef}
+        onSubmit={handleSubmit}
+        className={`space-y-3 mb-6 bg-card rounded-xl border p-4 transition-colors ${
+          editId ? "tanabrew-edit-form-active border-primary/40 bg-primary/5" : "border-border"
+        } ${highlightEditForm ? "tanabrew-edit-form-highlight" : ""}`}
+      >
+        {editId && (
+          <p className="rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary">
+            Sedang mengedit: {editingProductName || form.nama_barang}
+          </p>
+        )}
         <input
           placeholder="Nama Barang"
           value={form.nama_barang}
@@ -311,12 +353,12 @@ const UpdateStok = () => {
           disabled={saving}
           className="w-full bg-primary text-primary-foreground rounded-lg py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
         >
-          {saving ? (editId ? "Memperbarui..." : "Menyimpan...") : editId ? "Perbarui" : "Simpan"}
+          {saving ? (editId ? "Menyimpan Perubahan..." : "Menyimpan...") : editId ? "Simpan Perubahan" : "Simpan"}
         </button>
         {editId && (
           <button
             type="button"
-            onClick={() => { setForm(emptyForm); setEditId(null); }}
+            onClick={() => { setForm(emptyForm); setEditId(null); setEditingProductName(""); setHighlightEditForm(false); }}
             className="w-full bg-muted text-muted-foreground rounded-lg py-2.5 text-sm font-medium"
           >
             Batal
@@ -447,6 +489,7 @@ const UpdateStok = () => {
         onConfirm={() => pendingDelete && void handleDelete(pendingDelete)}
       />
     </div>
+    </>
   );
 };
 
