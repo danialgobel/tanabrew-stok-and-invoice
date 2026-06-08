@@ -408,18 +408,24 @@ const UpdateStok = () => {
                     <td className="px-2 py-2 text-center text-xs">{p.stok_lombok}</td>
                     <td className="px-2 py-2 text-center text-xs font-medium">{p.total_stok}</td>
                     <td className="px-2 py-2 text-right text-xs">{fmt(p.harga)}</td>
-                    <td className="px-2 py-2 text-center">
-                      <div className="flex justify-center gap-1">
-                        <button onClick={() => handleEdit(p)} className="p-1 rounded hover:bg-muted text-primary">
-                          <Pencil size={14} />
+                    <td className="px-2 py-2 text-center align-middle">
+                      <div className="flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
+                        <button
+                          onClick={() => handleEdit(p)}
+                          className="inline-flex min-h-10 min-w-10 items-center justify-center gap-1 rounded-lg bg-primary/10 px-2.5 py-2 text-xs font-semibold text-primary hover:bg-primary/15 sm:min-h-9 sm:min-w-9 sm:px-2"
+                          aria-label="Edit produk"
+                        >
+                          <Pencil size={18} />
+                          <span className="sm:hidden">Edit</span>
                         </button>
                         <button
                           onClick={() => setPendingDelete(p)}
                           disabled={deletingId === p.id}
-                          className="p-1 rounded hover:bg-muted text-destructive disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="inline-flex min-h-10 min-w-10 items-center justify-center gap-1 rounded-lg bg-destructive/10 px-2.5 py-2 text-xs font-semibold text-destructive hover:bg-destructive/15 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-9 sm:min-w-9 sm:px-2"
                           aria-label={deletingId === p.id ? "Menghapus..." : "Hapus produk"}
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={18} />
+                          <span className="sm:hidden">{deletingId === p.id ? "Menghapus..." : "Hapus"}</span>
                         </button>
                       </div>
                     </td>
