@@ -1,13 +1,16 @@
 import { useState } from "react";
-import { collection, addDoc, doc, updateDoc, getDocs, query, where } from "firebase/firestore";
+import { collection, addDoc, doc, updateDoc, getDocs, query, where, serverTimestamp, increment } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { addActivityLog } from "@/lib/activityLog";
 import { useProducts } from "@/hooks/useProducts";
+import { useAuth } from "@/context/AuthContext";
 import type { InvoiceItem } from "@/types";
 import { Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const CetakInvoice = () => {
   const { products } = useProducts();
+  const { currentUser, userProfile } = useAuth();
   const { toast } = useToast();
   const [tanggal, setTanggal] = useState("");
   const [noInvoice, setNoInvoice] = useState("");
@@ -18,11 +21,13 @@ const CetakInvoice = () => {
   const [jumlahDibayar, setJumlahDibayar] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [savedInvoiceId, setSavedInvoiceId] = useState("");
 
   const subtotal = items.reduce((s, i) => s + i.subtotal, 0);
   const total = subtotal - (diskon || 0);
   const sisa = total - (jumlahDibayar || 0);
   const status = sisa <= 0 ? "LUNAS" : "BELUM LUNAS";
+  const isAdmin = userProfile?.role === "admin";
 
   const fmt = (n: number) => new Intl.NumberFormat("id-ID").format(n);
 
@@ -73,13 +78,37 @@ const CetakInvoice = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!noInvoice.trim() || !customer.trim() || items.every((i) => !i.nama_barang)) return;
+    if (!currentUser || !userProfile) {
+      toast({ title: "Error", description: "Data user belum siap, silakan coba lagi", variant: "destructive" });
+      return;
+    }
+
     setSaving(true);
     try {
-      await addDoc(collection(db, "invoices"), {
+      const invoiceRef = await addDoc(collection(db, "invoices"), {
         tanggal, no_invoice: noInvoice, customer,
         items, subtotal, diskon, total, jumlah_dibayar: jumlahDibayar, sisa, status,
+        dibuat_oleh: userProfile.name,
+        dibuat_oleh_uid: currentUser.uid,
+        dibuat_oleh_role: userProfile.role,
+        created_at: serverTimestamp(),
+        is_printed: false,
+        printed_at: null,
+        printed_by: "",
+        printed_by_uid: "",
+        printed_by_role: "",
+        print_count: 0,
       });
       await reduceStock();
+      await addActivityLog({
+        user: { uid: currentUser.uid, name: userProfile.name, role: userProfile.role },
+        action: "CREATE_INVOICE",
+        targetType: "invoice",
+        targetId: invoiceRef.id,
+        targetName: noInvoice,
+        description: `${userProfile.name} membuat invoice ${noInvoice} untuk customer ${customer}`,
+      });
+      setSavedInvoiceId(invoiceRef.id);
       setSaved(true);
       toast({ title: "Berhasil", description: "Invoice tersimpan" });
     } catch {
@@ -88,7 +117,58 @@ const CetakInvoice = () => {
     setSaving(false);
   };
 
-  const handlePrint = () => {
+  const updatePrintStatus = async () => {
+    if (!currentUser || !userProfile) {
+      toast({ title: "Error", description: "Data user belum siap, silakan coba lagi.", variant: "destructive" });
+      return;
+    }
+
+    if (userProfile.role !== "admin") {
+      toast({ title: "Error", description: "Hanya admin yang dapat mencetak invoice.", variant: "destructive" });
+      return;
+    }
+
+    if (!savedInvoiceId) return;
+
+    try {
+      await updateDoc(doc(db, "invoices", savedInvoiceId), {
+        is_printed: true,
+        printed_at: serverTimestamp(),
+        printed_by: userProfile.name,
+        printed_by_uid: currentUser.uid,
+        printed_by_role: userProfile.role,
+        print_count: increment(1),
+      });
+    } catch {
+      toast({ title: "Error", description: "Gagal memperbarui status cetak invoice.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      await addActivityLog({
+        user: { uid: currentUser.uid, name: userProfile.name, role: userProfile.role },
+        action: "PRINT_INVOICE",
+        targetType: "invoice",
+        targetId: savedInvoiceId,
+        targetName: noInvoice,
+        description: `${userProfile.name} mencetak invoice ${noInvoice}`,
+      });
+    } catch {
+      toast({ title: "Perhatian", description: "Status cetak tersimpan, tetapi log aktivitas gagal dibuat." });
+    }
+  };
+
+  const handlePrint = async () => {
+    if (!currentUser || !userProfile) {
+      toast({ title: "Error", description: "Data user belum siap, silakan coba lagi.", variant: "destructive" });
+      return;
+    }
+
+    if (userProfile.role !== "admin") {
+      toast({ title: "Error", description: "Hanya admin yang dapat mencetak invoice.", variant: "destructive" });
+      return;
+    }
+
     const itemsHtml = items.filter((i) => i.nama_barang).map((item) => `
       <tr>
         <td style="padding:8px;border-top:1px solid #ddd;">${item.nama_barang}</td>
@@ -175,12 +255,15 @@ const CetakInvoice = () => {
           iframe.contentWindow?.print();
           setTimeout(() => document.body.removeChild(iframe), 1000);
         }, 500);
+        await updatePrintStatus();
       }
       return;
     }
     w.document.open();
     w.document.write(html);
     w.document.close();
+
+    await updatePrintStatus();
   };
 
   if (saved) {
@@ -257,11 +340,20 @@ const CetakInvoice = () => {
         </div>
 
         <div className="mt-4 flex gap-3 print:hidden">
-          <button onClick={handlePrint} className="flex-1 bg-primary text-primary-foreground rounded-lg py-2.5 text-sm font-semibold">
-            Cetak Invoice
-          </button>
+          <div className="flex-1">
+            <button
+              onClick={handlePrint}
+              disabled={!isAdmin}
+              className="w-full bg-primary text-primary-foreground rounded-lg py-2.5 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Cetak Invoice
+            </button>
+            {!isAdmin && (
+              <p className="mt-2 text-xs text-destructive text-center">Hanya admin yang dapat mencetak invoice.</p>
+            )}
+          </div>
           <button
-            onClick={() => { setSaved(false); setItems([{ nama_barang: "", harga: 0, jumlah: 1, subtotal: 0 }]); setDiskon(0); setJumlahDibayar(0); setNoInvoice(""); setCustomer(""); setTanggal(""); }}
+            onClick={() => { setSaved(false); setSavedInvoiceId(""); setItems([{ nama_barang: "", harga: 0, jumlah: 1, subtotal: 0 }]); setDiskon(0); setJumlahDibayar(0); setNoInvoice(""); setCustomer(""); setTanggal(""); }}
             className="flex-1 bg-muted text-muted-foreground rounded-lg py-2.5 text-sm font-medium"
           >
             Invoice Baru

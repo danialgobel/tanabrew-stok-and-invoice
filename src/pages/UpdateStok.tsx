@@ -1,15 +1,38 @@
 import { useState } from "react";
-import { collection, addDoc, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { collection, addDoc, doc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { addActivityLog } from "@/lib/activityLog";
 import { useProducts } from "@/hooks/useProducts";
+import { useAuth } from "@/context/AuthContext";
 import type { Product } from "@/types";
 import { Pencil, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const emptyForm = { nama_barang: "", stok_jogja: 0, stok_lombok: 0, harga: 0 };
 
+const stockState = (total: number) => {
+  if (total === 0) {
+    return {
+      rowClass: "bg-destructive/10",
+      label: "Stok Habis",
+      labelClass: "bg-destructive/15 text-destructive",
+    };
+  }
+
+  if (total > 0 && total <= 3) {
+    return {
+      rowClass: "bg-yellow-100/70",
+      label: "Stok Menipis",
+      labelClass: "bg-yellow-200/80 text-yellow-800",
+    };
+  }
+
+  return { rowClass: "", label: "", labelClass: "" };
+};
+
 const UpdateStok = () => {
   const { products, loading } = useProducts();
+  const { currentUser, userProfile } = useAuth();
   const { toast } = useToast();
   const [form, setForm] = useState(emptyForm);
   const [editId, setEditId] = useState<string | null>(null);
@@ -20,6 +43,11 @@ const UpdateStok = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nama_barang.trim()) return;
+    if (!currentUser || !userProfile) {
+      toast({ title: "Error", description: "Data user belum siap, silakan coba lagi", variant: "destructive" });
+      return;
+    }
+
     setSaving(true);
     try {
       const data = {
@@ -29,11 +57,42 @@ const UpdateStok = () => {
         total_stok: totalStok,
         harga: Number(form.harga) || 0,
       };
+      const auditUser = { uid: currentUser.uid, name: userProfile.name, role: userProfile.role };
+
       if (editId) {
-        await updateDoc(doc(db, "products", editId), data);
+        await updateDoc(doc(db, "products", editId), {
+          ...data,
+          diedit_oleh: userProfile.name,
+          diedit_oleh_uid: currentUser.uid,
+          diedit_oleh_role: userProfile.role,
+          updated_at: serverTimestamp(),
+        });
+        await addActivityLog({
+          user: auditUser,
+          action: "UPDATE_PRODUCT",
+          targetType: "product",
+          targetId: editId,
+          targetName: data.nama_barang,
+          description: `${userProfile.name} mengedit stok ${data.nama_barang}`,
+        });
         toast({ title: "Berhasil", description: "Produk diperbarui" });
       } else {
-        await addDoc(collection(db, "products"), data);
+        const productRef = await addDoc(collection(db, "products"), {
+          ...data,
+          dibuat_oleh: userProfile.name,
+          dibuat_oleh_uid: currentUser.uid,
+          dibuat_oleh_role: userProfile.role,
+          created_at: serverTimestamp(),
+          updated_at: serverTimestamp(),
+        });
+        await addActivityLog({
+          user: auditUser,
+          action: "CREATE_PRODUCT",
+          targetType: "product",
+          targetId: productRef.id,
+          targetName: data.nama_barang,
+          description: `${userProfile.name} menambahkan produk ${data.nama_barang}`,
+        });
         toast({ title: "Berhasil", description: "Produk ditambahkan" });
       }
       setForm(emptyForm);
@@ -49,10 +108,23 @@ const UpdateStok = () => {
     setEditId(p.id!);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (p: Product) => {
     if (!confirm("Hapus produk ini?")) return;
+    if (!currentUser || !userProfile || !p.id) {
+      toast({ title: "Error", description: "Data user belum siap, silakan coba lagi", variant: "destructive" });
+      return;
+    }
+
     try {
-      await deleteDoc(doc(db, "products", id));
+      await addActivityLog({
+        user: { uid: currentUser.uid, name: userProfile.name, role: userProfile.role },
+        action: "DELETE_PRODUCT",
+        targetType: "product",
+        targetId: p.id,
+        targetName: p.nama_barang,
+        description: `${userProfile.name} menghapus produk ${p.nama_barang}`,
+      });
+      await deleteDoc(doc(db, "products", p.id));
       toast({ title: "Dihapus", description: "Produk berhasil dihapus" });
     } catch {
       toast({ title: "Error", description: "Gagal menghapus", variant: "destructive" });
@@ -147,8 +219,17 @@ const UpdateStok = () => {
                 <tr><td colSpan={6} className="px-3 py-4 text-center text-muted-foreground">Belum ada produk</td></tr>
               ) : (
                 products.map((p) => (
-                  <tr key={p.id} className="border-t border-border">
-                    <td className="px-2 py-2 text-xs">{p.nama_barang}</td>
+                  <tr key={p.id} className={`border-t border-border ${stockState(p.total_stok || 0).rowClass}`}>
+                    <td className="px-2 py-2 text-xs">
+                      <div className="flex flex-col gap-1">
+                        <span>{p.nama_barang}</span>
+                        {stockState(p.total_stok || 0).label && (
+                          <span className={`w-fit rounded-full px-2 py-0.5 text-[10px] font-semibold ${stockState(p.total_stok || 0).labelClass}`}>
+                            {stockState(p.total_stok || 0).label}
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-2 py-2 text-center text-xs">{p.stok_jogja}</td>
                     <td className="px-2 py-2 text-center text-xs">{p.stok_lombok}</td>
                     <td className="px-2 py-2 text-center text-xs font-medium">{p.total_stok}</td>
@@ -158,7 +239,7 @@ const UpdateStok = () => {
                         <button onClick={() => handleEdit(p)} className="p-1 rounded hover:bg-muted text-primary">
                           <Pencil size={14} />
                         </button>
-                        <button onClick={() => handleDelete(p.id!)} className="p-1 rounded hover:bg-muted text-destructive">
+                        <button onClick={() => handleDelete(p)} className="p-1 rounded hover:bg-muted text-destructive">
                           <Trash2 size={14} />
                         </button>
                       </div>
