@@ -225,6 +225,10 @@ const buildInvoicePrintHtml = (invoice: Invoice, autoPrint: boolean) => {
   @page { size: A4; margin: 12mm; }
   * { box-sizing: border-box; }
   body { font-family: -apple-system, system-ui, sans-serif; color:#111; margin:0; padding:16px; font-size:13px; }
+  .print-toolbar { position:sticky; top:0; z-index:20; display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:-16px -16px 16px; padding:10px 16px; background:#f1f8e9; border-bottom:1px solid #c8e6c9; }
+  .back-button { min-height:42px; border:0; border-radius:10px; background:#2E7D32; color:#fff; padding:0 14px; font-size:15px; font-weight:700; cursor:pointer; }
+  .back-button:active { transform:translateY(1px); }
+  .back-note { display:none; font-size:12px; color:#49624c; }
   .head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
   .head img { width:140px; height:auto; }
   .info { text-align:right; line-height:1.5; }
@@ -240,7 +244,12 @@ const buildInvoicePrintHtml = (invoice: Invoice, autoPrint: boolean) => {
   .red { color:#c0392b; }
   .foot { border-top:1px solid #ddd; padding-top:8px; margin-top:12px; font-size:11px; color:#555; }
   .foot b { color:#111; display:block; margin-bottom:4px; }
+  @media print { .no-print { display:none !important; } }
 </style></head><body>
+  <div class="print-toolbar no-print">
+    <button type="button" class="back-button" onclick="kembaliTanabrew()">&larr; Kembali ke Tanabrew</button>
+    <span id="back-note" class="back-note">Gunakan tombol kembali browser untuk kembali ke Tanabrew.</span>
+  </div>
   <div class="head">
     <img src="https://i.ibb.co.com/Q7dCXq9q/logo-tanabrew-hijau.png" alt="Tanabrew" />
     <div class="info">
@@ -271,6 +280,28 @@ const buildInvoicePrintHtml = (invoice: Invoice, autoPrint: boolean) => {
     <div style="margin-top:6px;">Transfer ke BSI a.n. AHMAD FARID MUSADDAD</div>
     <div>No. Rekening 7196999501</div>
   </div>
+  <script>
+    function kembaliTanabrew(){
+      var note = document.getElementById('back-note');
+      try {
+        window.close();
+        setTimeout(function(){
+          if (window.closed) return;
+          if (window.history.length > 1) {
+            window.history.back();
+            return;
+          }
+          if (note) note.style.display = 'inline';
+        }, 160);
+      } catch (error) {
+        if (window.history.length > 1) {
+          window.history.back();
+          return;
+        }
+        if (note) note.style.display = 'inline';
+      }
+    }
+  <\/script>
   ${script}
 </body></html>`;
 };

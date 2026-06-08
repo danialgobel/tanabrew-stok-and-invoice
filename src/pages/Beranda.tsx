@@ -1,5 +1,5 @@
 import { useProducts } from "@/hooks/useProducts";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { arrayUnion, collection, doc, limit, onSnapshot, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
 import { LogOut, X } from "lucide-react";
@@ -76,7 +76,7 @@ const Beranda = () => {
   const [loggingOut, setLoggingOut] = useState(false);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [dismissedActivityIds, setDismissedActivityIds] = useState<string[]>([]);
-  const [closingActivity, setClosingActivity] = useState<{ id: string; direction: "left" | "right" } | null>(null);
+  const [closingActivity, setClosingActivity] = useState<{ activity: ActivityLog; direction: "left" | "right"; offset: number } | null>(null);
   const [dragOffset, setDragOffset] = useState(0);
   const [adminInvoices, setAdminInvoices] = useState<Invoice[]>([]);
   const [dashboardInvoices, setDashboardInvoices] = useState<Invoice[]>([]);
@@ -110,8 +110,8 @@ const Beranda = () => {
   }, [activityLogs, dismissedActivityIds, profileDismissedActivityIds, userProfile?.last_seen_activity_id]);
   const visibleActivityCards = newActivities.slice(0, 5);
   const topActivity = newActivities[0];
-  const showActivityStack = newActivities.length > 0;
-  const activityCountLabel = `${newActivities.length} aktivitas baru`;
+  const showActivityStack = newActivities.length > 0 || Boolean(closingActivity);
+  const activityCountLabel = newActivities.length > 0 ? `${newActivities.length} aktivitas baru` : "Menutup aktivitas";
   const showHistoryHint = activityLogs.length >= 10;
 
   useEffect(() => {
@@ -289,16 +289,19 @@ const Beranda = () => {
       updatePayload.last_seen_activity_at = serverTimestamp();
     }
 
+    const activityId = activity.id;
+    const closeOffset = dragOffset;
+    setClosingActivity({ activity, direction, offset: closeOffset });
+    setDragOffset(0);
+    setDismissedActivityIds((prev) => (prev.includes(activityId) ? prev : [...prev, activityId]));
+    window.setTimeout(() => {
+      setClosingActivity((current) => (current?.activity.id === activityId ? null : current));
+    }, 260);
+
     try {
-      setClosingActivity({ id: activity.id, direction });
-      await new Promise((resolve) => window.setTimeout(resolve, 230));
       await updateDoc(doc(db, "users", currentUser.uid), updatePayload);
-      setDismissedActivityIds((prev) => (prev.includes(activity.id!) ? prev : [...prev, activity.id!]));
-      setClosingActivity(null);
-      setDragOffset(0);
     } catch {
-      setClosingActivity(null);
-      setDragOffset(0);
+      setDismissedActivityIds((prev) => prev.filter((id) => id !== activityId));
       toast({ title: "Error", description: "Gagal menutup notifikasi, silakan coba lagi.", variant: "destructive" });
     }
   };
@@ -389,24 +392,45 @@ const Beranda = () => {
             </div>
 
             <div className="tanabrew-activity-stack">
+              {closingActivity && (
+                <div
+                  key={`closing-${closingActivity.activity.id}`}
+                  className={`tanabrew-activity-card tanabrew-activity-card-front tanabrew-activity-card-close-${closingActivity.direction}`}
+                  style={{
+                    zIndex: visibleActivityCards.length + 2,
+                    "--tanabrew-activity-drag-x": `${closingActivity.offset}px`,
+                    "--tanabrew-activity-drag-rotate": `${closingActivity.offset / 28}deg`,
+                  } as CSSProperties}
+                  aria-hidden="true"
+                >
+                  <p className="pr-8 text-sm font-semibold text-foreground">
+                    {closingActivity.activity.description || "Ada aktivitas baru."}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    <span>{closingActivity.activity.user_name || "Tidak diketahui"}</span>
+                    <span>-</span>
+                    <span>{actionLabel(closingActivity.activity.action)}</span>
+                    <span>-</span>
+                    <span>Baru saja</span>
+                  </div>
+                </div>
+              )}
+
               {visibleActivityCards.map((activity, index) => {
                 const isFront = index === 0;
-                const isClosing = closingActivity?.id === activity.id;
+                const canInteract = isFront && !closingActivity;
                 const rotate = index === 1 ? -2 : index === 2 ? 2 : index === 3 ? -1 : 1;
                 const translateY = index * 8;
                 const scale = 1 - index * 0.035;
                 const opacity = 1 - index * 0.14;
-                const frontTransform = isClosing
-                  ? undefined
-                  : `translateX(${dragOffset}px) rotate(${dragOffset / 28}deg)`;
+                const activeDragOffset = canInteract ? dragOffset : 0;
+                const frontTransform = `translateX(${activeDragOffset}px) rotate(${activeDragOffset / 28}deg)`;
                 const backTransform = `translateY(${translateY}px) rotate(${rotate}deg) scale(${scale})`;
 
                 return (
                   <div
                     key={activity.id}
-                    className={`tanabrew-activity-card ${isFront ? "tanabrew-activity-card-front" : ""} ${
-                      isClosing ? `tanabrew-activity-card-close-${closingActivity.direction}` : ""
-                    }`}
+                    className={`tanabrew-activity-card ${isFront ? "tanabrew-activity-card-front" : ""}`}
                     style={{
                       zIndex: visibleActivityCards.length - index,
                       opacity,
@@ -419,9 +443,9 @@ const Beranda = () => {
                       swipeStartX.current = null;
                       setDragOffset(0);
                     }}
-                    aria-hidden={!isFront}
+                    aria-hidden={!isFront || Boolean(closingActivity)}
                   >
-                    {isFront && (
+                    {canInteract && (
                       <button
                         onClick={() => handleDismissActivity(activity)}
                         className="absolute right-2 top-2 rounded-full p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary"

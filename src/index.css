@@ -121,9 +121,10 @@
     box-shadow: 0 14px 32px rgba(22, 78, 33, 0.12);
     padding: 1rem;
     transition:
-      opacity 240ms ease,
-      transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
-      box-shadow 240ms ease;
+      opacity 220ms ease,
+      transform 240ms cubic-bezier(0.22, 0.85, 0.28, 1),
+      box-shadow 220ms ease;
+    will-change: transform, opacity;
   }
 
   .tanabrew-activity-card-front {
@@ -137,11 +138,13 @@
   }
 
   .tanabrew-activity-card-close-left {
-    animation: tanabrew-activity-close-left 240ms ease-in both;
+    pointer-events: none;
+    animation: tanabrew-activity-close-left 240ms cubic-bezier(0.32, 0.72, 0.28, 1) both;
   }
 
   .tanabrew-activity-card-close-right {
-    animation: tanabrew-activity-close-right 240ms ease-in both;
+    pointer-events: none;
+    animation: tanabrew-activity-close-right 240ms cubic-bezier(0.32, 0.72, 0.28, 1) both;
   }
 
   .tanabrew-welcome-overlay {
@@ -277,22 +280,22 @@
 @keyframes tanabrew-activity-close-left {
   from {
     opacity: 1;
-    transform: translateX(0) rotate(0deg);
+    transform: translateX(var(--tanabrew-activity-drag-x, 0px)) rotate(var(--tanabrew-activity-drag-rotate, 0deg)) scale(1);
   }
   to {
     opacity: 0;
-    transform: translateX(-8rem) rotate(-8deg);
+    transform: translateX(-115%) rotate(-10deg) scale(0.96);
   }
 }
 
 @keyframes tanabrew-activity-close-right {
   from {
     opacity: 1;
-    transform: translateX(0) rotate(0deg);
+    transform: translateX(var(--tanabrew-activity-drag-x, 0px)) rotate(var(--tanabrew-activity-drag-rotate, 0deg)) scale(1);
   }
   to {
     opacity: 0;
-    transform: translateX(8rem) rotate(8deg);
+    transform: translateX(115%) rotate(10deg) scale(0.96);
   }
 }
 
