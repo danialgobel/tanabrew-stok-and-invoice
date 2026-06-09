@@ -1,11 +1,11 @@
 import type { User } from "firebase/auth";
 
-export type TanabrewNotificationType = "CREATE_INVOICE" | "PRINT_INVOICE" | "UPDATE_PAYMENT_STATUS";
+export type TanabrewNotificationType = "CREATE_INVOICE" | "PRINT_INVOICE" | "UPDATE_PAYMENT_STATUS" | "TEST_NOTIFICATION";
 export type TanabrewNotificationRole = "admin" | "staff";
 
 export interface TanabrewNotificationPayload {
   type: TanabrewNotificationType;
-  invoiceId: string;
+  invoiceId?: string;
   invoiceNumber: string;
   customer: string;
   total: number;
@@ -33,8 +33,15 @@ export const sendTanabrewNotification = async (
   const result = await response.json().catch(() => ({}));
 
   if (!response.ok || result.success !== true) {
-    throw new Error(result.error || "Gagal mengirim notifikasi.");
+    console.warn("Gagal mengirim notifikasi Tanabrew", {
+      status: response.status,
+      error: result.error,
+      details: result.details,
+      type: payload.type,
+      invoiceNumber: payload.invoiceNumber,
+    });
+    throw new Error(result.details ? `${result.error}: ${result.details}` : result.error || "Gagal mengirim notifikasi.");
   }
 
-  return result as { success: true; id?: string | null };
+  return result as { success: true; messageId: string };
 };

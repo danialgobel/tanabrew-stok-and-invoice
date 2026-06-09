@@ -1,4 +1,4 @@
-type InvoiceNotificationType = "CREATE_INVOICE" | "PRINT_INVOICE" | "UPDATE_PAYMENT_STATUS";
+type InvoiceNotificationType = "CREATE_INVOICE" | "PRINT_INVOICE" | "UPDATE_PAYMENT_STATUS" | "TEST_NOTIFICATION";
 type InvoiceNotificationRole = "admin" | "staff";
 
 type ApiRequest = {
@@ -16,7 +16,7 @@ type ApiResponse = {
 
 type InvoiceNotificationPayload = {
   type: InvoiceNotificationType;
-  invoiceId: string;
+  invoiceId?: string;
   invoiceNumber: string;
   customer: string;
   total: number;
@@ -27,7 +27,12 @@ type InvoiceNotificationPayload = {
 const ONE_MINUTE = 60 * 1000;
 const RATE_LIMIT_MAX = 20;
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
-const allowedTypes: InvoiceNotificationType[] = ["CREATE_INVOICE", "PRINT_INVOICE", "UPDATE_PAYMENT_STATUS"];
+const allowedTypes: InvoiceNotificationType[] = [
+  "CREATE_INVOICE",
+  "PRINT_INVOICE",
+  "UPDATE_PAYMENT_STATUS",
+  "TEST_NOTIFICATION",
+];
 
 const getHeader = (req: ApiRequest, name: string) => {
   const value = req.headers[name] || req.headers[name.toLowerCase()];
@@ -56,11 +61,11 @@ const isValidPayload = (payload: Record<string, unknown> | null): payload is Inv
   const type = payload.type as InvoiceNotificationType;
   const actorRole = payload.actorRole as InvoiceNotificationRole;
   const total = Number(payload.total || 0);
+  const isTestNotification = type === "TEST_NOTIFICATION";
 
   return (
     allowedTypes.includes(type) &&
-    typeof payload.invoiceId === "string" &&
-    payload.invoiceId.trim().length > 0 &&
+    (isTestNotification || (typeof payload.invoiceId === "string" && payload.invoiceId.trim().length > 0)) &&
     typeof payload.invoiceNumber === "string" &&
     payload.invoiceNumber.trim().length > 0 &&
     typeof payload.customer === "string" &&
@@ -85,6 +90,13 @@ const formatActor = (role: InvoiceNotificationRole, name: string) =>
 const buildNotificationContent = (payload: InvoiceNotificationPayload) => {
   const actor = formatActor(payload.actorRole, payload.actorName);
   const total = formatCurrency(Number(payload.total || 0));
+
+  if (payload.type === "TEST_NOTIFICATION") {
+    return {
+      title: "Tanabrew Test Otomatis",
+      message: "Notifikasi otomatis Tanabrew berhasil dikirim dari Vercel.",
+    };
+  }
 
   if (payload.type === "CREATE_INVOICE") {
     return {
@@ -134,6 +146,25 @@ const checkRateLimit = (req: ApiRequest, authorization: string) => {
   return true;
 };
 
+const toSafeDetails = (value: unknown) => {
+  if (!value) return "";
+
+  if (typeof value === "string") return value.slice(0, 280);
+
+  if (typeof value === "object") {
+    const response = value as { errors?: unknown; error?: unknown; message?: unknown };
+    const details = response.errors || response.error || response.message || response;
+
+    try {
+      return JSON.stringify(details).slice(0, 280);
+    } catch {
+      return "Detail error tidak dapat dibaca.";
+    }
+  }
+
+  return String(value).slice(0, 280);
+};
+
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -152,6 +183,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   const appId = process.env.ONESIGNAL_APP_ID;
   const restApiKey = process.env.ONESIGNAL_REST_API_KEY;
+  console.info("OneSignal env check", {
+    hasAppId: Boolean(appId),
+    hasRestKey: Boolean(restApiKey),
+  });
+
   if (!appId || !restApiKey) {
     return res.status(500).json({
       success: false,
@@ -170,13 +206,13 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     app_id: appId,
     target_channel: "push",
     included_segments: ["Subscribed Users"],
-    headings: { en: title, id: title },
-    contents: { en: message, id: message },
+    headings: { en: title },
+    contents: { en: message },
     url: origin ? `${origin}/riwayat` : "/riwayat",
     chrome_web_icon: origin ? `${origin}/tanabrew-logo.png` : "/tanabrew-logo.png",
     data: {
       type: body.type,
-      invoiceId: body.invoiceId,
+      invoiceId: body.invoiceId || "",
       invoiceNumber: body.invoiceNumber,
     },
   };
@@ -191,6 +227,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       body: JSON.stringify(notificationPayload),
     });
     const data = await response.json().catch(() => ({}));
+    console.info("OneSignal notification response", {
+      type: body.type,
+      status: response.status,
+      hasMessageId: Boolean(data.id),
+      response: data,
+    });
 
     if (!response.ok) {
       console.error("OneSignal notification failed", {
@@ -198,10 +240,22 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         statusText: response.statusText,
         response: data,
       });
-      return res.status(502).json({ success: false, error: "Gagal mengirim notifikasi OneSignal." });
+      return res.status(502).json({
+        success: false,
+        error: "OneSignal request failed",
+        details: toSafeDetails(data) || response.statusText,
+      });
     }
 
-    return res.status(200).json({ success: true, id: data.id || null });
+    if (!data.id) {
+      return res.status(502).json({
+        success: false,
+        error: "OneSignal accepted request but no message id returned. Target audience may be empty.",
+        details: toSafeDetails(data),
+      });
+    }
+
+    return res.status(200).json({ success: true, messageId: data.id });
   } catch (error) {
     console.error("OneSignal notification request error", error);
     return res.status(502).json({ success: false, error: "Gagal menghubungi OneSignal." });

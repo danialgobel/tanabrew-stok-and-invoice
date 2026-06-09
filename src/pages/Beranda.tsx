@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import WelcomeAnimation from "@/components/WelcomeAnimation";
 import { CardSkeleton, Skeleton } from "@/components/Skeleton";
 import PullToRefresh from "@/components/PullToRefresh";
+import { sendTanabrewNotification } from "@/lib/notificationSender";
 import {
   getNotificationPermissionState,
   loginOneSignalUser,
@@ -92,6 +93,7 @@ const Beranda = () => {
   const [invoiceReminderError, setInvoiceReminderError] = useState(false);
   const [notificationStatus, setNotificationStatus] = useState<OneSignalPermissionState>(() => getNotificationPermissionState());
   const [notificationLoading, setNotificationLoading] = useState(false);
+  const [notificationTestLoading, setNotificationTestLoading] = useState(false);
   const shouldShowWelcomeFromRoute = Boolean((location.state as { showWelcomeAnimation?: boolean } | null)?.showWelcomeAnimation);
   const shouldShowWelcome = shouldShowWelcomeFromRoute || hasWelcomeAnimationFlag();
   const [showWelcomeAnimation, setShowWelcomeAnimation] = useState(() => shouldShowWelcome);
@@ -163,6 +165,7 @@ const Beranda = () => {
     || notificationStatus === "denied"
     || notificationStatus === "unsupported"
     || notificationStatus === "missing_app_id";
+  const notificationTestDisabled = notificationTestLoading || notificationStatus !== "granted";
 
   useEffect(() => {
     const q = query(collection(db, "activity_logs"), orderBy("created_at", "desc"), limit(10));
@@ -365,6 +368,43 @@ const Beranda = () => {
     }
   }, [currentUser, toast, userProfile]);
 
+  const handleSendTestNotification = useCallback(async () => {
+    if (!currentUser || !userProfile) {
+      toast({ title: "Error", description: "Data user belum siap, silakan coba lagi.", variant: "destructive" });
+      return;
+    }
+
+    if (userProfile.role !== "admin") {
+      toast({ title: "Error", description: "Hanya admin yang dapat mengirim test notifikasi.", variant: "destructive" });
+      return;
+    }
+
+    setNotificationTestLoading(true);
+    try {
+      const result = await sendTanabrewNotification(
+        {
+          type: "TEST_NOTIFICATION",
+          invoiceId: "TEST",
+          invoiceNumber: "TEST",
+          customer: "Tanabrew",
+          total: 0,
+          actorName: userProfile.name || "System",
+          actorRole: "admin",
+        },
+        currentUser,
+      );
+      toast({
+        title: "Test notifikasi dikirim",
+        description: `Message ID: ${result.messageId}`,
+      });
+    } catch (error) {
+      console.warn("Gagal mengirim test notifikasi Tanabrew", error);
+      toast({ title: "Error", description: "Gagal mengirim test notifikasi.", variant: "destructive" });
+    } finally {
+      setNotificationTestLoading(false);
+    }
+  }, [currentUser, toast, userProfile]);
+
   const handleDismissActivity = async (activity: ActivityLog, direction: "left" | "right" = "right") => {
     if (!currentUser || !activity.id || closingActivity) return;
 
@@ -492,6 +532,23 @@ const Beranda = () => {
                 <Bell size={15} />
                 {notificationLoading ? "Memproses..." : notificationStatus === "granted" ? "Notifikasi Aktif" : "Aktifkan Notifikasi"}
               </button>
+              {isAdmin && (
+                <div className="mt-3 rounded-lg border border-primary/15 bg-background/70 p-3">
+                  <p className="text-xs font-semibold text-primary">Untuk uji coba OneSignal.</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Kirim test otomatis untuk memastikan endpoint Vercel dan OneSignal aktif.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleSendTestNotification}
+                    disabled={notificationTestDisabled}
+                    className="mt-2 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-55 sm:w-auto"
+                  >
+                    <Bell size={15} />
+                    {notificationTestLoading ? "Mengirim..." : "Kirim Test Notifikasi"}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
