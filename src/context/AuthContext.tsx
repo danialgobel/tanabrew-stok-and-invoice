@@ -10,7 +10,7 @@ import {
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
-type UserRole = "admin" | "staff";
+type UserRole = "owner" | "admin" | "staff";
 
 interface UserProfile {
   uid: string;
@@ -37,6 +37,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 const getRoleFromAccessCode = (accessCode: string): UserRole => {
   const code = accessCode.trim().toUpperCase();
 
+  if (code === "OWNER") return "owner";
   if (code === "ADMIN") return "admin";
   if (code === "STAFF") return "staff";
 

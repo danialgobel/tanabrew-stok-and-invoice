@@ -1,7 +1,7 @@
 import type { App } from "firebase-admin/app";
 
-type InvoiceNotificationType = "CREATE_INVOICE" | "PRINT_INVOICE" | "UPDATE_PAYMENT_STATUS" | "TEST_NOTIFICATION";
-type InvoiceNotificationRole = "admin" | "staff";
+type InvoiceNotificationType = "CREATE_INVOICE" | "PRINT_INVOICE" | "UPDATE_PAYMENT_STATUS" | "TEST_NOTIFICATION" | "OWNER_ANNOUNCEMENT";
+type InvoiceNotificationRole = "owner" | "admin" | "staff";
 
 type ApiRequest = {
   method?: string;
@@ -24,6 +24,8 @@ type InvoiceNotificationPayload = {
   total: number;
   actorName: string;
   actorRole: InvoiceNotificationRole;
+  title?: string;
+  message?: string;
 };
 
 type FirebaseServiceAccountJson = {
@@ -44,6 +46,7 @@ const allowedTypes: InvoiceNotificationType[] = [
   "PRINT_INVOICE",
   "UPDATE_PAYMENT_STATUS",
   "TEST_NOTIFICATION",
+  "OWNER_ANNOUNCEMENT",
 ];
 
 const getHeader = (req: ApiRequest, name: string) => {
@@ -74,16 +77,16 @@ const isValidPayload = (payload: Record<string, unknown> | null): payload is Inv
   const actorRole = payload.actorRole as InvoiceNotificationRole;
   const total = Number(payload.total || 0);
   const isTestNotification = type === "TEST_NOTIFICATION";
+  const isOwnerAnnouncement = type === "OWNER_ANNOUNCEMENT";
 
   return (
     allowedTypes.includes(type) &&
-    (isTestNotification || (typeof payload.invoiceId === "string" && payload.invoiceId.trim().length > 0)) &&
-    typeof payload.invoiceNumber === "string" &&
-    payload.invoiceNumber.trim().length > 0 &&
-    typeof payload.customer === "string" &&
+    (isTestNotification || isOwnerAnnouncement || (typeof payload.invoiceId === "string" && payload.invoiceId.trim().length > 0)) &&
+    (isOwnerAnnouncement || (typeof payload.invoiceNumber === "string" && payload.invoiceNumber.trim().length > 0)) &&
+    (isOwnerAnnouncement || typeof payload.customer === "string") &&
     typeof payload.actorName === "string" &&
     payload.actorName.trim().length > 0 &&
-    (actorRole === "admin" || actorRole === "staff") &&
+    (actorRole === "owner" || actorRole === "admin" || actorRole === "staff") &&
     Number.isFinite(total) &&
     total >= 0
   );
@@ -97,7 +100,7 @@ const formatCurrency = (value: number) =>
   }).format(value || 0);
 
 const formatActor = (role: InvoiceNotificationRole, name: string) =>
-  `${role === "admin" ? "Admin" : "Staff"} ${name}`.trim();
+  `${role === "owner" ? "Owner" : role === "admin" ? "Admin" : "Staff"} ${name}`.trim();
 
 const buildNotificationContent = (payload: InvoiceNotificationPayload) => {
   const actor = formatActor(payload.actorRole, payload.actorName);
@@ -107,6 +110,13 @@ const buildNotificationContent = (payload: InvoiceNotificationPayload) => {
     return {
       title: "Tanabrew Test Otomatis",
       message: "Notifikasi otomatis Tanabrew berhasil dikirim dari Vercel.",
+    };
+  }
+
+  if (payload.type === "OWNER_ANNOUNCEMENT") {
+    return {
+      title: payload.title || "Arahan Owner Tanabrew",
+      message: payload.message || "Ada arahan baru dari Owner.",
     };
   }
 
@@ -271,14 +281,14 @@ const verifyFirebaseToken = async (authorization: string) => {
   return decodedToken.uid;
 };
 
-const loadNotificationRecipientUids = async () => {
+const loadNotificationRecipientUids = async (roles: InvoiceNotificationRole[] = ["owner", "admin", "staff"]) => {
   const db = await getAdminDb();
-  const roles: InvoiceNotificationRole[] = ["admin", "staff"];
   const snapshots = await Promise.all(
     roles.map((role) => db.collection("users").where("role", "==", role).get()),
   );
   const recipients = new Map<string, InvoiceNotificationRole>();
-  const roleCounts: Record<InvoiceNotificationRole, number> = { admin: 0, staff: 0 };
+  const roleCounts: Record<string, number> = {};
+  roles.forEach(r => { roleCounts[r] = 0; });
 
   snapshots.forEach((snapshot, index) => {
     const role = roles[index];
@@ -379,6 +389,24 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   try {
     const requesterUid = await verifyFirebaseToken(authorization);
     console.info("[Tanabrew Notification] requester verified", { hasUid: Boolean(requesterUid) });
+
+    if (body.type === "OWNER_ANNOUNCEMENT") {
+      const db = await getAdminDb();
+      const userDoc = await db.collection("users").doc(requesterUid).get();
+      const userData = userDoc.exists ? userDoc.data() : null;
+
+      if (!userData || userData.role !== "owner") {
+        console.warn("[Tanabrew Notification] unauthorized announcement attempt", {
+          uid: requesterUid,
+          role: userData?.role
+        });
+        return res.status(403).json({
+          success: false,
+          error: "UNAUTHORIZED_ANNOUNCEMENT",
+          message: "Hanya owner yang dapat mengirim arahan owner."
+        });
+      }
+    }
   } catch (error) {
     console.warn("[Tanabrew Notification] token verification failed", { details: getSafeErrorMessage(error) });
     return res.status(401).json({

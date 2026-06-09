@@ -32,6 +32,8 @@ const actionLabel = (action?: string) => {
       return "Cetak Invoice";
     case "UPDATE_PAYMENT_STATUS":
       return "Tandai Lunas";
+    case "OWNER_ANNOUNCEMENT":
+      return "Arahan Owner";
     default:
       return action || "Aktivitas";
   }
@@ -94,6 +96,9 @@ const Beranda = () => {
   const [notificationLoading, setNotificationLoading] = useState(false);
   const [notificationSyncLoading, setNotificationSyncLoading] = useState(false);
   const [notificationTestLoading, setNotificationTestLoading] = useState(false);
+  const [announcementTitle, setAnnouncementTitle] = useState("Arahan Owner Tanabrew");
+  const [announcementMessage, setAnnouncementMessage] = useState("");
+  const [announcementLoading, setAnnouncementLoading] = useState(false);
   const shouldShowWelcomeFromRoute = Boolean((location.state as { showWelcomeAnimation?: boolean } | null)?.showWelcomeAnimation);
   const shouldShowWelcome = shouldShowWelcomeFromRoute || hasWelcomeAnimationFlag();
   const [showWelcomeAnimation, setShowWelcomeAnimation] = useState(() => shouldShowWelcome);
@@ -105,8 +110,9 @@ const Beranda = () => {
   const stokLombok = products.reduce((s, p) => s + (p.stok_lombok || 0), 0);
   const fmt = (n: number) => new Intl.NumberFormat("id-ID").format(n);
   const displayName = userProfile?.name || currentUser?.email || "-";
-  const roleLabel = userProfile?.role === "admin" ? "Admin" : userProfile?.role === "staff" ? "Staff" : "-";
-  const isAdmin = userProfile?.role === "admin";
+  const roleLabel = userProfile?.role === "owner" ? "Owner" : userProfile?.role === "admin" ? "Admin" : userProfile?.role === "staff" ? "Staff" : "-";
+  const isAdmin = userProfile?.role === "admin" || userProfile?.role === "owner";
+  const isOwner = userProfile?.role === "owner";
   const profileDismissedActivityIds = useMemo(
     () => (Array.isArray(userProfile?.dismissed_activity_ids) ? userProfile.dismissed_activity_ids : []),
     [userProfile?.dismissed_activity_ids],
@@ -444,6 +450,79 @@ const Beranda = () => {
     }
   }, [currentUser, syncCurrentNotificationIdentity, toast, userProfile]);
 
+  const handleSendOwnerAnnouncement = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser || !userProfile) {
+      toast({ title: "Error", description: "Data user belum siap, silakan coba lagi.", variant: "destructive" });
+      return;
+    }
+
+    if (userProfile.role !== "owner") {
+      toast({ title: "Error", description: "Hanya owner yang dapat mengirim arahan owner.", variant: "destructive" });
+      return;
+    }
+
+    const cleanTitle = announcementTitle.trim() || "Arahan Owner Tanabrew";
+    const cleanMessage = announcementMessage.trim();
+
+    if (!cleanMessage) {
+      toast({ title: "Error", description: "Pesan wajib diisi.", variant: "destructive" });
+      return;
+    }
+
+    setAnnouncementLoading(true);
+    try {
+      await syncCurrentNotificationIdentity();
+      await new Promise((resolve) => window.setTimeout(resolve, 1500));
+      const result = await sendTanabrewNotification(
+        {
+          type: "OWNER_ANNOUNCEMENT",
+          actorName: userProfile.name || "Owner",
+          actorRole: "owner",
+          title: cleanTitle,
+          message: `Dari Owner: ${cleanMessage}`,
+          invoiceNumber: "ANNOUNCEMENT",
+          customer: "ALL",
+          total: 0
+        },
+        currentUser
+      );
+
+      toast({
+        title: "Arahan terkirim",
+        description: `Berhasil dikirim ke ${result.recipientCount || 0} user. Message ID: ${result.messageId}`,
+      });
+      
+      setAnnouncementMessage("");
+      
+      try {
+        const { addActivityLog } = await import("@/lib/activityLog");
+        await addActivityLog({
+          user: {
+            uid: currentUser.uid,
+            name: userProfile.name || "Owner",
+            role: "owner"
+          },
+          action: "OWNER_ANNOUNCEMENT",
+          targetType: "notification",
+          targetId: result.messageId || "announcement",
+          targetName: cleanTitle,
+          description: `owner mengirim arahan: ${cleanTitle}`
+        });
+      } catch (logErr) {
+        console.warn("Gagal mencatat log aktivitas untuk Arahan Owner", logErr);
+      }
+    } catch (error) {
+      console.warn("Gagal mengirim arahan owner", error);
+      const description = error instanceof Error && error.message
+        ? error.message
+        : "Gagal mengirim arahan owner.";
+      toast({ title: "Gagal mengirim arahan", description, variant: "destructive" });
+    } finally {
+      setAnnouncementLoading(false);
+    }
+  }, [currentUser, syncCurrentNotificationIdentity, toast, userProfile, announcementTitle, announcementMessage]);
+
   const handleDismissActivity = async (activity: ActivityLog, direction: "left" | "right" = "right") => {
     if (!currentUser || !activity.id || closingActivity) return;
 
@@ -600,6 +679,57 @@ const Beranda = () => {
             </div>
           </div>
         </div>
+
+        {isOwner && (
+          <div className="tanabrew-card-enter mb-4 rounded-xl border border-primary/20 bg-card p-4 shadow-sm" style={{ animationDelay: "50ms" }}>
+            <h2 className="text-sm font-bold text-primary mb-1">Arahan Owner</h2>
+            <p className="text-xs text-muted-foreground mb-4">
+              Kirim arahan langsung ke seluruh pengguna Tanabrew yang sudah mengaktifkan notifikasi.
+            </p>
+            
+            <form onSubmit={handleSendOwnerAnnouncement} className="space-y-3">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Judul Notifikasi</label>
+                <input
+                  type="text"
+                  maxLength={80}
+                  value={announcementTitle}
+                  onChange={(e) => setAnnouncementTitle(e.target.value)}
+                  placeholder="Arahan Owner Tanabrew"
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <span className="text-[10px] text-muted-foreground block text-right mt-1">
+                  {announcementTitle.length}/80 karakter
+                </span>
+              </div>
+              
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Isi Pesan Notifikasi</label>
+                <textarea
+                  required
+                  maxLength={240}
+                  rows={3}
+                  value={announcementMessage}
+                  onChange={(e) => setAnnouncementMessage(e.target.value)}
+                  placeholder="Ketik pesan arahan di sini..."
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                />
+                <span className="text-[10px] text-muted-foreground block text-right mt-1">
+                  {announcementMessage.length}/240 karakter
+                </span>
+              </div>
+              
+              <button
+                type="submit"
+                disabled={announcementLoading || !announcementMessage.trim()}
+                className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-55"
+              >
+                <Bell size={15} />
+                {announcementLoading ? "Mengirim..." : "Kirim Arahan Owner"}
+              </button>
+            </form>
+          </div>
+        )}
 
         {showActivityStack && (
           <div className="tanabrew-card-enter rounded-xl border border-primary/25 bg-primary/5 p-4 mb-4 shadow-sm">
