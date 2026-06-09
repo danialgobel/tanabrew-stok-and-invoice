@@ -24,6 +24,7 @@ import { CardSkeleton } from "@/components/Skeleton";
 import { useAuth } from "@/context/AuthContext";
 import { useProducts } from "@/hooks/useProducts";
 import { useToast } from "@/hooks/use-toast";
+import { sendTanabrewNotification } from "@/lib/notificationSender";
 import { openReportWindow, printInvoiceReport, printStockReport, printTanabrewReport, writeReportError } from "@/lib/reportPrint";
 import type { ActivityLog, Invoice, InvoiceItem, StockMovement } from "@/types";
 
@@ -372,6 +373,29 @@ const Riwayat = () => {
     setActionNotice({ id: Date.now(), title, description });
   };
 
+  const sendInvoiceNotification = (
+    type: "CREATE_INVOICE" | "PRINT_INVOICE" | "UPDATE_PAYMENT_STATUS",
+    invoice: Invoice,
+  ) => {
+    if (!currentUser || !userProfile || !invoice.id) return;
+
+    void sendTanabrewNotification(
+      {
+        type,
+        invoiceId: invoice.id,
+        invoiceNumber: invoice.no_invoice,
+        customer: invoice.customer,
+        total: invoice.total || 0,
+        actorName: userProfile.name,
+        actorRole: userProfile.role === "admin" ? "admin" : "staff",
+      },
+      currentUser,
+    ).catch((error) => {
+      console.error("Gagal mengirim notifikasi invoice", error);
+      toast({ title: "Perhatian", description: "Invoice berhasil diproses, tetapi notifikasi gagal dikirim." });
+    });
+  };
+
   const loadInvoices = useCallback(
     async (reset = false) => {
       if (reset) {
@@ -691,6 +715,7 @@ const Riwayat = () => {
       setPaymentTarget(null);
       showActionNotice("Invoice berhasil ditandai lunas", `No Invoice: ${paidInvoice.no_invoice}`);
       toast({ title: "Berhasil", description: `Invoice ${paidInvoice.no_invoice} sudah LUNAS.` });
+      sendInvoiceNotification("UPDATE_PAYMENT_STATUS", paidInvoice);
     } catch {
       toast({ title: "Error", description: "Gagal menandai invoice lunas.", variant: "destructive" });
     } finally {
@@ -756,6 +781,7 @@ const Riwayat = () => {
     }
 
     showActionNotice("Invoice diproses untuk dicetak", "Status cetak diperbarui");
+    sendInvoiceNotification("PRINT_INVOICE", invoice);
   };
 
   const handlePrintInvoice = async (invoice: Invoice) => {

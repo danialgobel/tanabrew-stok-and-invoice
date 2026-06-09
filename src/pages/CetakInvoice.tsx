@@ -4,6 +4,7 @@ import { db } from "@/lib/firebase";
 import { addActivityLog } from "@/lib/activityLog";
 import AnimatedNotification from "@/components/AnimatedNotification";
 import { createInvoiceWithNumberAndStock } from "@/lib/invoiceNumber";
+import { sendTanabrewNotification } from "@/lib/notificationSender";
 import { useProducts } from "@/hooks/useProducts";
 import { useAuth } from "@/context/AuthContext";
 import type { InvoiceItem } from "@/types";
@@ -53,6 +54,30 @@ const CetakInvoice = () => {
 
   const showActionNotice = (title: string, description?: string) => {
     setActionNotice({ id: Date.now(), title, description });
+  };
+
+  const sendInvoiceNotification = (
+    type: "CREATE_INVOICE" | "PRINT_INVOICE" | "UPDATE_PAYMENT_STATUS",
+    invoiceId: string,
+    invoiceNumber: string,
+  ) => {
+    if (!currentUser || !userProfile) return;
+
+    void sendTanabrewNotification(
+      {
+        type,
+        invoiceId,
+        invoiceNumber,
+        customer,
+        total,
+        actorName: userProfile.name,
+        actorRole: userProfile.role === "admin" ? "admin" : "staff",
+      },
+      currentUser,
+    ).catch((error) => {
+      console.error("Gagal mengirim notifikasi invoice", error);
+      toast({ title: "Perhatian", description: "Invoice berhasil diproses, tetapi notifikasi gagal dikirim." });
+    });
   };
 
   const updateItem = (idx: number, field: string, value: string | number) => {
@@ -129,6 +154,7 @@ const CetakInvoice = () => {
       setSaved(true);
       showActionNotice("Invoice berhasil dibuat", `No Invoice: ${generatedNoInvoice}`);
       toast({ title: "Berhasil", description: "Invoice tersimpan" });
+      sendInvoiceNotification("CREATE_INVOICE", invoiceId, generatedNoInvoice);
     } catch (error) {
       const description = error instanceof Error && error.message ? error.message : "Gagal menyimpan";
       toast({ title: "Error", description, variant: "destructive" });
@@ -177,6 +203,7 @@ const CetakInvoice = () => {
     }
 
     showActionNotice("Invoice diproses untuk dicetak", "Status cetak diperbarui");
+    sendInvoiceNotification("PRINT_INVOICE", savedInvoiceId, noInvoice);
   };
 
   const handlePrint = async () => {
