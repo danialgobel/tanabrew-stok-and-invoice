@@ -100,19 +100,7 @@ const Beranda = () => {
   const [announcementMessage, setAnnouncementMessage] = useState("");
   const [announcementLoading, setAnnouncementLoading] = useState(false);
   const [logoClickCount, setLogoClickCount] = useState(0);
-  const [showDebugActions, setShowDebugActions] = useState(false);
-
-  const handleLogoClick = () => {
-    setLogoClickCount((prev) => {
-      const next = prev + 1;
-      if (next >= 5) {
-        setShowDebugActions(true);
-        toast({ title: "Debug Mode", description: "Fitur debug notifikasi aktif!" });
-        return 0;
-      }
-      return next;
-    });
-  };
+  const [showOwnerCommandMode, setShowOwnerCommandMode] = useState(false);
   const shouldShowWelcomeFromRoute = Boolean((location.state as { showWelcomeAnimation?: boolean } | null)?.showWelcomeAnimation);
   const shouldShowWelcome = shouldShowWelcomeFromRoute || hasWelcomeAnimationFlag();
   const [showWelcomeAnimation, setShowWelcomeAnimation] = useState(() => shouldShowWelcome);
@@ -127,6 +115,19 @@ const Beranda = () => {
   const roleLabel = userProfile?.role === "owner" ? "Owner" : userProfile?.role === "admin" ? "Admin" : userProfile?.role === "staff" ? "Staff" : "-";
   const isAdmin = userProfile?.role === "admin" || userProfile?.role === "owner";
   const isOwner = userProfile?.role === "owner";
+
+  const handleLogoClick = () => {
+    if (!isOwner) return;
+    setLogoClickCount((prev) => {
+      const next = prev + 1;
+      if (next >= 5) {
+        setShowOwnerCommandMode(true);
+        toast({ title: "Mode Arahan Owner", description: "Mode Arahan Owner aktif!" });
+        return 0;
+      }
+      return next;
+    });
+  };
   const profileDismissedActivityIds = useMemo(
     () => (Array.isArray(userProfile?.dismissed_activity_ids) ? userProfile.dismissed_activity_ids : []),
     [userProfile?.dismissed_activity_ids],
@@ -484,6 +485,11 @@ const Beranda = () => {
       return;
     }
 
+    const confirmSend = window.confirm("Notifikasi arahan owner akan dikirim ke seluruh pengguna yang aktif. Lanjutkan?");
+    if (!confirmSend) {
+      return;
+    }
+
     setAnnouncementLoading(true);
     try {
       await syncCurrentNotificationIdentity();
@@ -722,31 +728,49 @@ const Beranda = () => {
           </div>
         )}
 
-        {isOwner && (
-          <div className="tanabrew-card-enter mb-4 rounded-xl border border-primary/20 bg-card p-4 shadow-sm" style={{ animationDelay: "50ms" }}>
-            <h2 className="text-sm font-bold text-primary mb-1">Arahan Owner</h2>
-            <p className="text-xs text-muted-foreground mb-4">
-              Kirim arahan langsung ke seluruh pengguna Tanabrew yang sudah mengaktifkan notifikasi.
-            </p>
+        {isOwner && showOwnerCommandMode && (
+          <div className="tanabrew-card-enter mb-6 rounded-xl border border-amber-500/50 bg-amber-50/40 dark:bg-amber-950/10 p-5 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300" style={{ animationDelay: "50ms" }}>
+            <div className="flex items-center justify-between mb-4 border-b border-amber-500/20 pb-2">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-900/40 px-2.5 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span>
+                  Mode Owner Aktif
+                </span>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setShowOwnerCommandMode(false)}
+                className="text-[11px] font-semibold text-amber-900 dark:text-amber-300 hover:underline"
+              >
+                Tutup Arahan Owner
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <h2 className="text-sm font-bold text-amber-900 dark:text-amber-300">Arahan Owner</h2>
+              <p className="text-xs text-amber-800 dark:text-amber-400 mt-0.5">
+                Kirim arahan penting langsung ke seluruh pengguna Tanabrew.
+              </p>
+            </div>
             
-            <form onSubmit={handleSendOwnerAnnouncement} className="space-y-3">
+            <form onSubmit={handleSendOwnerAnnouncement} className="space-y-4">
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Judul Notifikasi</label>
+                <label className="text-xs font-semibold text-amber-900 dark:text-amber-400 mb-1 block">Judul Notifikasi</label>
                 <input
                   type="text"
                   maxLength={80}
                   value={announcementTitle}
                   onChange={(e) => setAnnouncementTitle(e.target.value)}
                   placeholder="Arahan Owner Tanabrew"
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full rounded-lg border border-amber-500/30 bg-background/80 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40"
                 />
-                <span className="text-[10px] text-muted-foreground block text-right mt-1">
+                <span className="text-[10px] text-amber-800/70 dark:text-amber-400/70 block text-right mt-1">
                   {announcementTitle.length}/80 karakter
                 </span>
               </div>
               
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Isi Pesan Notifikasi</label>
+                <label className="text-xs font-semibold text-amber-900 dark:text-amber-400 mb-1 block">Isi Pesan Notifikasi</label>
                 <textarea
                   required
                   maxLength={240}
@@ -754,17 +778,21 @@ const Beranda = () => {
                   value={announcementMessage}
                   onChange={(e) => setAnnouncementMessage(e.target.value)}
                   placeholder="Ketik pesan arahan di sini..."
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                  className="w-full rounded-lg border border-amber-500/30 bg-background/80 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 resize-none"
                 />
-                <span className="text-[10px] text-muted-foreground block text-right mt-1">
+                <span className="text-[10px] text-amber-800/70 dark:text-amber-400/70 block text-right mt-1">
                   {announcementMessage.length}/240 karakter
                 </span>
+              </div>
+
+              <div className="rounded-lg bg-amber-500/10 p-3 text-[11px] text-amber-800 dark:text-amber-400 leading-relaxed border border-amber-500/10">
+                ⚠️ <strong>Info penting:</strong> Notifikasi ini bersifat arahan langsung dari Owner dan akan dikirim ke pengguna yang sudah mengaktifkan notifikasi.
               </div>
               
               <button
                 type="submit"
                 disabled={announcementLoading || !announcementMessage.trim()}
-                className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-55"
+                className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 text-sm font-semibold shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-55"
               >
                 <Bell size={15} />
                 {announcementLoading ? "Mengirim..." : "Kirim Arahan Owner"}
