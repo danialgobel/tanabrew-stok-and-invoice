@@ -2,13 +2,20 @@ import { useProducts } from "@/hooks/useProducts";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { arrayUnion, collection, doc, limit, onSnapshot, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
-import { LogOut, X } from "lucide-react";
+import { Bell, LogOut, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import WelcomeAnimation from "@/components/WelcomeAnimation";
 import { CardSkeleton, Skeleton } from "@/components/Skeleton";
 import PullToRefresh from "@/components/PullToRefresh";
+import {
+  getNotificationPermissionState,
+  loginOneSignalUser,
+  requestNotificationPermission,
+  tagOneSignalUser,
+  type OneSignalPermissionState,
+} from "@/lib/onesignal";
 import type { ActivityLog, Invoice } from "@/types";
 
 const actionLabel = (action?: string) => {
@@ -83,6 +90,8 @@ const Beranda = () => {
   const [dashboardInvoices, setDashboardInvoices] = useState<Invoice[]>([]);
   const [loadingDashboard, setLoadingDashboard] = useState(true);
   const [invoiceReminderError, setInvoiceReminderError] = useState(false);
+  const [notificationStatus, setNotificationStatus] = useState<OneSignalPermissionState>(() => getNotificationPermissionState());
+  const [notificationLoading, setNotificationLoading] = useState(false);
   const shouldShowWelcomeFromRoute = Boolean((location.state as { showWelcomeAnimation?: boolean } | null)?.showWelcomeAnimation);
   const shouldShowWelcome = shouldShowWelcomeFromRoute || hasWelcomeAnimationFlag();
   const [showWelcomeAnimation, setShowWelcomeAnimation] = useState(() => shouldShowWelcome);
@@ -114,6 +123,46 @@ const Beranda = () => {
   const showActivityStack = newActivities.length > 0 || Boolean(closingActivity);
   const activityCountLabel = newActivities.length > 0 ? `${newActivities.length} aktivitas baru` : "Menutup aktivitas";
   const showHistoryHint = activityLogs.length >= 10;
+  const notificationInfo = useMemo(() => {
+    switch (notificationStatus) {
+      case "granted":
+        return {
+          label: "Notifikasi aktif",
+          description: "Tanabrew siap menerima web push dari OneSignal.",
+          badgeClass: "bg-primary/10 text-primary",
+        };
+      case "denied":
+        return {
+          label: "Notifikasi diblokir browser",
+          description: "Izin notifikasi diblokir. Aktifkan kembali dari pengaturan browser.",
+          badgeClass: "bg-destructive/10 text-destructive",
+        };
+      case "unsupported":
+        return {
+          label: "Browser tidak mendukung notifikasi",
+          description: "Gunakan browser yang mendukung Web Push, seperti Chrome Android.",
+          badgeClass: "bg-muted text-muted-foreground",
+        };
+      case "missing_app_id":
+        return {
+          label: "Konfigurasi OneSignal belum siap",
+          description: "Tambahkan VITE_ONESIGNAL_APP_ID di environment production.",
+          badgeClass: "bg-yellow-100/80 text-yellow-800",
+        };
+      default:
+        return {
+          label: "Notifikasi belum diaktifkan",
+          description: "Aktifkan notifikasi untuk menerima info invoice baru, invoice dicetak, dan status pembayaran.",
+          badgeClass: "bg-yellow-100/80 text-yellow-800",
+        };
+    }
+  }, [notificationStatus]);
+  const notificationButtonDisabled =
+    notificationLoading
+    || notificationStatus === "granted"
+    || notificationStatus === "denied"
+    || notificationStatus === "unsupported"
+    || notificationStatus === "missing_app_id";
 
   useEffect(() => {
     const q = query(collection(db, "activity_logs"), orderBy("created_at", "desc"), limit(10));
@@ -159,6 +208,7 @@ const Beranda = () => {
     setDismissedActivityIds([]);
     setClosingActivity(null);
     setDragOffset(0);
+    setNotificationStatus(getNotificationPermissionState());
   }, [currentUser?.uid]);
 
   useEffect(() => {
@@ -281,6 +331,40 @@ const Beranda = () => {
     window.setTimeout(() => window.location.reload(), 320);
   }, []);
 
+  const handleEnableNotifications = useCallback(async () => {
+    if (!currentUser || !userProfile) {
+      toast({ title: "Error", description: "Data user belum siap, silakan coba lagi.", variant: "destructive" });
+      return;
+    }
+
+    setNotificationLoading(true);
+    try {
+      const status = await requestNotificationPermission();
+      setNotificationStatus(status);
+
+      if (status === "granted") {
+        await loginOneSignalUser(currentUser.uid);
+        await tagOneSignalUser({
+          uid: currentUser.uid,
+          name: userProfile.name,
+          email: userProfile.email || currentUser.email,
+          role: userProfile.role,
+        });
+        toast({ title: "Notifikasi aktif", description: "Perangkat ini sudah terhubung ke OneSignal." });
+      } else if (status === "denied") {
+        toast({ title: "Notifikasi diblokir", description: "Aktifkan kembali izin dari pengaturan browser.", variant: "destructive" });
+      } else if (status === "unsupported") {
+        toast({ title: "Tidak didukung", description: "Browser ini belum mendukung Web Push.", variant: "destructive" });
+      } else {
+        toast({ title: "Belum aktif", description: "Izin notifikasi belum diberikan." });
+      }
+    } catch {
+      toast({ title: "Error", description: "Gagal mengaktifkan notifikasi.", variant: "destructive" });
+    } finally {
+      setNotificationLoading(false);
+    }
+  }, [currentUser, toast, userProfile]);
+
   const handleDismissActivity = async (activity: ActivityLog, direction: "left" | "right" = "right") => {
     if (!currentUser || !activity.id || closingActivity) return;
 
@@ -379,6 +463,37 @@ const Beranda = () => {
             <LogOut size={14} />
             Logout
           </button>
+        </div>
+
+        <div className="tanabrew-card-enter mb-4 rounded-xl border border-primary/20 bg-primary/5 p-4 shadow-sm" style={{ animationDelay: "40ms" }}>
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Bell size={18} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-sm font-bold text-primary">Notifikasi Tanabrew</h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Aktifkan notifikasi untuk menerima info invoice baru, invoice dicetak, dan status pembayaran.
+                  </p>
+                </div>
+                <span className={`w-fit rounded-full px-2.5 py-1 text-[11px] font-bold ${notificationInfo.badgeClass}`}>
+                  {notificationInfo.label}
+                </span>
+              </div>
+              <p className="mt-3 text-xs text-muted-foreground">{notificationInfo.description}</p>
+              <button
+                type="button"
+                onClick={handleEnableNotifications}
+                disabled={notificationButtonDisabled}
+                className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-55 sm:w-auto"
+              >
+                <Bell size={15} />
+                {notificationLoading ? "Memproses..." : notificationStatus === "granted" ? "Notifikasi Aktif" : "Aktifkan Notifikasi"}
+              </button>
+            </div>
+          </div>
         </div>
 
         {showActivityStack && (

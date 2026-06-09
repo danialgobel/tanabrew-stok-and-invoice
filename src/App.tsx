@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
@@ -13,6 +14,7 @@ import Riwayat from "@/pages/Riwayat";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import NotFound from "@/pages/NotFound";
+import { loginOneSignalUser, logoutOneSignalUser, tagOneSignalUser } from "@/lib/onesignal";
 
 const queryClient = new QueryClient();
 
@@ -21,10 +23,39 @@ const ProtectedPage = ({ children }: { children: ReactNode }) => (
 );
 
 const AppRoutes = () => {
-  const { currentUser, loading } = useAuth();
+  const { currentUser, userProfile, loading } = useAuth();
   const location = useLocation();
+  const previousOneSignalUid = useRef<string | null>(null);
   const isAuthPage = location.pathname === "/login" || location.pathname === "/register";
   const showBottomNav = Boolean(currentUser) && !loading && !isAuthPage;
+
+  useEffect(() => {
+    if (loading) return;
+
+    if (currentUser && userProfile) {
+      previousOneSignalUid.current = currentUser.uid;
+      void loginOneSignalUser(currentUser.uid)
+        .then(() =>
+          tagOneSignalUser({
+            uid: currentUser.uid,
+            name: userProfile.name,
+            email: userProfile.email || currentUser.email,
+            role: userProfile.role,
+          }),
+        )
+        .catch((error) => {
+          console.warn("Gagal menghubungkan user ke OneSignal", error);
+        });
+      return;
+    }
+
+    if (!currentUser && previousOneSignalUid.current) {
+      previousOneSignalUid.current = null;
+      void logoutOneSignalUser().catch((error) => {
+        console.warn("Gagal logout OneSignal", error);
+      });
+    }
+  }, [currentUser, currentUser?.email, loading, userProfile]);
 
   return (
     <>
