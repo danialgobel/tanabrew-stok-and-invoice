@@ -1,4 +1,6 @@
-import { getAdminAuth, getAdminDb } from "./_firebaseAdmin";
+import { cert, getApps, initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
 
 type InvoiceNotificationType = "CREATE_INVOICE" | "PRINT_INVOICE" | "UPDATE_PAYMENT_STATUS" | "TEST_NOTIFICATION";
 type InvoiceNotificationRole = "admin" | "staff";
@@ -24,6 +26,15 @@ type InvoiceNotificationPayload = {
   total: number;
   actorName: string;
   actorRole: InvoiceNotificationRole;
+};
+
+type FirebaseServiceAccountJson = {
+  project_id?: string;
+  projectId?: string;
+  client_email?: string;
+  clientEmail?: string;
+  private_key?: string;
+  privateKey?: string;
 };
 
 const ONE_MINUTE = 60 * 1000;
@@ -177,6 +188,42 @@ const parseOneSignalResponse = async (response: Response) => {
     return text;
   }
 };
+
+const getServiceAccount = () => {
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+
+  if (!raw) {
+    throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is not configured.");
+  }
+
+  const serviceAccount = JSON.parse(raw) as FirebaseServiceAccountJson;
+  const projectId = serviceAccount.project_id || serviceAccount.projectId;
+  const clientEmail = serviceAccount.client_email || serviceAccount.clientEmail;
+  const privateKey = serviceAccount.private_key || serviceAccount.privateKey;
+
+  if (!projectId || !clientEmail || !privateKey) {
+    throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is invalid.");
+  }
+
+  return {
+    projectId,
+    clientEmail,
+    privateKey: privateKey.replace(/\\n/g, "\n"),
+  };
+};
+
+const getFirebaseAdminApp = () => {
+  const existingApp = getApps()[0];
+  if (existingApp) return existingApp;
+
+  return initializeApp({
+    credential: cert(getServiceAccount()),
+  });
+};
+
+const getAdminDb = () => getFirestore(getFirebaseAdminApp());
+
+const getAdminAuth = () => getAuth(getFirebaseAdminApp());
 
 const verifyFirebaseToken = async (authorization: string) => {
   const token = authorization.replace(/^Bearer\s+/i, "").trim();
