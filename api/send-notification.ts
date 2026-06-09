@@ -1,3 +1,5 @@
+import { getAdminAuth, getAdminDb } from "./_firebaseAdmin";
+
 type InvoiceNotificationType = "CREATE_INVOICE" | "PRINT_INVOICE" | "UPDATE_PAYMENT_STATUS" | "TEST_NOTIFICATION";
 type InvoiceNotificationRole = "admin" | "staff";
 
@@ -165,11 +167,53 @@ const toSafeDetails = (value: unknown) => {
   return String(value).slice(0, 280);
 };
 
-const roleTargetFilters = [
-  { field: "tag", key: "role", relation: "=", value: "admin" },
-  { operator: "OR" },
-  { field: "tag", key: "role", relation: "=", value: "staff" },
-];
+const parseOneSignalResponse = async (response: Response) => {
+  const text = await response.text();
+  if (!text) return {};
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+};
+
+const verifyFirebaseToken = async (authorization: string) => {
+  const token = authorization.replace(/^Bearer\s+/i, "").trim();
+  const decodedToken = await getAdminAuth().verifyIdToken(token);
+  return decodedToken.uid;
+};
+
+const loadNotificationRecipientUids = async () => {
+  const db = getAdminDb();
+  const roles: InvoiceNotificationRole[] = ["admin", "staff"];
+  const snapshots = await Promise.all(
+    roles.map((role) => db.collection("users").where("role", "==", role).get()),
+  );
+  const recipients = new Map<string, InvoiceNotificationRole>();
+  const roleCounts: Record<InvoiceNotificationRole, number> = { admin: 0, staff: 0 };
+
+  snapshots.forEach((snapshot, index) => {
+    const role = roles[index];
+    roleCounts[role] = snapshot.size;
+
+    snapshot.docs.forEach((userDoc) => {
+      const data = userDoc.data();
+      const uid = typeof data.uid === "string" && data.uid.trim()
+        ? data.uid.trim()
+        : userDoc.id;
+
+      if (uid) {
+        recipients.set(uid, role);
+      }
+    });
+  });
+
+  return {
+    recipientUids: Array.from(recipients.keys()),
+    roleCounts,
+  };
+};
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== "POST") {
@@ -182,22 +226,26 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return res.status(401).json({ success: false, error: "Authorization token is required." });
   }
 
-  // TODO: Verify Firebase ID tokens with firebase-admin once service account env is available.
   if (!checkRateLimit(req, authorization)) {
     return res.status(429).json({ success: false, error: "Terlalu banyak permintaan notifikasi. Coba lagi nanti." });
   }
 
   const appId = process.env.ONESIGNAL_APP_ID;
   const restApiKey = process.env.ONESIGNAL_REST_API_KEY;
-  console.info("OneSignal env check", {
+  const firebaseServiceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  const envDebug = {
     hasAppId: Boolean(appId),
     hasRestKey: Boolean(restApiKey),
-  });
+    hasFirebaseServiceAccount: Boolean(firebaseServiceAccountJson),
+  };
+  console.info("[Tanabrew Notification] env status", envDebug);
 
-  if (!appId || !restApiKey) {
+  if (!appId || !restApiKey || !firebaseServiceAccountJson) {
     return res.status(500).json({
       success: false,
-      error: "OneSignal environment variables are not configured.",
+      error: "NOTIFICATION_ENV_MISSING",
+      message: "Notification environment variables are not configured.",
+      debug: envDebug,
     });
   }
 
@@ -206,12 +254,48 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return res.status(400).json({ success: false, error: "Payload notifikasi tidak valid." });
   }
 
+  try {
+    const requesterUid = await verifyFirebaseToken(authorization);
+    console.info("[Tanabrew Notification] requester verified", { hasUid: Boolean(requesterUid) });
+  } catch {
+    return res.status(401).json({
+      success: false,
+      error: "AUTH_INVALID",
+      message: "Authorization token is invalid.",
+    });
+  }
+
+  let recipientUids: string[] = [];
+  try {
+    const recipientData = await loadNotificationRecipientUids();
+    recipientUids = recipientData.recipientUids;
+    console.info("[Tanabrew Notification] recipient roles loaded", recipientData.roleCounts);
+    console.info("[Tanabrew Notification] recipient count", { count: recipientUids.length });
+  } catch (error) {
+    console.error("[Tanabrew Notification] failed to load recipients", error);
+    return res.status(502).json({
+      success: false,
+      error: "RECIPIENTS_LOAD_FAILED",
+      message: "Gagal memuat target user notifikasi.",
+    });
+  }
+
+  if (recipientUids.length === 0) {
+    return res.status(404).json({
+      success: false,
+      error: "NO_NOTIFICATION_RECIPIENTS",
+      message: "Tidak ada user admin/staff yang bisa dikirimi notifikasi.",
+    });
+  }
+
   const { title, message } = buildNotificationContent(body);
   const origin = getRequestOrigin(req);
   const notificationPayload = {
     app_id: appId,
     target_channel: "push",
-    filters: roleTargetFilters,
+    include_aliases: {
+      external_id: recipientUids,
+    },
     headings: { en: title },
     contents: { en: message },
     url: origin ? `${origin}/riwayat` : "/riwayat",
@@ -232,40 +316,43 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       },
       body: JSON.stringify(notificationPayload),
     });
-    const data = await response.json().catch(() => ({}));
-    console.info("OneSignal notification response", {
+    const data = await parseOneSignalResponse(response);
+    console.info("[Tanabrew Notification] OneSignal response status", {
       type: body.type,
       status: response.status,
-      hasMessageId: Boolean(data.id),
-      response: data,
+      hasMessageId: Boolean(typeof data === "object" && data && "id" in data && data.id),
+      recipientCount: recipientUids.length,
     });
+    console.info("[Tanabrew Notification] OneSignal response body", toSafeDetails(data));
 
     if (!response.ok) {
-      console.error("OneSignal notification failed", {
+      console.error("[Tanabrew Notification] OneSignal request failed", {
         status: response.status,
         statusText: response.statusText,
-        response: data,
+        details: toSafeDetails(data),
       });
       return res.status(502).json({
         success: false,
         error: "OneSignal request failed",
+        message: "Gagal mengirim notifikasi OneSignal.",
         oneSignalStatus: response.status,
         details: toSafeDetails(data) || response.statusText,
       });
     }
 
-    if (!data.id) {
+    if (!(typeof data === "object" && data && "id" in data && data.id)) {
       return res.status(502).json({
         success: false,
-        error: "OneSignal target audience kosong. Pastikan subscriber memiliki tag role admin/staff.",
+        error: "ONESIGNAL_MESSAGE_ID_MISSING",
+        message: "OneSignal tidak mengembalikan message id.",
         oneSignalStatus: response.status,
         details: toSafeDetails(data),
       });
     }
 
-    return res.status(200).json({ success: true, messageId: data.id });
+    return res.status(200).json({ success: true, messageId: data.id, recipientCount: recipientUids.length });
   } catch (error) {
-    console.error("OneSignal notification request error", error);
-    return res.status(502).json({ success: false, error: "Gagal menghubungi OneSignal." });
+    console.error("[Tanabrew Notification] OneSignal request error", error);
+    return res.status(502).json({ success: false, error: "ONESIGNAL_REQUEST_FAILED", message: "Gagal menghubungi OneSignal." });
   }
 }

@@ -13,7 +13,7 @@ import { sendTanabrewNotification } from "@/lib/notificationSender";
 import {
   getNotificationPermissionState,
   requestNotificationPermission,
-  syncOneSignalUserTags,
+  syncOneSignalUserIdentity,
   type OneSignalPermissionState,
 } from "@/lib/onesignal";
 import type { ActivityLog, Invoice } from "@/types";
@@ -339,17 +339,17 @@ const Beranda = () => {
     window.setTimeout(() => window.location.reload(), 320);
   }, []);
 
-  const syncCurrentNotificationTags = useCallback(async () => {
+  const syncCurrentNotificationIdentity = useCallback(async () => {
     if (!currentUser || !userProfile) {
       throw new Error("Data user belum siap, silakan coba lagi.");
     }
 
-    await syncOneSignalUserTags({
+    await syncOneSignalUserIdentity({
       uid: currentUser.uid,
       role: userProfile.role,
       name: userProfile.name || currentUser.displayName || currentUser.email || "",
       email: userProfile.email || currentUser.email || "",
-    }, currentUser);
+    });
   }, [currentUser, userProfile]);
 
   const handleEnableNotifications = useCallback(async () => {
@@ -365,11 +365,11 @@ const Beranda = () => {
 
       if (status === "granted") {
         try {
-          await syncCurrentNotificationTags();
-          toast({ title: "Notifikasi aktif", description: "Tag notifikasi berhasil disinkronkan." });
+          await syncCurrentNotificationIdentity();
+          toast({ title: "Notifikasi aktif", description: "Identitas notifikasi berhasil disinkronkan." });
         } catch (error) {
-          console.warn("Gagal menyinkronkan tag setelah notifikasi aktif", error);
-          toast({ title: "Perhatian", description: "Notifikasi aktif, tetapi tag user gagal disinkronkan." });
+          console.warn("Gagal menyinkronkan identitas setelah notifikasi aktif", error);
+          toast({ title: "Perhatian", description: "Notifikasi aktif, tetapi identitas user gagal disinkronkan." });
         }
       } else if (status === "denied") {
         toast({ title: "Notifikasi diblokir", description: "Aktifkan kembali izin dari pengaturan browser.", variant: "destructive" });
@@ -383,24 +383,24 @@ const Beranda = () => {
     } finally {
       setNotificationLoading(false);
     }
-  }, [currentUser, syncCurrentNotificationTags, toast, userProfile]);
+  }, [currentUser, syncCurrentNotificationIdentity, toast, userProfile]);
 
-  const handleSyncNotificationTags = useCallback(async () => {
+  const handleSyncNotificationIdentity = useCallback(async () => {
     setNotificationSyncLoading(true);
     try {
-      await syncCurrentNotificationTags();
+      await syncCurrentNotificationIdentity();
       setNotificationStatus(getNotificationPermissionState());
-      toast({ title: "Berhasil", description: "Tag notifikasi berhasil disinkronkan." });
+      toast({ title: "Berhasil", description: "Identitas notifikasi berhasil disinkronkan." });
     } catch (error) {
-      console.warn("Gagal menyinkronkan tag notifikasi", error);
+      console.warn("Gagal menyinkronkan identitas notifikasi", error);
       const description = error instanceof Error && error.message
         ? error.message
-        : "Gagal menyinkronkan tag notifikasi.";
-      toast({ title: "Gagal menyinkronkan tag notifikasi", description, variant: "destructive" });
+        : "Gagal menyinkronkan identitas notifikasi.";
+      toast({ title: "Gagal menyinkronkan identitas notifikasi", description, variant: "destructive" });
     } finally {
       setNotificationSyncLoading(false);
     }
-  }, [syncCurrentNotificationTags, toast]);
+  }, [syncCurrentNotificationIdentity, toast]);
 
   const handleSendTestNotification = useCallback(async () => {
     if (!currentUser || !userProfile) {
@@ -415,7 +415,7 @@ const Beranda = () => {
 
     setNotificationTestLoading(true);
     try {
-      await syncCurrentNotificationTags();
+      await syncCurrentNotificationIdentity();
       await new Promise((resolve) => window.setTimeout(resolve, 1500));
       const result = await sendTanabrewNotification(
         {
@@ -442,7 +442,7 @@ const Beranda = () => {
     } finally {
       setNotificationTestLoading(false);
     }
-  }, [currentUser, syncCurrentNotificationTags, toast, userProfile]);
+  }, [currentUser, syncCurrentNotificationIdentity, toast, userProfile]);
 
   const handleDismissActivity = async (activity: ActivityLog, direction: "left" | "right" = "right") => {
     if (!currentUser || !activity.id || closingActivity) return;
@@ -573,12 +573,12 @@ const Beranda = () => {
               </button>
               <button
                 type="button"
-                onClick={handleSyncNotificationTags}
+                onClick={handleSyncNotificationIdentity}
                 disabled={notificationSyncDisabled}
                 className="mt-2 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-primary/30 bg-background px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-55 sm:ml-2 sm:mt-3 sm:w-auto"
               >
                 <Bell size={15} />
-                {notificationSyncLoading ? "Menyinkronkan..." : "Sinkronkan Tag Notifikasi"}
+                {notificationSyncLoading ? "Menyinkronkan..." : "Sinkronkan Identitas Notifikasi"}
               </button>
               {isAdmin && (
                 <div className="mt-3 rounded-lg border border-primary/15 bg-background/70 p-3">

@@ -14,7 +14,7 @@ import Riwayat from "@/pages/Riwayat";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import NotFound from "@/pages/NotFound";
-import { logoutOneSignalUser, syncOneSignalUserTags } from "@/lib/onesignal";
+import { logoutOneSignalUser, syncOneSignalUserIdentity } from "@/lib/onesignal";
 
 const queryClient = new QueryClient();
 
@@ -34,13 +34,13 @@ const AppRoutes = () => {
 
     if (currentUser && userProfile) {
       previousOneSignalUid.current = currentUser.uid;
-      void syncOneSignalUserTags({
+      void syncOneSignalUserIdentity({
         uid: currentUser.uid,
         name: userProfile.name || currentUser.displayName || currentUser.email || "",
         email: userProfile.email || currentUser.email || "",
         role: userProfile.role,
-      }, currentUser).catch((error) => {
-        console.warn("Gagal menyinkronkan tag user OneSignal", error);
+      }).catch((error) => {
+        console.warn("Gagal menyinkronkan identitas user OneSignal", error);
       });
       return;
     }
