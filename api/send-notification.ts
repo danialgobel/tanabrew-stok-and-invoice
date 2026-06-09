@@ -286,9 +286,9 @@ const loadNotificationRecipientUids = async () => {
 
     snapshot.docs.forEach((userDoc) => {
       const data = userDoc.data();
-      const uid = typeof data.uid === "string" && data.uid.trim()
-        ? data.uid.trim()
-        : userDoc.id;
+      const uid = userDoc.id && userDoc.id.trim()
+        ? userDoc.id.trim()
+        : (typeof data.uid === "string" && data.uid.trim() ? data.uid.trim() : "");
 
       if (uid) {
         recipients.set(uid, role);
