@@ -684,49 +684,7 @@ const Beranda = () => {
           </div>
         )}
 
-        {isAdmin && showDebugActions && (
-          <div className="tanabrew-card-enter mb-6 rounded-xl border border-destructive/30 bg-destructive/5 p-4 shadow-sm" style={{ animationDelay: "40ms" }}>
-            <div className="flex items-center justify-between mb-3 border-b border-destructive/10 pb-2">
-              <span className="text-xs font-bold text-destructive flex items-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-full bg-destructive animate-ping"></span>
-                Developer Debug Mode
-              </span>
-              <button 
-                type="button"
-                onClick={() => setShowDebugActions(false)}
-                className="text-[10px] text-muted-foreground hover:underline"
-              >
-                Tutup
-              </button>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                <span>Status: <strong className="text-foreground">{notificationStatus}</strong></span>
-                <span>Role: <strong className="text-foreground">{userProfile?.role}</strong></span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={handleSyncNotificationIdentity}
-                  disabled={notificationSyncDisabled}
-                  className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg border border-destructive/20 bg-background px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/5 disabled:opacity-55"
-                >
-                  <Bell size={13} />
-                  {notificationSyncLoading ? "Sync..." : "Sync Identitas"}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSendTestNotification}
-                  disabled={notificationTestDisabled}
-                  className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg bg-destructive/10 px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/15 disabled:opacity-55"
-                >
-                  <Bell size={13} />
-                  {notificationTestLoading ? "Mengirim..." : "Test Notifikasi"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+
 
         {isOwner && showOwnerCommandMode && (
           <div className="tanabrew-card-enter mb-6 rounded-xl border border-amber-500/50 bg-amber-50/40 dark:bg-amber-950/10 p-5 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300" style={{ animationDelay: "50ms" }}>
