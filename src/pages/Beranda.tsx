@@ -12,9 +12,8 @@ import PullToRefresh from "@/components/PullToRefresh";
 import { sendTanabrewNotification } from "@/lib/notificationSender";
 import {
   getNotificationPermissionState,
-  loginOneSignalUser,
   requestNotificationPermission,
-  tagOneSignalUser,
+  syncOneSignalUserTags,
   type OneSignalPermissionState,
 } from "@/lib/onesignal";
 import type { ActivityLog, Invoice } from "@/types";
@@ -93,6 +92,7 @@ const Beranda = () => {
   const [invoiceReminderError, setInvoiceReminderError] = useState(false);
   const [notificationStatus, setNotificationStatus] = useState<OneSignalPermissionState>(() => getNotificationPermissionState());
   const [notificationLoading, setNotificationLoading] = useState(false);
+  const [notificationSyncLoading, setNotificationSyncLoading] = useState(false);
   const [notificationTestLoading, setNotificationTestLoading] = useState(false);
   const shouldShowWelcomeFromRoute = Boolean((location.state as { showWelcomeAnimation?: boolean } | null)?.showWelcomeAnimation);
   const shouldShowWelcome = shouldShowWelcomeFromRoute || hasWelcomeAnimationFlag();
@@ -166,6 +166,11 @@ const Beranda = () => {
     || notificationStatus === "unsupported"
     || notificationStatus === "missing_app_id";
   const notificationTestDisabled = notificationTestLoading || notificationStatus !== "granted";
+  const notificationSyncDisabled =
+    notificationSyncLoading
+    || notificationStatus === "denied"
+    || notificationStatus === "unsupported"
+    || notificationStatus === "missing_app_id";
 
   useEffect(() => {
     const q = query(collection(db, "activity_logs"), orderBy("created_at", "desc"), limit(10));
@@ -334,6 +339,19 @@ const Beranda = () => {
     window.setTimeout(() => window.location.reload(), 320);
   }, []);
 
+  const syncCurrentNotificationTags = useCallback(async () => {
+    if (!currentUser || !userProfile) {
+      throw new Error("Data user belum siap, silakan coba lagi.");
+    }
+
+    await syncOneSignalUserTags({
+      uid: currentUser.uid,
+      role: userProfile.role,
+      name: userProfile.name || currentUser.displayName || currentUser.email || "",
+      email: userProfile.email || currentUser.email || "",
+    });
+  }, [currentUser, userProfile]);
+
   const handleEnableNotifications = useCallback(async () => {
     if (!currentUser || !userProfile) {
       toast({ title: "Error", description: "Data user belum siap, silakan coba lagi.", variant: "destructive" });
@@ -346,14 +364,13 @@ const Beranda = () => {
       setNotificationStatus(status);
 
       if (status === "granted") {
-        await loginOneSignalUser(currentUser.uid);
-        await tagOneSignalUser({
-          uid: currentUser.uid,
-          name: userProfile.name,
-          email: userProfile.email || currentUser.email,
-          role: userProfile.role,
-        });
-        toast({ title: "Notifikasi aktif", description: "Perangkat ini sudah terhubung ke OneSignal." });
+        try {
+          await syncCurrentNotificationTags();
+          toast({ title: "Notifikasi aktif", description: "Tag notifikasi berhasil disinkronkan." });
+        } catch (error) {
+          console.warn("Gagal menyinkronkan tag setelah notifikasi aktif", error);
+          toast({ title: "Perhatian", description: "Notifikasi aktif, tetapi tag user gagal disinkronkan." });
+        }
       } else if (status === "denied") {
         toast({ title: "Notifikasi diblokir", description: "Aktifkan kembali izin dari pengaturan browser.", variant: "destructive" });
       } else if (status === "unsupported") {
@@ -366,7 +383,24 @@ const Beranda = () => {
     } finally {
       setNotificationLoading(false);
     }
-  }, [currentUser, toast, userProfile]);
+  }, [currentUser, syncCurrentNotificationTags, toast, userProfile]);
+
+  const handleSyncNotificationTags = useCallback(async () => {
+    setNotificationSyncLoading(true);
+    try {
+      await syncCurrentNotificationTags();
+      setNotificationStatus(getNotificationPermissionState());
+      toast({ title: "Berhasil", description: "Tag notifikasi berhasil disinkronkan." });
+    } catch (error) {
+      console.warn("Gagal menyinkronkan tag notifikasi", error);
+      const description = error instanceof Error && error.message
+        ? error.message
+        : "Gagal menyinkronkan tag notifikasi.";
+      toast({ title: "Error", description, variant: "destructive" });
+    } finally {
+      setNotificationSyncLoading(false);
+    }
+  }, [syncCurrentNotificationTags, toast]);
 
   const handleSendTestNotification = useCallback(async () => {
     if (!currentUser || !userProfile) {
@@ -381,6 +415,8 @@ const Beranda = () => {
 
     setNotificationTestLoading(true);
     try {
+      await syncCurrentNotificationTags();
+      await new Promise((resolve) => window.setTimeout(resolve, 1500));
       const result = await sendTanabrewNotification(
         {
           type: "TEST_NOTIFICATION",
@@ -401,12 +437,12 @@ const Beranda = () => {
       console.warn("Gagal mengirim test notifikasi Tanabrew", error);
       const description = error instanceof Error && error.message
         ? error.message
-        : "Gagal mengirim test notifikasi.";
-      toast({ title: "Error", description, variant: "destructive" });
+        : "Endpoint notifikasi gagal diakses.";
+      toast({ title: "Gagal mengirim test notifikasi", description, variant: "destructive" });
     } finally {
       setNotificationTestLoading(false);
     }
-  }, [currentUser, toast, userProfile]);
+  }, [currentUser, syncCurrentNotificationTags, toast, userProfile]);
 
   const handleDismissActivity = async (activity: ActivityLog, direction: "left" | "right" = "right") => {
     if (!currentUser || !activity.id || closingActivity) return;
@@ -534,6 +570,15 @@ const Beranda = () => {
               >
                 <Bell size={15} />
                 {notificationLoading ? "Memproses..." : notificationStatus === "granted" ? "Notifikasi Aktif" : "Aktifkan Notifikasi"}
+              </button>
+              <button
+                type="button"
+                onClick={handleSyncNotificationTags}
+                disabled={notificationSyncDisabled}
+                className="mt-2 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-primary/30 bg-background px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-55 sm:ml-2 sm:mt-3 sm:w-auto"
+              >
+                <Bell size={15} />
+                {notificationSyncLoading ? "Menyinkronkan..." : "Sinkronkan Tag Notifikasi"}
               </button>
               {isAdmin && (
                 <div className="mt-3 rounded-lg border border-primary/15 bg-background/70 p-3">

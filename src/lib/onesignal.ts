@@ -12,7 +12,8 @@ type OneSignalSDK = {
   login?: (externalId: string) => Promise<void>;
   logout?: () => Promise<void>;
   User?: {
-    addTags?: (tags: Record<string, string>) => void;
+    addTags?: (tags: Record<string, string>) => Promise<void> | void;
+    getTags?: () => Promise<Record<string, string>> | Record<string, string>;
     PushSubscription?: {
       optIn?: () => Promise<void>;
     };
@@ -25,6 +26,12 @@ type OneSignalSDK = {
 };
 
 type OneSignalDeferredCallback = (OneSignal: OneSignalSDK) => void | Promise<void>;
+type OneSignalUserTagInput = {
+  uid: string;
+  role?: string | null;
+  name?: string | null;
+  email?: string | null;
+};
 
 declare global {
   interface Window {
@@ -50,6 +57,14 @@ const supportsWebPush = () => {
   if (!isBrowser()) return false;
 
   return "Notification" in window && "serviceWorker" in navigator && "PushManager" in window;
+};
+
+const toTagValue = (value: string | null | undefined) => String(value || "").trim();
+
+const normalizeRoleTag = (role: string | null | undefined) => {
+  const value = toTagValue(role).toLowerCase();
+  if (value === "admin" || value === "staff") return value;
+  throw new Error("Role notifikasi belum valid.");
 };
 
 const ensureOneSignalScript = () =>
@@ -147,34 +162,54 @@ export const loginOneSignalUser = async (uid: string) => {
   });
 };
 
-export const tagOneSignalUser = async (profile: { uid: string; name?: string; email?: string | null; role?: string }) => {
+export const syncOneSignalUserTags = async (profile: OneSignalUserTagInput) => {
   if (!profile.uid) return;
   if (!supportsWebPush() || !getOneSignalAppId()) return;
 
+  const tags: Record<string, string> = {
+    uid: toTagValue(profile.uid),
+    role: normalizeRoleTag(profile.role),
+    name: toTagValue(profile.name),
+    email: toTagValue(profile.email),
+  };
+
   await initOneSignal();
-  await withOneSignal((OneSignal) => {
-    const tags: Record<string, string> = {
-      uid: profile.uid,
-      role: profile.role || "unknown",
-      name: profile.name || "-",
-    };
-
-    if (profile.email) tags.email = profile.email;
-
-    if (!OneSignal.User?.addTags) {
-      console.warn("[Tanabrew OneSignal] addTags tidak tersedia");
-      return;
+  return withOneSignal(async (OneSignal) => {
+    if (!OneSignal.login) {
+      throw new Error("OneSignal login tidak tersedia.");
     }
 
-    OneSignal.User.addTags(tags);
-    console.info("[Tanabrew OneSignal] user tags set", {
+    await OneSignal.login(tags.uid);
+
+    if (Notification.permission === "granted") {
+      await OneSignal.User?.PushSubscription?.optIn?.();
+    }
+
+    if (!OneSignal.User?.addTags) {
+      throw new Error("OneSignal addTags tidak tersedia.");
+    }
+
+    await OneSignal.User.addTags(tags);
+
+    let syncedTags: Record<string, string> | undefined;
+    try {
+      syncedTags = await OneSignal.User.getTags?.();
+    } catch (error) {
+      console.warn("[Tanabrew OneSignal] getTags gagal", error);
+    }
+
+    console.info("[Tanabrew OneSignal] user tags synced", {
       role: tags.role,
       hasUid: Boolean(tags.uid),
-      hasName: Boolean(profile.name),
-      hasEmail: Boolean(profile.email),
+      hasEmail: Boolean(tags.email),
+      roleVerified: syncedTags ? syncedTags.role === tags.role : undefined,
     });
+
+    return syncedTags || tags;
   });
 };
+
+export const tagOneSignalUser = syncOneSignalUserTags;
 
 export const requestNotificationPermission = async (): Promise<OneSignalPermissionState> => {
   const currentState = getNotificationPermissionState();

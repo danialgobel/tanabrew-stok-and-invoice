@@ -14,7 +14,7 @@ import Riwayat from "@/pages/Riwayat";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import NotFound from "@/pages/NotFound";
-import { loginOneSignalUser, logoutOneSignalUser, tagOneSignalUser } from "@/lib/onesignal";
+import { logoutOneSignalUser, syncOneSignalUserTags } from "@/lib/onesignal";
 
 const queryClient = new QueryClient();
 
@@ -34,18 +34,14 @@ const AppRoutes = () => {
 
     if (currentUser && userProfile) {
       previousOneSignalUid.current = currentUser.uid;
-      void loginOneSignalUser(currentUser.uid)
-        .then(() =>
-          tagOneSignalUser({
-            uid: currentUser.uid,
-            name: userProfile.name,
-            email: userProfile.email || currentUser.email,
-            role: userProfile.role,
-          }),
-        )
-        .catch((error) => {
-          console.warn("Gagal menghubungkan user ke OneSignal", error);
-        });
+      void syncOneSignalUserTags({
+        uid: currentUser.uid,
+        name: userProfile.name || currentUser.displayName || currentUser.email || "",
+        email: userProfile.email || currentUser.email || "",
+        role: userProfile.role,
+      }).catch((error) => {
+        console.warn("Gagal menyinkronkan tag user OneSignal", error);
+      });
       return;
     }
 
@@ -55,7 +51,15 @@ const AppRoutes = () => {
         console.warn("Gagal logout OneSignal", error);
       });
     }
-  }, [currentUser, currentUser?.email, loading, userProfile]);
+  }, [
+    currentUser,
+    currentUser?.displayName,
+    currentUser?.email,
+    loading,
+    userProfile?.email,
+    userProfile?.name,
+    userProfile?.role,
+  ]);
 
   return (
     <>
