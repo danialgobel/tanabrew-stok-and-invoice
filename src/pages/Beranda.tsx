@@ -99,6 +99,20 @@ const Beranda = () => {
   const [announcementTitle, setAnnouncementTitle] = useState("Arahan Owner Tanabrew");
   const [announcementMessage, setAnnouncementMessage] = useState("");
   const [announcementLoading, setAnnouncementLoading] = useState(false);
+  const [logoClickCount, setLogoClickCount] = useState(0);
+  const [showDebugActions, setShowDebugActions] = useState(false);
+
+  const handleLogoClick = () => {
+    setLogoClickCount((prev) => {
+      const next = prev + 1;
+      if (next >= 5) {
+        setShowDebugActions(true);
+        toast({ title: "Debug Mode", description: "Fitur debug notifikasi aktif!" });
+        return 0;
+      }
+      return next;
+    });
+  };
   const shouldShowWelcomeFromRoute = Boolean((location.state as { showWelcomeAnimation?: boolean } | null)?.showWelcomeAnimation);
   const shouldShowWelcome = shouldShowWelcomeFromRoute || hasWelcomeAnimationFlag();
   const [showWelcomeAnimation, setShowWelcomeAnimation] = useState(() => shouldShowWelcome);
@@ -602,16 +616,33 @@ const Beranda = () => {
           <img
             src="https://i.ibb.co.com/6CgfRK5/TM-LOGO-PUTIH.png"
             alt="Tanabrew Logo"
-            className="w-24 h-24 rounded-full object-cover border-2 border-primary bg-primary"
+            onClick={handleLogoClick}
+            className="w-24 h-24 rounded-full object-cover border-2 border-primary bg-primary cursor-pointer select-none active:scale-95 transition-transform"
           />
-          <h1 className="text-xl font-bold text-primary mt-3">Tanabrew</h1>
+          <h1 
+            onClick={handleLogoClick}
+            className="text-xl font-bold text-primary mt-3 cursor-pointer select-none active:opacity-80"
+          >
+            Tanabrew
+          </h1>
           <p className="text-sm text-muted-foreground">Trademark</p>
         </div>
 
         <div className="tanabrew-card-enter bg-card rounded-xl border border-border p-4 mb-6 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-primary truncate">Login sebagai: {displayName}</p>
-            <p className="text-xs text-muted-foreground">Role: {roleLabel}</p>
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="text-xs text-muted-foreground">Role: {roleLabel}</span>
+              {isAdmin && notificationStatus === "granted" && (
+                <>
+                  <span className="text-muted-foreground/30">•</span>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Notifikasi aktif
+                  </span>
+                </>
+              )}
+            </div>
           </div>
           <button
             onClick={handleLogout}
@@ -632,7 +663,7 @@ const Beranda = () => {
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-bold text-yellow-900">Notifikasi Belum Aktif</p>
                 <p className="mt-1 text-xs text-yellow-800 leading-relaxed">
-                  Aktifkan notifikasi agar info invoice, cetak invoice, dan arahan owner langsung masuk ke HP Anda.
+                  Aktifkan notifikasi agar info invoice, cetak invoice, dan arahan owner langsung masuk ke HP.
                 </p>
                 <button
                   type="button"
@@ -647,68 +678,47 @@ const Beranda = () => {
           </div>
         )}
 
-        {(notificationStatus !== "granted" || isAdmin) && (
-          <div className="tanabrew-card-enter mb-4 rounded-xl border border-primary/20 bg-card p-4 shadow-sm" style={{ animationDelay: "40ms" }}>
-            {notificationStatus === "granted" ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-xs font-bold text-primary">
-                    <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Notifikasi Aktif
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">Mode Debug Admin</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={handleSyncNotificationIdentity}
-                    disabled={notificationSyncDisabled}
-                    className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg border border-primary/20 bg-background px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/5 disabled:opacity-55"
-                  >
-                    <Bell size={13} />
-                    {notificationSyncLoading ? "Sync..." : "Sync Identitas"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSendTestNotification}
-                    disabled={notificationTestDisabled}
-                    className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/15 disabled:opacity-55"
-                  >
-                    <Bell size={13} />
-                    {notificationTestLoading ? "Mengirim..." : "Test Notifikasi"}
-                  </button>
-                </div>
+        {isAdmin && showDebugActions && (
+          <div className="tanabrew-card-enter mb-6 rounded-xl border border-destructive/30 bg-destructive/5 p-4 shadow-sm" style={{ animationDelay: "40ms" }}>
+            <div className="flex items-center justify-between mb-3 border-b border-destructive/10 pb-2">
+              <span className="text-xs font-bold text-destructive flex items-center gap-1">
+                <span className="inline-block w-2 h-2 rounded-full bg-destructive animate-ping"></span>
+                Developer Debug Mode
+              </span>
+              <button 
+                type="button"
+                onClick={() => setShowDebugActions(false)}
+                className="text-[10px] text-muted-foreground hover:underline"
+              >
+                Tutup
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>Status: <strong className="text-foreground">{notificationStatus}</strong></span>
+                <span>Role: <strong className="text-foreground">{userProfile?.role}</strong></span>
               </div>
-            ) : (
-              <div className="flex items-start gap-3">
-                <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <Bell size={18} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <h2 className="text-sm font-bold text-primary">Notifikasi Tanabrew</h2>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Aktifkan notifikasi untuk menerima info invoice baru, invoice dicetak, dan status pembayaran.
-                      </p>
-                    </div>
-                    <span className={`w-fit rounded-full px-2.5 py-1 text-[11px] font-bold ${notificationInfo.badgeClass}`}>
-                      {notificationInfo.label}
-                    </span>
-                  </div>
-                  <p className="mt-3 text-xs text-muted-foreground">{notificationInfo.description}</p>
-                  <button
-                    type="button"
-                    onClick={handleEnableNotifications}
-                    disabled={notificationButtonDisabled}
-                    className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-55 sm:w-auto"
-                  >
-                    <Bell size={15} />
-                    {notificationLoading ? "Memproses..." : "Aktifkan Notifikasi"}
-                  </button>
-                </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={handleSyncNotificationIdentity}
+                  disabled={notificationSyncDisabled}
+                  className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg border border-destructive/20 bg-background px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/5 disabled:opacity-55"
+                >
+                  <Bell size={13} />
+                  {notificationSyncLoading ? "Sync..." : "Sync Identitas"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSendTestNotification}
+                  disabled={notificationTestDisabled}
+                  className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg bg-destructive/10 px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/15 disabled:opacity-55"
+                >
+                  <Bell size={13} />
+                  {notificationTestLoading ? "Mengirim..." : "Test Notifikasi"}
+                </button>
               </div>
-            )}
+            </div>
           </div>
         )}
 
