@@ -161,7 +161,18 @@ export const tagOneSignalUser = async (profile: { uid: string; name?: string; em
 
     if (profile.email) tags.email = profile.email;
 
-    OneSignal.User?.addTags?.(tags);
+    if (!OneSignal.User?.addTags) {
+      console.warn("[Tanabrew OneSignal] addTags tidak tersedia");
+      return;
+    }
+
+    OneSignal.User.addTags(tags);
+    console.info("[Tanabrew OneSignal] user tags set", {
+      role: tags.role,
+      hasUid: Boolean(tags.uid),
+      hasName: Boolean(profile.name),
+      hasEmail: Boolean(profile.email),
+    });
   });
 };
 

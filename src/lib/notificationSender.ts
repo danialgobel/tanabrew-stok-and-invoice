@@ -33,14 +33,18 @@ export const sendTanabrewNotification = async (
   const result = await response.json().catch(() => ({}));
 
   if (!response.ok || result.success !== true) {
+    const statusInfo = `HTTP ${response.status}${result.oneSignalStatus ? `, OneSignal ${result.oneSignalStatus}` : ""}`;
+    const errorMessage = result.error || "Gagal mengirim notifikasi.";
+    const details = result.details ? ` Detail: ${result.details}` : "";
     console.warn("Gagal mengirim notifikasi Tanabrew", {
       status: response.status,
+      oneSignalStatus: result.oneSignalStatus,
       error: result.error,
       details: result.details,
       type: payload.type,
       invoiceNumber: payload.invoiceNumber,
     });
-    throw new Error(result.details ? `${result.error}: ${result.details}` : result.error || "Gagal mengirim notifikasi.");
+    throw new Error(`${statusInfo}. ${errorMessage}${details}`.slice(0, 260));
   }
 
   return result as { success: true; messageId: string };

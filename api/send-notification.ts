@@ -165,6 +165,12 @@ const toSafeDetails = (value: unknown) => {
   return String(value).slice(0, 280);
 };
 
+const roleTargetFilters = [
+  { field: "tag", key: "role", relation: "=", value: "admin" },
+  { operator: "OR" },
+  { field: "tag", key: "role", relation: "=", value: "staff" },
+];
+
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -205,7 +211,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const notificationPayload = {
     app_id: appId,
     target_channel: "push",
-    included_segments: ["Subscribed Users"],
+    filters: roleTargetFilters,
     headings: { en: title },
     contents: { en: message },
     url: origin ? `${origin}/riwayat` : "/riwayat",
@@ -243,6 +249,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       return res.status(502).json({
         success: false,
         error: "OneSignal request failed",
+        oneSignalStatus: response.status,
         details: toSafeDetails(data) || response.statusText,
       });
     }
@@ -250,7 +257,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     if (!data.id) {
       return res.status(502).json({
         success: false,
-        error: "OneSignal accepted request but no message id returned. Target audience may be empty.",
+        error: "OneSignal target audience kosong. Pastikan subscriber memiliki tag role admin/staff.",
+        oneSignalStatus: response.status,
         details: toSafeDetails(data),
       });
     }

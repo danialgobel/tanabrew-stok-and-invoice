@@ -399,7 +399,10 @@ const Beranda = () => {
       });
     } catch (error) {
       console.warn("Gagal mengirim test notifikasi Tanabrew", error);
-      toast({ title: "Error", description: "Gagal mengirim test notifikasi.", variant: "destructive" });
+      const description = error instanceof Error && error.message
+        ? error.message
+        : "Gagal mengirim test notifikasi.";
+      toast({ title: "Error", description, variant: "destructive" });
     } finally {
       setNotificationTestLoading(false);
     }
