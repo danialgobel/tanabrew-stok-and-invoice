@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 interface WelcomeAnimationProps {
   name: string;
@@ -25,7 +26,7 @@ const WelcomeAnimation = ({ name, role, onFinish }: WelcomeAnimationProps) => {
     };
   }, [onFinish]);
 
-  return (
+  const overlay = (
     <div
       className={`tanabrew-welcome-overlay ${exiting ? "tanabrew-welcome-overlay-exit" : ""}`}
       role="status"
@@ -46,6 +47,10 @@ const WelcomeAnimation = ({ name, role, onFinish }: WelcomeAnimationProps) => {
       </div>
     </div>
   );
+
+  if (typeof document === "undefined") return overlay;
+
+  return createPortal(overlay, document.body);
 };
 
 export default WelcomeAnimation;
