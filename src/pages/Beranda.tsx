@@ -569,7 +569,7 @@ const Beranda = () => {
                     <div key={day.key} className="flex h-28 flex-col items-center justify-end gap-1">
                       <div
                         className="tanabrew-dashboard-bar w-full rounded-t-md bg-primary/80 transition-all"
-                        style={{ height: `${Math.max(8, (day.revenue / maxRevenue) * 88)}px`, animationDelay: `${index * 45}ms` }}
+                        style={{ height: `${Math.max(8, (day.revenue / maxRevenue) * 88)}px`, animationDelay: `${index * 80}ms` }}
                         title={`Rp ${fmt(day.revenue)}`}
                       />
                       <span className="text-[10px] text-muted-foreground">{day.label}</span>
@@ -588,7 +588,7 @@ const Beranda = () => {
                     <div key={day.key} className="flex h-24 flex-col items-center justify-end gap-1">
                       <div
                         className="tanabrew-dashboard-bar w-full rounded-t-md bg-emerald-500/80 transition-all"
-                        style={{ height: `${Math.max(8, (day.count / maxInvoiceCount) * 72)}px`, animationDelay: `${80 + index * 45}ms` }}
+                        style={{ height: `${Math.max(8, (day.count / maxInvoiceCount) * 72)}px`, animationDelay: `${100 + index * 80}ms` }}
                         title={`${day.count} invoice`}
                       />
                       <span className="text-[10px] text-muted-foreground">{day.label}</span>
@@ -598,23 +598,23 @@ const Beranda = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="tanabrew-dashboard-stat rounded-lg bg-primary/10 px-3 py-2" style={{ animationDelay: "80ms" }}>
+                <div className="tanabrew-dashboard-stat rounded-lg bg-primary/10 px-3 py-2" style={{ animationDelay: "100ms" }}>
                   <p className="text-muted-foreground">Invoice Lunas</p>
                   <p className="font-bold text-primary">{dashboardStatus.lunas}</p>
                 </div>
-                <div className="tanabrew-dashboard-stat rounded-lg bg-destructive/10 px-3 py-2" style={{ animationDelay: "130ms" }}>
+                <div className="tanabrew-dashboard-stat rounded-lg bg-destructive/10 px-3 py-2" style={{ animationDelay: "180ms" }}>
                   <p className="text-muted-foreground">Belum Lunas</p>
                   <p className="font-bold text-destructive">{dashboardStatus.belumLunas}</p>
                 </div>
-                <div className="tanabrew-dashboard-stat rounded-lg bg-primary/10 px-3 py-2" style={{ animationDelay: "180ms" }}>
+                <div className="tanabrew-dashboard-stat rounded-lg bg-primary/10 px-3 py-2" style={{ animationDelay: "260ms" }}>
                   <p className="text-muted-foreground">Stok Aman</p>
                   <p className="font-bold text-primary">{safeStockProducts.length}</p>
                 </div>
-                <div className="tanabrew-dashboard-stat rounded-lg bg-yellow-100/80 px-3 py-2" style={{ animationDelay: "230ms" }}>
+                <div className="tanabrew-dashboard-stat rounded-lg bg-yellow-100/80 px-3 py-2" style={{ animationDelay: "340ms" }}>
                   <p className="text-muted-foreground">Stok Menipis</p>
                   <p className="font-bold text-yellow-800">{lowStockProducts.length}</p>
                 </div>
-                <div className="tanabrew-dashboard-stat rounded-lg bg-destructive/10 px-3 py-2" style={{ animationDelay: "280ms" }}>
+                <div className="tanabrew-dashboard-stat rounded-lg bg-destructive/10 px-3 py-2" style={{ animationDelay: "420ms" }}>
                   <p className="text-muted-foreground">Stok Habis</p>
                   <p className="font-bold text-destructive">{emptyStockProducts.length}</p>
                 </div>
@@ -630,7 +630,7 @@ const Beranda = () => {
                       <div
                         key={product.name}
                         className="tanabrew-dashboard-list-item flex items-center justify-between gap-3 rounded-lg bg-muted px-3 py-2 text-xs"
-                        style={{ animationDelay: `${index * 55}ms` }}
+                        style={{ animationDelay: `${index * 80}ms` }}
                       >
                         <span className="font-semibold text-foreground truncate">{product.name}</span>
                         <span className="font-bold text-primary">{product.count} pcs</span>
