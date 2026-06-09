@@ -1,6 +1,4 @@
-import { cert, getApps, initializeApp } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
+import type { App } from "firebase-admin/app";
 
 type InvoiceNotificationType = "CREATE_INVOICE" | "PRINT_INVOICE" | "UPDATE_PAYMENT_STATUS" | "TEST_NOTIFICATION";
 type InvoiceNotificationRole = "admin" | "staff";
@@ -40,6 +38,7 @@ type FirebaseServiceAccountJson = {
 const ONE_MINUTE = 60 * 1000;
 const RATE_LIMIT_MAX = 20;
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
+let firebaseAdminAppPromise: Promise<App> | null = null;
 const allowedTypes: InvoiceNotificationType[] = [
   "CREATE_INVOICE",
   "PRINT_INVOICE",
@@ -189,6 +188,30 @@ const parseOneSignalResponse = async (response: Response) => {
   }
 };
 
+const getRuntimeName = () => (process.env.VERCEL ? "vercel" : "node");
+
+const getEnvDebug = () => ({
+  hasOneSignalAppId: Boolean(process.env.ONESIGNAL_APP_ID),
+  hasOneSignalRestKey: Boolean(process.env.ONESIGNAL_REST_API_KEY),
+  hasFirebaseServiceAccount: Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON),
+  runtime: getRuntimeName(),
+});
+
+const getSafeErrorMessage = (error: unknown) => {
+  const message = error instanceof Error && error.message ? error.message : "Unknown error.";
+  return message
+    .replace(/-----BEGIN[\s\S]+?-----END [^-]+-----/g, "[redacted]")
+    .replace(/\\n/g, "\\n")
+    .slice(0, 500);
+};
+
+const maskUid = (uid: string) => {
+  if (!uid) return "";
+  if (uid.length <= 12) return `${uid.slice(0, 3)}...`;
+
+  return `${uid.slice(0, 6)}...${uid.slice(-5)}`;
+};
+
 const getServiceAccount = () => {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 
@@ -212,27 +235,44 @@ const getServiceAccount = () => {
   };
 };
 
-const getFirebaseAdminApp = () => {
-  const existingApp = getApps()[0];
-  if (existingApp) return existingApp;
+const getFirebaseAdminApp = async (): Promise<App> => {
+  if (!firebaseAdminAppPromise) {
+    firebaseAdminAppPromise = (async () => {
+      const { cert, getApps, initializeApp } = await import("firebase-admin/app");
+      const existingApp = getApps()[0];
+      if (existingApp) return existingApp;
 
-  return initializeApp({
-    credential: cert(getServiceAccount()),
-  });
+      return initializeApp({
+        credential: cert(getServiceAccount()),
+      });
+    })().catch((error) => {
+      firebaseAdminAppPromise = null;
+      throw error;
+    });
+  }
+
+  return firebaseAdminAppPromise;
 };
 
-const getAdminDb = () => getFirestore(getFirebaseAdminApp());
+const getAdminDb = async () => {
+  const { getFirestore } = await import("firebase-admin/firestore");
+  return getFirestore(await getFirebaseAdminApp());
+};
 
-const getAdminAuth = () => getAuth(getFirebaseAdminApp());
+const getAdminAuth = async () => {
+  const { getAuth } = await import("firebase-admin/auth");
+  return getAuth(await getFirebaseAdminApp());
+};
 
 const verifyFirebaseToken = async (authorization: string) => {
   const token = authorization.replace(/^Bearer\s+/i, "").trim();
-  const decodedToken = await getAdminAuth().verifyIdToken(token);
+  const auth = await getAdminAuth();
+  const decodedToken = await auth.verifyIdToken(token);
   return decodedToken.uid;
 };
 
 const loadNotificationRecipientUids = async () => {
-  const db = getAdminDb();
+  const db = await getAdminDb();
   const roles: InvoiceNotificationRole[] = ["admin", "staff"];
   const snapshots = await Promise.all(
     roles.map((role) => db.collection("users").where("role", "==", role).get()),
@@ -259,14 +299,39 @@ const loadNotificationRecipientUids = async () => {
   return {
     recipientUids: Array.from(recipients.keys()),
     roleCounts,
+    sampleRecipientMasked: maskUid(Array.from(recipients.keys())[0] || ""),
   };
 };
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
+  if (req.method === "GET") {
+    let firebaseAdminImportable = false;
+    let firebaseAdminImportError = "";
+
+    try {
+      await import("firebase-admin/app");
+      firebaseAdminImportable = true;
+    } catch (error) {
+      firebaseAdminImportError = getSafeErrorMessage(error);
+    }
+
+    return res.status(200).json({
+      success: false,
+      message: "Use POST to send notification.",
+      debug: {
+        ...getEnvDebug(),
+        firebaseAdminImportable,
+        firebaseAdminImportError,
+      },
+    });
+  }
+
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ success: false, error: "Method not allowed." });
   }
+
+  console.info("[Tanabrew Notification] request received");
 
   const authorization = getHeader(req, "authorization") || "";
   if (!authorization.startsWith("Bearer ") || authorization.length < 24) {
@@ -280,11 +345,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const appId = process.env.ONESIGNAL_APP_ID;
   const restApiKey = process.env.ONESIGNAL_REST_API_KEY;
   const firebaseServiceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  const envDebug = {
-    hasAppId: Boolean(appId),
-    hasRestKey: Boolean(restApiKey),
-    hasFirebaseServiceAccount: Boolean(firebaseServiceAccountJson),
-  };
+  const envDebug = getEnvDebug();
   console.info("[Tanabrew Notification] env status", envDebug);
 
   if (!appId || !restApiKey || !firebaseServiceAccountJson) {
@@ -302,9 +363,24 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
 
   try {
+    await getFirebaseAdminApp();
+    console.info("[Tanabrew Notification] firebase admin init status", { success: true });
+  } catch (error) {
+    const details = getSafeErrorMessage(error);
+    console.error("[Tanabrew Notification] firebase admin init status", { success: false, details });
+    return res.status(500).json({
+      success: false,
+      error: "FIREBASE_ADMIN_INIT_FAILED",
+      message: "Firebase Admin gagal diinisialisasi.",
+      details,
+    });
+  }
+
+  try {
     const requesterUid = await verifyFirebaseToken(authorization);
     console.info("[Tanabrew Notification] requester verified", { hasUid: Boolean(requesterUid) });
-  } catch {
+  } catch (error) {
+    console.warn("[Tanabrew Notification] token verification failed", { details: getSafeErrorMessage(error) });
     return res.status(401).json({
       success: false,
       error: "AUTH_INVALID",
@@ -316,14 +392,19 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   try {
     const recipientData = await loadNotificationRecipientUids();
     recipientUids = recipientData.recipientUids;
+    console.info("[Tanabrew Notification] users query status", { success: true });
     console.info("[Tanabrew Notification] recipient roles loaded", recipientData.roleCounts);
-    console.info("[Tanabrew Notification] recipient count", { count: recipientUids.length });
+    console.info("[Tanabrew Notification] recipient count", {
+      count: recipientUids.length,
+      sampleRecipientMasked: recipientData.sampleRecipientMasked,
+    });
   } catch (error) {
-    console.error("[Tanabrew Notification] failed to load recipients", error);
+    console.error("[Tanabrew Notification] users query status", { success: false, details: getSafeErrorMessage(error) });
     return res.status(502).json({
       success: false,
       error: "RECIPIENTS_LOAD_FAILED",
       message: "Gagal memuat target user notifikasi.",
+      details: getSafeErrorMessage(error),
     });
   }
 

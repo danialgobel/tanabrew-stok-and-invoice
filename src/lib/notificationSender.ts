@@ -30,11 +30,20 @@ export const sendTanabrewNotification = async (
     },
     body: JSON.stringify(payload),
   });
-  const result = await response.json().catch(() => ({}));
+  const responseText = await response.text();
+  let result: Record<string, unknown> = {};
+
+  if (responseText) {
+    try {
+      result = JSON.parse(responseText) as Record<string, unknown>;
+    } catch {
+      result = { message: responseText.slice(0, 220) };
+    }
+  }
 
   if (!response.ok || result.success !== true) {
     const statusInfo = `HTTP ${response.status}${result.oneSignalStatus ? `, OneSignal ${result.oneSignalStatus}` : ""}`;
-    const errorMessage = result.error || "Gagal mengirim notifikasi.";
+    const errorMessage = result.message || result.error || "Gagal mengirim notifikasi.";
     const details = result.details ? ` Detail: ${result.details}` : "";
     console.warn("Gagal mengirim notifikasi Tanabrew", {
       status: response.status,
@@ -47,5 +56,5 @@ export const sendTanabrewNotification = async (
     throw new Error(`${statusInfo}. ${errorMessage}${details}`.slice(0, 260));
   }
 
-  return result as { success: true; messageId: string };
+  return result as unknown as { success: true; messageId: string; recipientCount?: number };
 };
