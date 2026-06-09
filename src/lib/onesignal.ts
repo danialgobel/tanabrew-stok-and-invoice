@@ -1,3 +1,5 @@
+import type { User } from "firebase/auth";
+
 type OneSignalPermissionState = "unsupported" | "default" | "granted" | "denied" | "missing_app_id";
 
 type OneSignalSDK = {
@@ -65,6 +67,21 @@ const normalizeRoleTag = (role: string | null | undefined) => {
   const value = toTagValue(role).toLowerCase();
   if (value === "admin" || value === "staff") return value;
   throw new Error("Role notifikasi belum valid.");
+};
+
+const buildOneSignalTags = (profile: OneSignalUserTagInput) => {
+  const uid = toTagValue(profile.uid);
+
+  if (!uid) {
+    throw new Error("UID notifikasi belum valid.");
+  }
+
+  return {
+    uid,
+    role: normalizeRoleTag(profile.role),
+    name: toTagValue(profile.name),
+    email: toTagValue(profile.email),
+  };
 };
 
 const ensureOneSignalScript = () =>
@@ -162,16 +179,9 @@ export const loginOneSignalUser = async (uid: string) => {
   });
 };
 
-export const syncOneSignalUserTags = async (profile: OneSignalUserTagInput) => {
-  if (!profile.uid) return;
+export const syncOneSignalUserTagsSdk = async (profile: OneSignalUserTagInput) => {
+  const tags = buildOneSignalTags(profile);
   if (!supportsWebPush() || !getOneSignalAppId()) return;
-
-  const tags: Record<string, string> = {
-    uid: toTagValue(profile.uid),
-    role: normalizeRoleTag(profile.role),
-    name: toTagValue(profile.name),
-    email: toTagValue(profile.email),
-  };
 
   await initOneSignal();
   return withOneSignal(async (OneSignal) => {
@@ -209,7 +219,65 @@ export const syncOneSignalUserTags = async (profile: OneSignalUserTagInput) => {
   });
 };
 
-export const tagOneSignalUser = syncOneSignalUserTags;
+export const syncOneSignalUserTagsServer = async (
+  profile: OneSignalUserTagInput,
+  currentUser: User | null | undefined,
+) => {
+  const tags = buildOneSignalTags(profile);
+
+  if (!currentUser) {
+    throw new Error("User belum login.");
+  }
+
+  const token = await currentUser.getIdToken();
+  const response = await fetch("/api/sync-onesignal-user", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(tags),
+  });
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok || result.success !== true) {
+    const statusInfo = `HTTP ${response.status}${result.oneSignalStatus ? `, OneSignal ${result.oneSignalStatus}` : ""}`;
+    const message = result.message || result.error || "Gagal menyinkronkan tag notifikasi.";
+    const details = result.details ? ` Detail: ${result.details}` : "";
+    console.warn("[Tanabrew OneSignal Sync] server sync failed", {
+      status: response.status,
+      oneSignalStatus: result.oneSignalStatus,
+      error: result.error,
+      details: result.details,
+    });
+    throw new Error(`${statusInfo}. ${message}${details}`.slice(0, 260));
+  }
+
+  return result as { success: true; message: string; oneSignalStatus?: number };
+};
+
+export const syncOneSignalUserTags = async (
+  profile: OneSignalUserTagInput,
+  currentUser?: User | null,
+) => {
+  let sdkError: unknown;
+
+  try {
+    await syncOneSignalUserTagsSdk(profile);
+  } catch (error) {
+    sdkError = error;
+    console.warn("[Tanabrew OneSignal] SDK tag sync failed", error);
+  }
+
+  if (currentUser) {
+    return syncOneSignalUserTagsServer(profile, currentUser);
+  }
+
+  if (sdkError) throw sdkError;
+  return { success: true, message: "Tag OneSignal berhasil disinkronkan dari SDK." };
+};
+
+export const tagOneSignalUser = syncOneSignalUserTagsSdk;
 
 export const requestNotificationPermission = async (): Promise<OneSignalPermissionState> => {
   const currentState = getNotificationPermissionState();

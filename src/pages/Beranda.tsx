@@ -349,7 +349,7 @@ const Beranda = () => {
       role: userProfile.role,
       name: userProfile.name || currentUser.displayName || currentUser.email || "",
       email: userProfile.email || currentUser.email || "",
-    });
+    }, currentUser);
   }, [currentUser, userProfile]);
 
   const handleEnableNotifications = useCallback(async () => {
@@ -396,7 +396,7 @@ const Beranda = () => {
       const description = error instanceof Error && error.message
         ? error.message
         : "Gagal menyinkronkan tag notifikasi.";
-      toast({ title: "Error", description, variant: "destructive" });
+      toast({ title: "Gagal menyinkronkan tag notifikasi", description, variant: "destructive" });
     } finally {
       setNotificationSyncLoading(false);
     }

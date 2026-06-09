@@ -39,7 +39,7 @@ const AppRoutes = () => {
         name: userProfile.name || currentUser.displayName || currentUser.email || "",
         email: userProfile.email || currentUser.email || "",
         role: userProfile.role,
-      }).catch((error) => {
+      }, currentUser).catch((error) => {
         console.warn("Gagal menyinkronkan tag user OneSignal", error);
       });
       return;
