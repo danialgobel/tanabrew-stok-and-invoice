@@ -120,6 +120,7 @@ const formatDate = (value: unknown, fallback?: string) => {
 const formatInvoiceDate = (invoice: Invoice) => formatDate(invoice.created_at, invoice.tanggal);
 
 const formatRole = (role?: string) => {
+  if (role === "owner") return "Owner";
   if (role === "admin") return "Admin";
   if (role === "staff") return "Staff";
   return role || "Tidak diketahui";
@@ -387,7 +388,7 @@ const Riwayat = () => {
         customer: invoice.customer,
         total: invoice.total || 0,
         actorName: userProfile.name,
-        actorRole: userProfile.role === "admin" ? "admin" : "staff",
+        actorRole: userProfile.role === "owner" ? "owner" : userProfile.role === "admin" ? "admin" : "staff",
       },
       currentUser,
     ).catch((error) => {
@@ -501,7 +502,7 @@ const Riwayat = () => {
     };
   }, [products, reportInvoices]);
 
-  const isAdmin = userProfile?.role === "admin";
+  const isAdmin = userProfile?.role === "admin" || userProfile?.role === "owner";
 
   const handleSafeRefresh = useCallback(() => {
     window.setTimeout(() => window.location.reload(), 320);
@@ -670,8 +671,8 @@ const Riwayat = () => {
       return;
     }
 
-    if (userProfile.role !== "admin") {
-      toast({ title: "Error", description: "Hanya admin yang dapat menandai invoice lunas.", variant: "destructive" });
+    if (userProfile.role !== "admin" && userProfile.role !== "owner") {
+      toast({ title: "Error", description: "Hanya admin/owner yang dapat menandai invoice lunas.", variant: "destructive" });
       return;
     }
 
@@ -729,8 +730,8 @@ const Riwayat = () => {
       return;
     }
 
-    if (userProfile.role !== "admin") {
-      toast({ title: "Error", description: "Hanya admin yang dapat mencetak ulang invoice.", variant: "destructive" });
+    if (userProfile.role !== "admin" && userProfile.role !== "owner") {
+      toast({ title: "Error", description: "Hanya admin/owner yang dapat mencetak ulang invoice.", variant: "destructive" });
       return;
     }
 
@@ -790,8 +791,8 @@ const Riwayat = () => {
       return;
     }
 
-    if (userProfile.role !== "admin") {
-      toast({ title: "Error", description: "Hanya admin yang dapat mencetak ulang invoice.", variant: "destructive" });
+    if (userProfile.role !== "admin" && userProfile.role !== "owner") {
+      toast({ title: "Error", description: "Hanya admin/owner yang dapat mencetak ulang invoice.", variant: "destructive" });
       return;
     }
 
@@ -1121,7 +1122,7 @@ const Riwayat = () => {
                   </button>
                 )}
                 {!isAdmin && (
-                  <p className="mt-2 text-center text-xs text-destructive">Hanya admin yang dapat mencetak ulang invoice.</p>
+                  <p className="mt-2 text-center text-xs text-destructive">Hanya admin/owner yang dapat mencetak ulang invoice.</p>
                 )}
               </div>
             ))
@@ -1323,7 +1324,7 @@ const Riwayat = () => {
               Cetak Ulang
             </button>
             {!isAdmin && (
-              <p className="mt-2 text-center text-xs text-destructive">Hanya admin yang dapat mencetak ulang invoice.</p>
+              <p className="mt-2 text-center text-xs text-destructive">Hanya admin/owner yang dapat mencetak ulang invoice.</p>
             )}
             {isAdmin && selectedInvoice.status === "BELUM LUNAS" && (
               <button

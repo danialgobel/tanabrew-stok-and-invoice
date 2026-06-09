@@ -255,6 +255,7 @@ const UpdateStok = () => {
   };
 
   const formatRole = (role?: string) => {
+    if (role === "owner") return "Owner";
     if (role === "admin") return "Admin";
     if (role === "staff") return "Staff";
     return role || "Tidak diketahui";
