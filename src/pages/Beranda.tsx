@@ -73,6 +73,8 @@ const stockState = (total: number) => {
   return { rowClass: "", label: "", labelClass: "" };
 };
 
+type SummaryModalType = "lunas" | "belum_lunas" | "stok_aman" | "stok_menipis" | "stok_habis";
+
 const hasWelcomeAnimationFlag = () => sessionStorage.getItem("showWelcomeAnimation") === "true";
 
 const Beranda = () => {
@@ -83,6 +85,7 @@ const Beranda = () => {
   const location = useLocation();
   const swipeStartX = useRef<number | null>(null);
   const [modal, setModal] = useState<"jogja" | "lombok" | null>(null);
+  const [summaryModal, setSummaryModal] = useState<SummaryModalType | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [dismissedActivityIds, setDismissedActivityIds] = useState<string[]>([]);
@@ -360,6 +363,18 @@ const Beranda = () => {
     window.setTimeout(() => window.location.reload(), 320);
   }, []);
 
+  const formatInvoiceDate = useCallback((invoice: Invoice) => {
+    const value = invoice.created_at || invoice.tanggal;
+    if (!value) return "-";
+    if (typeof value === "string") return value;
+    const time = getDateValue(value);
+    if (!time) return "-";
+    return new Intl.DateTimeFormat("id-ID", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date(time));
+  }, []);
+
   const syncCurrentNotificationIdentity = useCallback(async () => {
     if (!currentUser || !userProfile) {
       throw new Error("Data user belum siap, silakan coba lagi.");
@@ -611,7 +626,7 @@ const Beranda = () => {
 
   return (
     <>
-      <PullToRefresh onRefresh={handleSafeRefresh} disabled={Boolean(modal)} />
+      <PullToRefresh onRefresh={handleSafeRefresh} disabled={Boolean(modal || summaryModal)} />
 
       {showWelcomeAnimation && (
         <WelcomeAnimation name={displayName} role={userProfile?.role} onFinish={handleWelcomeFinish} />
@@ -976,26 +991,51 @@ const Beranda = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="tanabrew-dashboard-stat rounded-lg bg-primary/10 px-3 py-2" style={{ animationDelay: "100ms" }}>
+                <button
+                  type="button"
+                  onClick={() => setSummaryModal("lunas")}
+                  className="tanabrew-dashboard-stat rounded-lg bg-primary/10 px-3 py-2 text-left w-full cursor-pointer hover:opacity-90 active:scale-95 transition-all select-none hover:shadow-sm"
+                  style={{ animationDelay: "100ms" }}
+                >
                   <p className="text-muted-foreground">Invoice Lunas</p>
                   <p className="font-bold text-primary">{dashboardStatus.lunas}</p>
-                </div>
-                <div className="tanabrew-dashboard-stat rounded-lg bg-destructive/10 px-3 py-2" style={{ animationDelay: "180ms" }}>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSummaryModal("belum_lunas")}
+                  className="tanabrew-dashboard-stat rounded-lg bg-destructive/10 px-3 py-2 text-left w-full cursor-pointer hover:opacity-90 active:scale-95 transition-all select-none hover:shadow-sm"
+                  style={{ animationDelay: "180ms" }}
+                >
                   <p className="text-muted-foreground">Belum Lunas</p>
                   <p className="font-bold text-destructive">{dashboardStatus.belumLunas}</p>
-                </div>
-                <div className="tanabrew-dashboard-stat rounded-lg bg-primary/10 px-3 py-2" style={{ animationDelay: "260ms" }}>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSummaryModal("stok_aman")}
+                  className="tanabrew-dashboard-stat rounded-lg bg-primary/10 px-3 py-2 text-left w-full cursor-pointer hover:opacity-90 active:scale-95 transition-all select-none hover:shadow-sm"
+                  style={{ animationDelay: "260ms" }}
+                >
                   <p className="text-muted-foreground">Stok Aman</p>
                   <p className="font-bold text-primary">{safeStockProducts.length}</p>
-                </div>
-                <div className="tanabrew-dashboard-stat rounded-lg bg-yellow-100/80 px-3 py-2" style={{ animationDelay: "340ms" }}>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSummaryModal("stok_menipis")}
+                  className="tanabrew-dashboard-stat rounded-lg bg-yellow-100/80 px-3 py-2 text-left w-full cursor-pointer hover:opacity-90 active:scale-95 transition-all select-none hover:shadow-sm"
+                  style={{ animationDelay: "340ms" }}
+                >
                   <p className="text-muted-foreground">Stok Menipis</p>
                   <p className="font-bold text-yellow-800">{lowStockProducts.length}</p>
-                </div>
-                <div className="tanabrew-dashboard-stat rounded-lg bg-destructive/10 px-3 py-2" style={{ animationDelay: "420ms" }}>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSummaryModal("stok_habis")}
+                  className="tanabrew-dashboard-stat rounded-lg bg-destructive/10 px-3 py-2 text-left w-full cursor-pointer hover:opacity-90 active:scale-95 transition-all select-none hover:shadow-sm"
+                  style={{ animationDelay: "420ms" }}
+                >
                   <p className="text-muted-foreground">Stok Habis</p>
                   <p className="font-bold text-destructive">{emptyStockProducts.length}</p>
-                </div>
+                </button>
               </div>
 
               <div>
@@ -1095,8 +1135,12 @@ const Beranda = () => {
         </div>
 
         {modal && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-foreground/40" onClick={() => setModal(null)}>
-            <div className="bg-card w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-5 max-h-[70vh] overflow-y-auto tanabrew-card-enter" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-foreground/40" onClick={() => setModal(null)}>
+            <div 
+              className="bg-card w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-5 pb-12 sm:pb-5 max-h-[70vh] overflow-y-auto tanabrew-card-enter" 
+              style={{ paddingBottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-primary">
                   Stok {modal === "jogja" ? "Jogja" : "Lombok"}
@@ -1117,6 +1161,129 @@ const Beranda = () => {
                 {products.length === 0 && (
                   <p className="text-center text-muted-foreground text-sm py-4">Belum ada data</p>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {summaryModal && (
+          <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-foreground/40" onClick={() => setSummaryModal(null)}>
+            <div 
+              className="bg-card w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-5 pb-12 sm:pb-5 max-h-[80vh] overflow-y-auto tanabrew-card-enter animate-in fade-in slide-in-from-bottom-4 duration-300" 
+              style={{ paddingBottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4 border-b border-border pb-2">
+                <h3 className="text-lg font-bold text-primary">
+                  {summaryModal === "lunas" && "Invoice Lunas"}
+                  {summaryModal === "belum_lunas" && "Invoice Belum Lunas"}
+                  {summaryModal === "stok_aman" && "Stok Aman"}
+                  {summaryModal === "stok_menipis" && "Stok Menipis"}
+                  {summaryModal === "stok_habis" && "Stok Habis"}
+                </h3>
+                <button onClick={() => setSummaryModal(null)} className="p-1 rounded-full hover:bg-muted" aria-label="Tutup modal">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {/* Render Invoices */}
+                {(summaryModal === "lunas" || summaryModal === "belum_lunas") && (() => {
+                  const filtered = summaryModal === "lunas"
+                    ? dashboardInvoices.filter((inv) => inv.status === "LUNAS")
+                    : dashboardInvoices.filter((inv) => inv.status === "BELUM LUNAS");
+
+                  if (filtered.length === 0) {
+                    return (
+                      <p className="text-center text-muted-foreground text-sm py-6">
+                        {summaryModal === "lunas" ? "Belum ada invoice lunas." : "Belum ada invoice belum lunas."}
+                      </p>
+                    );
+                  }
+
+                  return filtered.map((invoice) => (
+                    <div key={invoice.id} className="rounded-xl border border-border p-3 space-y-2 bg-muted/30 text-left">
+                      <div className="flex justify-between items-start gap-2">
+                        <span className="font-bold text-primary text-xs truncate max-w-[70%]">{invoice.no_invoice || "-"}</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          invoice.status === "LUNAS" ? "bg-primary/15 text-primary" : "bg-destructive/15 text-destructive"
+                        }`}>
+                          {invoice.status}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                        <p><span className="font-medium text-foreground">Customer:</span> {invoice.customer || "-"}</p>
+                        <p className="text-right"><span className="font-medium text-foreground">Total:</span> Rp {fmt(invoice.total || 0)}</p>
+                        <p><span className="font-medium text-foreground">Tanggal:</span> {formatInvoiceDate(invoice)}</p>
+                        <p className="text-right truncate"><span className="font-medium text-foreground">Pembuat:</span> {invoice.dibuat_oleh || "-"}</p>
+                      </div>
+                      <div className="flex justify-end pt-1 border-t border-border/40">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSummaryModal(null);
+                            navigate("/riwayat");
+                          }}
+                          className="text-[10px] font-bold text-primary hover:underline flex items-center gap-0.5 cursor-pointer"
+                        >
+                          Lihat di Riwayat
+                        </button>
+                      </div>
+                    </div>
+                  ));
+                })()}
+
+                {/* Render Products */}
+                {(summaryModal === "stok_aman" || summaryModal === "stok_menipis" || summaryModal === "stok_habis") && (() => {
+                  const filtered = summaryModal === "stok_aman"
+                    ? safeStockProducts
+                    : summaryModal === "stok_menipis"
+                      ? lowStockProducts
+                      : emptyStockProducts;
+
+                  if (filtered.length === 0) {
+                    return (
+                      <p className="text-center text-muted-foreground text-sm py-6">
+                        {summaryModal === "stok_aman" && "Semua stok masih aman."}
+                        {summaryModal === "stok_menipis" && "Tidak ada produk dengan stok menipis."}
+                        {summaryModal === "stok_habis" && "Tidak ada produk dengan stok habis."}
+                      </p>
+                    );
+                  }
+
+                  return filtered.map((product) => (
+                    <div key={product.id} className="rounded-xl border border-border p-3 space-y-2 bg-muted/30 text-left">
+                      <div className="flex justify-between items-center gap-2">
+                        <span className="font-bold text-foreground text-sm">{product.nama_barang}</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          summaryModal === "stok_aman"
+                            ? "bg-primary/15 text-primary"
+                            : summaryModal === "stok_menipis"
+                              ? "bg-yellow-200/80 text-yellow-800"
+                              : "bg-destructive/15 text-destructive"
+                        }`}>
+                          {summaryModal === "stok_aman" && "Aman"}
+                          {summaryModal === "stok_menipis" && "Menipis"}
+                          {summaryModal === "stok_habis" && "Habis"}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-center text-xs pt-1">
+                        <div className="rounded bg-muted py-1.5">
+                          <p className="text-[10px] text-muted-foreground">Jogja</p>
+                          <p className="font-bold text-foreground">{product.stok_jogja}</p>
+                        </div>
+                        <div className="rounded bg-muted py-1.5">
+                          <p className="text-[10px] text-muted-foreground">Lombok</p>
+                          <p className="font-bold text-foreground">{product.stok_lombok}</p>
+                        </div>
+                        <div className="rounded bg-primary/10 py-1.5">
+                          <p className="text-[10px] text-primary">Total</p>
+                          <p className="font-bold text-primary">{product.total_stok}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ));
+                })()}
               </div>
             </div>
           </div>

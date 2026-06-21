@@ -1221,8 +1221,12 @@ const Riwayat = () => {
       )}
 
       {selectedInvoice && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-foreground/40" onClick={() => setSelectedInvoice(null)}>
-          <div className="bg-card w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-5 max-h-[85vh] overflow-y-auto tanabrew-card-enter" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-foreground/40" onClick={() => setSelectedInvoice(null)}>
+          <div 
+            className="bg-card w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-5 pb-12 sm:pb-5 max-h-[85vh] overflow-y-auto tanabrew-card-enter" 
+            style={{ paddingBottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-primary">Detail Invoice</h2>
               <button onClick={() => setSelectedInvoice(null)} className="p-1 rounded-full hover:bg-muted">
