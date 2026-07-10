@@ -11,6 +11,7 @@ import type { InvoiceItem } from "@/types";
 import { Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/Skeleton";
+import { syncInvoiceToSpreadsheet } from "@/lib/spreadsheet/invoiceSync";
 
 type ActionNotice = {
   id: number;
@@ -143,6 +144,7 @@ const CetakInvoice = () => {
         printed_by_uid: "",
         printed_by_role: "",
         print_count: 0,
+        spreadsheetSyncStatus: "PENDING",
         },
         stockItems,
         stockLocation,
@@ -155,6 +157,9 @@ const CetakInvoice = () => {
       showActionNotice("Invoice berhasil dibuat", `No Invoice: ${generatedNoInvoice}`);
       toast({ title: "Berhasil", description: "Invoice tersimpan" });
       sendInvoiceNotification("CREATE_INVOICE", invoiceId, generatedNoInvoice);
+
+      // Trigger Google Spreadsheet synchronization asynchronously (non-blocking, fail-safe)
+      void syncInvoiceToSpreadsheet(invoiceId);
     } catch (error) {
       const description = error instanceof Error && error.message ? error.message : "Gagal menyimpan";
       toast({ title: "Error", description, variant: "destructive" });

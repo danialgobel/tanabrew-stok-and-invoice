@@ -1,4 +1,4 @@
-import { Home, Package, FileText, History } from "lucide-react";
+import { Home, Package, FileText, History, Database } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 const tabs = [
@@ -6,6 +6,7 @@ const tabs = [
   { path: "/update-stok", label: "Update Stok", icon: Package },
   { path: "/cetak-invoice", label: "Cetak Invoice", icon: FileText },
   { path: "/riwayat", label: "Riwayat", icon: History },
+  { path: "/spreadsheet", label: "Spreadsheet", icon: Database },
 ];
 
 const BottomNav = () => {
