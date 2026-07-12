@@ -35,7 +35,7 @@ describe("expenseService", () => {
       message: "Fetched successfully",
     });
 
-    const result = await fetchExpenseRecords();
+    const result = await fetchExpenseRecords(true);
 
     expect(spreadsheetService.get).toHaveBeenCalledWith("", { action: "expense" });
     expect(result).toEqual(mockRecords);
@@ -48,7 +48,7 @@ describe("expenseService", () => {
       message: "Error fetching",
     });
 
-    const result = await fetchExpenseRecords();
+    const result = await fetchExpenseRecords(true);
 
     expect(spreadsheetService.get).toHaveBeenCalledWith("", { action: "expense" });
     expect(result).toEqual([]);
@@ -60,7 +60,7 @@ describe("expenseService", () => {
       message: "API running",
     });
 
-    const result = await fetchExpenseRecords();
+    const result = await fetchExpenseRecords(true);
 
     expect(result).toEqual([]);
   });
@@ -68,6 +68,6 @@ describe("expenseService", () => {
   it("should throw an error if the underlying service get request fails", async () => {
     vi.mocked(spreadsheetService.get).mockRejectedValue(new Error("API failure"));
 
-    await expect(fetchExpenseRecords()).rejects.toThrow("API failure");
+    await expect(fetchExpenseRecords(true)).rejects.toThrow("API failure");
   });
 });

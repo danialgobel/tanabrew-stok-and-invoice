@@ -139,7 +139,10 @@ export const syncInvoiceToSpreadsheet = async (invoiceId: string): Promise<SyncR
     };
 
     // 4. Send to Spreadsheet Service
-    const response = await spreadsheetService.post<SpreadsheetResponse<SpreadsheetSyncResponse> | SpreadsheetSyncResponse>("", payload);
+    const response = await spreadsheetService.post<SpreadsheetResponse<SpreadsheetSyncResponse> | SpreadsheetSyncResponse>("", {
+      action: "add_income",
+      ...payload,
+    });
     
     // Parse response format (supports directly returned standard response or wrapped response)
     let syncResponse: SpreadsheetSyncResponse;

@@ -38,7 +38,7 @@ describe("incomeService refactored", () => {
       message: "Fetched successfully",
     });
 
-    const result = await fetchIncomeRecords();
+    const result = await fetchIncomeRecords(true);
 
     expect(spreadsheetService.get).toHaveBeenCalledWith("", { action: "income" });
     expect(result).toEqual(mockRecords);
@@ -51,7 +51,7 @@ describe("incomeService refactored", () => {
       message: "API error",
     });
 
-    const result = await fetchIncomeRecords();
+    const result = await fetchIncomeRecords(true);
 
     expect(spreadsheetService.get).toHaveBeenCalledWith("", { action: "income" });
     expect(result).toEqual([]);
@@ -63,7 +63,7 @@ describe("incomeService refactored", () => {
       message: "API running",
     });
 
-    const result = await fetchIncomeRecords();
+    const result = await fetchIncomeRecords(true);
 
     expect(result).toEqual([]);
   });
@@ -71,6 +71,6 @@ describe("incomeService refactored", () => {
   it("should throw an error if the underlying service get request fails", async () => {
     vi.mocked(spreadsheetService.get).mockRejectedValue(new Error("Network error"));
 
-    await expect(fetchIncomeRecords()).rejects.toThrow("Network error");
+    await expect(fetchIncomeRecords(true)).rejects.toThrow("Network error");
   });
 });

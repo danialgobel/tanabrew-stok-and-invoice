@@ -39,11 +39,32 @@ const Pendapatan = ({ showHeader = true }: { showHeader?: boolean }) => {
   });
   const [submitting, setSubmitting] = useState(false);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const loadData = useCallback(async (isInitial = false) => {
+    let hasCache = false;
+    if (isInitial) {
+      try {
+        const cached = localStorage.getItem("tanabrew_income_records");
+        if (cached) {
+          const parsed = JSON.parse(cached) as IncomeRecord[];
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setRecords(parsed);
+            setLoading(false);
+            hasCache = true;
+            console.log("[Income]\nLOADED FROM LOCALSTORAGE CACHE\n", parsed.length, "records");
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to read localStorage cache for income:", err);
+      }
+    }
+
+    if (!hasCache) {
+      setLoading(true);
+    }
     setError(false);
+
     try {
-      const data = await fetchIncomeRecords();
+      const data = await fetchIncomeRecords(true);
       // Default: Tanggal terbaru di atas (Sort by timestamp / tanggal + jam descending)
       const sortedData = [...data].sort((a, b) => {
         const timeA = new Date(`${a.tanggalInvoice}T${a.jamInvoice || "00:00:00"}`).getTime();
@@ -51,10 +72,21 @@ const Pendapatan = ({ showHeader = true }: { showHeader?: boolean }) => {
         return timeB - timeA;
       });
       setRecords(sortedData);
-      console.log("[Income]\nSTATE UPDATED\n", sortedData.length, "records");
+      try {
+        localStorage.setItem("tanabrew_income_records", JSON.stringify(sortedData));
+      } catch (e) {
+        console.warn("Failed to write to localStorage for income:", e);
+      }
+      console.log("[Income]\nSTATE UPDATED FROM API\n", sortedData.length, "records");
+      setError(false);
     } catch (err) {
       console.error("Gagal memuat data pendapatan dari Spreadsheet:", err);
-      setError(true);
+      setRecords((prev) => {
+        if (prev.length === 0) {
+          setError(true);
+        }
+        return prev;
+      });
     } finally {
       setLoading(false);
     }
@@ -112,7 +144,7 @@ const Pendapatan = ({ showHeader = true }: { showHeader?: boolean }) => {
   };
 
   useEffect(() => {
-    void loadData();
+    void loadData(true);
   }, [loadData]);
 
   const handleSafeRefresh = useCallback(async () => {

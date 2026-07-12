@@ -115,11 +115,32 @@ const Pengeluaran = ({ showHeader = true }: { showHeader?: boolean }) => {
     }
   };
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const loadData = useCallback(async (isInitial = false) => {
+    let hasCache = false;
+    if (isInitial) {
+      try {
+        const cached = localStorage.getItem("tanabrew_expense_records");
+        if (cached) {
+          const parsed = JSON.parse(cached) as ExpenseRecord[];
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setRecords(parsed);
+            setLoading(false);
+            hasCache = true;
+            console.log("[Expense]\nLOADED FROM LOCALSTORAGE CACHE\n", parsed.length, "records");
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to read localStorage cache for expense:", err);
+      }
+    }
+
+    if (!hasCache) {
+      setLoading(true);
+    }
     setError(false);
+
     try {
-      const data = await fetchExpenseRecords();
+      const data = await fetchExpenseRecords(true);
       // Default: Tanggal terbaru di atas
       const sortedData = [...data].sort((a, b) => {
         const dateA = getCleanDate(a);
@@ -129,16 +150,28 @@ const Pengeluaran = ({ showHeader = true }: { showHeader?: boolean }) => {
         return timeB - timeA;
       });
       setRecords(sortedData);
+      try {
+        localStorage.setItem("tanabrew_expense_records", JSON.stringify(sortedData));
+      } catch (e) {
+        console.warn("Failed to write to localStorage for expense:", e);
+      }
+      console.log("[Expense]\nSTATE UPDATED FROM API\n", sortedData.length, "records");
+      setError(false);
     } catch (err) {
       console.error("Gagal memuat data pengeluaran dari Spreadsheet:", err);
-      setError(true);
+      setRecords((prev) => {
+        if (prev.length === 0) {
+          setError(true);
+        }
+        return prev;
+      });
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void loadData();
+    void loadData(true);
   }, [loadData]);
 
   const handleSafeRefresh = useCallback(async () => {
