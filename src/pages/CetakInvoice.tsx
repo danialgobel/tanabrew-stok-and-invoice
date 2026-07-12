@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { doc, updateDoc, serverTimestamp, increment } from "firebase/firestore";
+import { doc, getDoc, updateDoc, serverTimestamp, increment } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { addActivityLog } from "@/lib/activityLog";
 import AnimatedNotification from "@/components/AnimatedNotification";
-import { createInvoiceWithNumberAndStock } from "@/lib/invoiceNumber";
+import { createInvoiceWithNumberAndStock, updateInvoiceWithStock } from "@/lib/invoiceNumber";
 import { sendTanabrewNotification } from "@/lib/notificationSender";
 import { useProducts } from "@/hooks/useProducts";
 import { useAuth } from "@/context/AuthContext";
@@ -12,6 +12,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/Skeleton";
 import { syncInvoiceToSpreadsheet } from "@/lib/spreadsheet/invoiceSync";
+import { useSearchParams, useNavigate } from "react-router-dom";
 
 type ActionNotice = {
   id: number;
@@ -24,6 +25,11 @@ const CetakInvoice = () => {
   const { products, loading: loadingProducts } = useProducts();
   const { currentUser, userProfile } = useAuth();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const editId = searchParams.get("edit");
+  const isEditMode = Boolean(editId);
+
   const [tanggal, setTanggal] = useState("");
   const [noInvoice, setNoInvoice] = useState("");
   const [customer, setCustomer] = useState("");
@@ -37,6 +43,61 @@ const CetakInvoice = () => {
   const [saved, setSaved] = useState(false);
   const [savedInvoiceId, setSavedInvoiceId] = useState("");
   const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
+  const [loadingInvoice, setLoadingInvoice] = useState(false);
+
+  useEffect(() => {
+    if (!editId) return;
+
+    const fetchInvoiceData = async () => {
+      setLoadingInvoice(true);
+      try {
+        const snap = await getDoc(doc(db, "invoices", editId));
+        if (snap.exists()) {
+          const data = snap.data();
+          const isWebdev = userProfile?.role === "webdev";
+          if (!isWebdev && (data.is_printed || data.status === "LUNAS")) {
+            toast({
+              title: "Akses Ditolak",
+              description: "Invoice yang sudah dicetak atau lunas tidak dapat diedit.",
+              variant: "destructive",
+            });
+            navigate("/riwayat");
+            return;
+          }
+
+          setTanggal(data.tanggal || "");
+          setCustomer(data.customer || "");
+          setStockLocation(data.stock_location || "Jogja");
+          setItems(
+            Array.isArray(data.items)
+              ? data.items.map((it: any) => ({
+                  product_id: it.product_id || "",
+                  nama_barang: it.nama_barang || "",
+                  harga: Number(it.harga) || 0,
+                  jumlah: Number(it.jumlah) || 0,
+                  subtotal: Number(it.subtotal) || 0,
+                }))
+              : [{ nama_barang: "", harga: 0, jumlah: 1, subtotal: 0 }]
+          );
+          setDiskon(Number(data.diskon) || 0);
+          setJumlahDibayar(Number(data.jumlah_dibayar) || 0);
+          setNoInvoice(data.no_invoice || "");
+          setSavedInvoiceId(editId);
+        } else {
+          toast({ title: "Error", description: "Invoice tidak ditemukan", variant: "destructive" });
+          navigate("/riwayat");
+        }
+      } catch (err) {
+        console.error("Gagal memuat invoice untuk diedit", err);
+        toast({ title: "Error", description: "Gagal memuat data invoice", variant: "destructive" });
+        navigate("/riwayat");
+      } finally {
+        setLoadingInvoice(false);
+      }
+    };
+
+    void fetchInvoiceData();
+  }, [editId, navigate, toast, userProfile?.role]);
 
   const subtotal = items.reduce((s, i) => s + i.subtotal, 0);
   const total = subtotal - (diskon || 0);
@@ -129,37 +190,72 @@ const CetakInvoice = () => {
           quantity: Number(item.jumlah) || 0,
         };
       });
-      const { invoiceId, noInvoice: generatedNoInvoice } = await createInvoiceWithNumberAndStock({
-        invoiceData: {
-        tanggal, customer,
-          items: invoiceItems,
-          subtotal, diskon, total, jumlah_dibayar: jumlahDibayar, sisa, status,
-        dibuat_oleh: userProfile.name,
-        dibuat_oleh_uid: currentUser.uid,
-        dibuat_oleh_role: userProfile.role,
-        created_at: serverTimestamp(),
-        is_printed: false,
-        printed_at: null,
-        printed_by: "",
-        printed_by_uid: "",
-        printed_by_role: "",
-        print_count: 0,
-        spreadsheetSyncStatus: "PENDING",
-        },
-        stockItems,
-        stockLocation,
-        user: { uid: currentUser.uid, name: userProfile.name, role: userProfile.role },
-        customer,
-      });
-      setNoInvoice(generatedNoInvoice);
-      setSavedInvoiceId(invoiceId);
-      setSaved(true);
-      showActionNotice("Invoice berhasil dibuat", `No Invoice: ${generatedNoInvoice}`);
-      toast({ title: "Berhasil", description: "Invoice tersimpan" });
-      sendInvoiceNotification("CREATE_INVOICE", invoiceId, generatedNoInvoice);
 
-      // Trigger Google Spreadsheet synchronization asynchronously (non-blocking, fail-safe)
-      void syncInvoiceToSpreadsheet(invoiceId);
+      if (isEditMode && savedInvoiceId) {
+        await updateInvoiceWithStock({
+          invoiceId: savedInvoiceId,
+          invoiceData: {
+            tanggal,
+            customer,
+            items: invoiceItems,
+            subtotal,
+            diskon,
+            total,
+            jumlah_dibayar: jumlahDibayar,
+            sisa,
+            status,
+            edited_at: serverTimestamp(),
+            edited_by: userProfile.name,
+            edited_by_uid: currentUser.uid,
+            edited_by_role: userProfile.role,
+            spreadsheetSyncStatus: "PENDING",
+          },
+          stockItems,
+          stockLocation,
+          user: { uid: currentUser.uid, name: userProfile.name, role: userProfile.role },
+          customer,
+        });
+
+        setSaved(true);
+        showActionNotice("Invoice berhasil diperbarui", `No Invoice: ${noInvoice}`);
+        toast({ title: "Berhasil", description: "Invoice diperbarui" });
+        sendInvoiceNotification("CREATE_INVOICE", savedInvoiceId, noInvoice);
+
+        // Trigger Google Spreadsheet synchronization asynchronously
+        void syncInvoiceToSpreadsheet(savedInvoiceId);
+      } else {
+        const { invoiceId, noInvoice: generatedNoInvoice } = await createInvoiceWithNumberAndStock({
+          invoiceData: {
+            tanggal, customer,
+            items: invoiceItems,
+            subtotal, diskon, total, jumlah_dibayar: jumlahDibayar, sisa, status,
+            dibuat_oleh: userProfile.name,
+            dibuat_oleh_uid: currentUser.uid,
+            dibuat_oleh_role: userProfile.role,
+            created_at: serverTimestamp(),
+            is_printed: false,
+            printed_at: null,
+            printed_by: "",
+            printed_by_uid: "",
+            printed_by_role: "",
+            print_count: 0,
+            spreadsheetSyncStatus: "PENDING",
+          },
+          stockItems,
+          stockLocation,
+          user: { uid: currentUser.uid, name: userProfile.name, role: userProfile.role },
+          customer,
+        });
+        setNoInvoice(generatedNoInvoice);
+        setSavedInvoiceId(invoiceId);
+        setSaved(true);
+        showActionNotice("Invoice berhasil dibuat", `No Invoice: ${generatedNoInvoice}`);
+        toast({ title: "Berhasil", description: "Invoice tersimpan" });
+        sendInvoiceNotification("CREATE_INVOICE", invoiceId, generatedNoInvoice);
+
+        // Trigger Google Spreadsheet synchronization asynchronously
+        void syncInvoiceToSpreadsheet(invoiceId);
+      }
     } catch (error) {
       const description = error instanceof Error && error.message ? error.message : "Gagal menyimpan";
       toast({ title: "Error", description, variant: "destructive" });
@@ -352,6 +448,15 @@ const CetakInvoice = () => {
     setPrinting(false);
   };
 
+  if (loadingInvoice) {
+    return (
+      <div className="mx-auto w-full max-w-lg px-4 pb-24 pt-6 space-y-4">
+        <Skeleton className="h-8 w-1/3" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
   if (saved) {
     return (
       <div className="px-4 pb-24 pt-6 max-w-lg mx-auto">
@@ -448,7 +553,18 @@ const CetakInvoice = () => {
             )}
           </div>
           <button
-            onClick={() => { setSaved(false); setSavedInvoiceId(""); setItems([{ nama_barang: "", harga: 0, jumlah: 1, subtotal: 0 }]); setDiskon(0); setJumlahDibayar(0); setNoInvoice(""); setCustomer(""); setTanggal(""); setStockLocation("Jogja"); }}
+            onClick={() => {
+              setSaved(false);
+              setSavedInvoiceId("");
+              setItems([{ nama_barang: "", harga: 0, jumlah: 1, subtotal: 0 }]);
+              setDiskon(0);
+              setJumlahDibayar(0);
+              setNoInvoice("");
+              setCustomer("");
+              setTanggal("");
+              setStockLocation("Jogja");
+              navigate("/cetak-invoice");
+            }}
             className="flex-1 bg-muted text-muted-foreground rounded-lg py-2.5 text-sm font-medium"
           >
             Invoice Baru
@@ -468,7 +584,9 @@ const CetakInvoice = () => {
         />
       )}
 
-      <h1 className="text-lg font-bold text-primary mb-4">Cetak Invoice</h1>
+      <h1 className="text-lg font-bold text-primary mb-4">
+        {isEditMode ? `Edit Invoice (${noInvoice})` : "Cetak Invoice"}
+      </h1>
 
       <form onSubmit={handleSubmit} className="max-w-full space-y-3">
         <div className="max-w-full bg-card rounded-xl border border-border p-4 space-y-3">

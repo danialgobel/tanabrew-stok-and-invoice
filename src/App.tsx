@@ -15,6 +15,7 @@ import Spreadsheet from "@/pages/Spreadsheet";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import NotFound from "@/pages/NotFound";
+import GodMode from "@/pages/GodMode";
 import { logoutOneSignalUser, syncOneSignalUserIdentity } from "@/lib/onesignal";
 
 const queryClient = new QueryClient();
@@ -61,6 +62,14 @@ const AppRoutes = () => {
     userProfile?.name,
     userProfile?.role,
   ]);
+  
+  useEffect(() => {
+    if (userProfile?.role === "webdev") {
+      document.body.classList.add("role-webdev");
+    } else {
+      document.body.classList.remove("role-webdev");
+    }
+  }, [userProfile?.role]);
 
   return (
     <>
@@ -73,6 +82,7 @@ const AppRoutes = () => {
           <Route path="/cetak-invoice" element={<ProtectedPage><CetakInvoice /></ProtectedPage>} />
           <Route path="/riwayat" element={<ProtectedPage><Riwayat /></ProtectedPage>} />
           <Route path="/spreadsheet" element={<ProtectedPage><Spreadsheet /></ProtectedPage>} />
+          <Route path="/god-mode" element={<ProtectedPage><GodMode /></ProtectedPage>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </div>

@@ -551,3 +551,34 @@
     width: 100%;
   }
 }
+
+/* Developer God Mode Custom CSS Theme */
+body.role-webdev {
+  --background: 240 25% 6%;
+  --foreground: 0 0% 100%;
+  --card: 240 20% 9%;
+  --card-foreground: 0 0% 100%;
+  --border: 240 15% 15%;
+  --primary: 270 90% 65%; /* Glowing Purple */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 270 30% 15%;
+  --secondary-foreground: 270 90% 70%;
+  --muted: 240 15% 12%;
+  --muted-foreground: 240 10% 60%;
+  --accent: 140 100% 50%; /* Neon Terminal Green */
+  --accent-foreground: 240 25% 6%;
+  --destructive: 0 85% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --input: 240 15% 15%;
+  --ring: 270 90% 65%;
+
+  background-color: #0b0a10 !important;
+  background-image: 
+    linear-gradient(rgba(15, 12, 22, 0.94) 0%, rgba(11, 10, 16, 0.98) 100%),
+    radial-gradient(ellipse at 50% 0%, rgba(139, 92, 246, 0.18) 0%, transparent 80%) !important;
+}
+
+body.role-webdev .bg-card,
+body.role-webdev .bg-background {
+  transition: background-color 300ms ease;
+}

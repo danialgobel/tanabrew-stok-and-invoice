@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   collection,
   doc,
@@ -504,6 +505,8 @@ const Riwayat = () => {
   }, [products, reportInvoices]);
 
   const isAdmin = userProfile?.role === "admin" || userProfile?.role === "owner";
+  const isWebdev = userProfile?.role === "webdev";
+  const navigate = useNavigate();
 
   const handleSafeRefresh = useCallback(() => {
     window.setTimeout(() => window.location.reload(), 320);
@@ -1341,6 +1344,14 @@ const Riwayat = () => {
                 className="mt-2 w-full rounded-lg bg-primary/10 px-3 py-2.5 text-sm font-bold text-primary hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {payingInvoiceId === selectedInvoice.id ? "Memproses..." : "Tandai Lunas"}
+              </button>
+            )}
+            {((isAdmin && !selectedInvoice.is_printed && selectedInvoice.status !== "LUNAS") || isWebdev) && (
+              <button
+                onClick={() => navigate(`/cetak-invoice?edit=${selectedInvoice.id}`)}
+                className="mt-2 w-full inline-flex items-center justify-center gap-1 rounded-lg border border-primary px-3 py-2.5 text-sm font-semibold text-primary hover:bg-primary/5"
+              >
+                Edit Invoice
               </button>
             )}
           </div>

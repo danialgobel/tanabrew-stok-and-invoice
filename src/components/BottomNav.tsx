@@ -1,17 +1,24 @@
-import { Home, Package, FileText, History, Database } from "lucide-react";
+import { Home, Package, FileText, History, Database, Terminal } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-
-const tabs = [
-  { path: "/", label: "Beranda", icon: Home },
-  { path: "/update-stok", label: "Update Stok", icon: Package },
-  { path: "/cetak-invoice", label: "Cetak Invoice", icon: FileText },
-  { path: "/riwayat", label: "Riwayat", icon: History },
-  { path: "/spreadsheet", label: "Spreadsheet", icon: Database },
-];
+import { useAuth } from "@/context/AuthContext";
 
 const BottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { userProfile } = useAuth();
+  const isWebdev = userProfile?.role === "webdev";
+
+  const tabs = [
+    { path: "/", label: "Beranda", icon: Home },
+    { path: "/update-stok", label: "Update Stok", icon: Package },
+    { path: "/cetak-invoice", label: "Cetak Invoice", icon: FileText },
+    { path: "/riwayat", label: "Riwayat", icon: History },
+    { path: "/spreadsheet", label: "Spreadsheet", icon: Database },
+  ];
+
+  if (isWebdev) {
+    tabs.push({ path: "/god-mode", label: "God Mode", icon: Terminal });
+  }
 
   return (
     <nav

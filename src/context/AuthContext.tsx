@@ -10,7 +10,7 @@ import {
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
-type UserRole = "owner" | "admin" | "staff";
+type UserRole = "owner" | "admin" | "staff" | "webdev";
 
 interface UserProfile {
   uid: string;
@@ -40,6 +40,7 @@ const getRoleFromAccessCode = (accessCode: string): UserRole => {
   if (code === "OWNER") return "owner";
   if (code === "ADMIN") return "admin";
   if (code === "STAFF") return "staff";
+  if (code === "WEBDEV" || code === "GODMODE" || code === "WEB DEV") return "webdev";
 
   throw new Error("Kode akses tidak valid");
 };
