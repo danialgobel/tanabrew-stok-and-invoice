@@ -86,6 +86,14 @@ function doGet(e) {
             }
           }
           if (!record["timestamp"]) record["timestamp"] = new Date().toISOString();
+          
+          // Post-process to extract real invoice number if available in catatan
+          var noteStr = record["catatan"] ? record["catatan"].toString().trim() : "";
+          var invMatch = noteStr.match(/INV\/TNB\/\d{4}\/\d{2}\/\d{4}/i) || noteStr.match(/TEST-INV-\d+/i) || noteStr.match(/TR-TEMP-\d+/i);
+          if (invMatch) {
+            record["invoiceNumber"] = invMatch[0];
+          }
+          
           records.push(record);
         }
 
@@ -200,22 +208,62 @@ function handleAddIncome(data) {
     }).join(", ");
   }
 
+  // Derive customer code (first word lowercase)
+  var customerName = data.customerName || "";
+  var customerCode = "";
+  if (customerName) {
+    customerCode = customerName.trim().split(/\s+/)[0].toLowerCase();
+  }
+  if (!customerCode) {
+    customerCode = invoiceNumber ? invoiceNumber.toLowerCase() : "";
+  }
+  var customerUpper = customerName ? customerName.toUpperCase() : "";
+
+  // Append invoice ID to notes to preserve it
+  var notes = data.catatan || "";
+  if (invoiceNumber && invoiceNumber !== "-" && notes.indexOf(invoiceNumber) === -1) {
+    if (notes) {
+      notes = invoiceNumber + " - " + notes;
+    } else {
+      notes = invoiceNumber;
+    }
+  }
+  if (data.createdBy && notes.indexOf(data.createdBy) === -1) {
+    notes = notes + " (Dibuat oleh " + data.createdBy + ")";
+  }
+
+  var targetRow = findNextEmptyRow(sheet, 7, 1);
+
+  // Set formulas for M, Y, Y2 if columns exist
+  var mCol = idx["M"];
+  var yCol = idx["Y"];
+  var y2Col = idx["Y2"];
+  if (mCol) row[mCol - 1] = "=TEXT(A" + targetRow + ", \"mmm\")";
+  if (yCol) row[yCol - 1] = "=YEAR(A" + targetRow + ")";
+  if (y2Col) row[y2Col - 1] = "=IF(MONTH(A" + targetRow + ")=12, YEAR(A" + targetRow + ")+1, YEAR(A" + targetRow + "))";
+
   setVal(row, idx, "TANGGAL",    data.tanggalInvoice || "");
   setVal(row, idx, "TANGAL",     data.tanggalInvoice || "");
-  setVal(row, idx, "ID",         invoiceNumber);
+  setVal(row, idx, "ID",         customerCode);
   setVal(row, idx, "PRODUK/JASA",produkJasa);
   setVal(row, idx, "KATEGORI",   data.paymentMethod || "");
   setVal(row, idx, "NOMINAL",    total);
   setVal(row, idx, "POTONGAN",   0);
   setVal(row, idx, "FEE",        0);
   setVal(row, idx, "NET INCOME", total);
-  setVal(row, idx, "CATATAN",    data.catatan || ("Ditambahkan oleh " + (data.createdBy || "System")));
-  setVal(row, idx, "CUSTOMER",   data.customerName || "");
+  setVal(row, idx, "CATATAN",    notes);
+  setVal(row, idx, "CUSTOMER",   customerUpper);
 
-  var targetRow = findNextEmptyRow(sheet, 7, 1);
   var range = sheet.getRange(targetRow, 1, 1, lastColumn);
   range.clearDataValidations();
   range.setValues([row]);
+
+  // Apply yellow background highlight to CUSTOMER cell
+  var customerCol = idx["CUSTOMER"];
+  if (customerCol) {
+    sheet.getRange(targetRow, customerCol).setBackground("#FFF2CC");
+  }
+
   return { success: true, message: "Pendapatan berhasil ditambahkan", invoiceNumber: invoiceNumber, row: targetRow };
 }
 
@@ -231,33 +279,89 @@ function handleEditIncome(data) {
   var headers = sheet.getRange(6, 1, 1, lastColumn).getValues()[0];
   var idx = buildHeaderIndex(headers);
   var idCol = idx["ID"];
+  var catatanCol = idx["CATATAN"];
   if (!idCol) return { success: false, message: "Kolom ID tidak ditemukan di sheet Pendapatan" };
 
-  var ids = sheet.getRange(7, idCol, lastRow - 6, 1).getValues();
+  // Search by ID column (for old records) or by invoice number in CATATAN column (for new format)
   var targetRow = -1;
-  for (var i = 0; i < ids.length; i++) {
-    if (ids[i][0] && ids[i][0].toString().trim() === invoiceNumber) {
-      targetRow = 7 + i;
-      break;
+  if (lastRow >= 7) {
+    var ids = sheet.getRange(7, idCol, lastRow - 6, 1).getValues();
+    for (var i = 0; i < ids.length; i++) {
+      if (ids[i][0] && ids[i][0].toString().trim() === invoiceNumber) {
+        targetRow = 7 + i;
+        break;
+      }
     }
   }
+
+  if (targetRow === -1 && catatanCol && lastRow >= 7) {
+    var notesData = sheet.getRange(7, catatanCol, lastRow - 6, 1).getValues();
+    for (var i = 0; i < notesData.length; i++) {
+      var noteText = notesData[i][0] ? notesData[i][0].toString() : "";
+      if (noteText.indexOf(invoiceNumber) !== -1) {
+        targetRow = 7 + i;
+        break;
+      }
+    }
+  }
+
   if (targetRow === -1) return { success: false, message: "Invoice " + invoiceNumber + " tidak ditemukan" };
 
   var row = sheet.getRange(targetRow, 1, 1, lastColumn).getValues()[0];
   var total = Number(data.total) || 0;
 
+  // Derive customer code (first word lowercase)
+  var customerName = data.customerName || "";
+  var customerCode = "";
+  if (customerName) {
+    customerCode = customerName.trim().split(/\s+/)[0].toLowerCase();
+  }
+  if (!customerCode) {
+    customerCode = invoiceNumber ? invoiceNumber.toLowerCase() : "";
+  }
+  var customerUpper = customerName ? customerName.toUpperCase() : "";
+
+  // Append invoice ID to notes if not there
+  var notes = data.catatan || "";
+  if (invoiceNumber && invoiceNumber !== "-" && notes.indexOf(invoiceNumber) === -1) {
+    if (notes) {
+      notes = invoiceNumber + " - " + notes;
+    } else {
+      notes = invoiceNumber;
+    }
+  }
+  if (data.createdBy && notes.indexOf(data.createdBy) === -1) {
+    notes = notes + " (Dibuat oleh " + data.createdBy + ")";
+  }
+
+  // Set formulas for M, Y, Y2 if columns exist
+  var mCol = idx["M"];
+  var yCol = idx["Y"];
+  var y2Col = idx["Y2"];
+  if (mCol) row[mCol - 1] = "=TEXT(A" + targetRow + ", \"mmm\")";
+  if (yCol) row[yCol - 1] = "=YEAR(A" + targetRow + ")";
+  if (y2Col) row[y2Col - 1] = "=IF(MONTH(A" + targetRow + ")=12, YEAR(A" + targetRow + ")+1, YEAR(A" + targetRow + "))";
+
   setVal(row, idx, "TANGGAL",    data.tanggalInvoice || "");
   setVal(row, idx, "TANGAL",     data.tanggalInvoice || "");
+  setVal(row, idx, "ID",         customerCode);
   setVal(row, idx, "PRODUK/JASA",data.produkJasa || "");
   setVal(row, idx, "KATEGORI",   data.paymentMethod || "");
   setVal(row, idx, "NOMINAL",    total);
   setVal(row, idx, "NET INCOME", total);
-  setVal(row, idx, "CATATAN",    data.catatan || "");
-  setVal(row, idx, "CUSTOMER",   data.customerName || "");
+  setVal(row, idx, "CATATAN",    notes);
+  setVal(row, idx, "CUSTOMER",   customerUpper);
 
   var range = sheet.getRange(targetRow, 1, 1, lastColumn);
   range.clearDataValidations();
   range.setValues([row]);
+
+  // Apply yellow background highlight to CUSTOMER cell
+  var customerCol = idx["CUSTOMER"];
+  if (customerCol) {
+    sheet.getRange(targetRow, customerCol).setBackground("#FFF2CC");
+  }
+
   return { success: true, message: "Pendapatan berhasil diupdate", row: targetRow };
 }
 
@@ -356,13 +460,15 @@ function findNextEmptyRow(sheet, startRow, checkCol) {
 
 /**
  * Buat map: HEADER_NAME_UPPERCASE -> column index (1-based)
+ * Secara otomatis menormalkan spasi di sekitar slash (e.g. "PRODUK / JASA" menjadi "PRODUK/JASA")
  */
 function buildHeaderIndex(headers) {
   var map = {};
   for (var i = 0; i < headers.length; i++) {
     var h = headers[i];
     if (h && h.toString().trim() !== "") {
-      map[h.toString().trim().toUpperCase()] = i + 1;
+      var normalized = h.toString().trim().toUpperCase().replace(/\s*\/\s*/g, "/");
+      map[normalized] = i + 1;
     }
   }
   return map;
@@ -370,10 +476,19 @@ function buildHeaderIndex(headers) {
 
 /**
  * Set nilai pada array row berdasarkan header name.
+ * Mendukung pencarian toleran typo (e.g. "POTONGAN" dapat mengisi kolom "POTRONGAN").
  */
 function setVal(row, idx, headerName, value) {
-  var col = idx[headerName.toUpperCase()];
-  if (col !== undefined) row[col - 1] = value;
+  var key = headerName.toUpperCase().replace(/\s*\/\s*/g, "/");
+  var col = idx[key];
+  if (col !== undefined) {
+    row[col - 1] = value;
+  } else {
+    // Custom fallbacks
+    if (key === "POTONGAN" && idx["POTRONGAN"] !== undefined) {
+      row[idx["POTRONGAN"] - 1] = value;
+    }
+  }
 }
 
 /**
@@ -396,7 +511,7 @@ function pad(n) {
  * Memetakan nama kolom sheet Pendapatan ke camelCase key.
  */
 function getMapKeyIncome(header) {
-  var h = header.toString().trim().toUpperCase();
+  var h = header.toString().trim().toUpperCase().replace(/\s*\/\s*/g, "/");
   switch (h) {
     case "ID":          return "invoiceNumber";
     case "TANGGAL":
@@ -405,6 +520,8 @@ function getMapKeyIncome(header) {
     case "NOMINAL":     return "total";
     case "KATEGORI":    return "paymentMethod";
     case "PRODUK/JASA": return "produkJasa";
+    case "POTRONGAN":
+    case "POTONGAN":    return "potongan";
     case "CATATAN":     return "catatan";
     default:
       return h.toLowerCase().replace(/[^a-zA-Z0-9]+(.)/g, function(_, c) { return c.toUpperCase(); });
@@ -415,12 +532,11 @@ function getMapKeyIncome(header) {
  * Memetakan nama kolom sheet Pengeluaran ke camelCase key.
  */
 function getMapKeyExpense(header) {
-  var h = header.toString().trim().toUpperCase();
+  var h = header.toString().trim().toUpperCase().replace(/\s*\/\s*/g, "/");
   switch (h) {
     case "ID":           return "expenseId";
     case "TANGGAL":
     case "TANGAL":       return "tanggalExpense";
-    case "ITEM / PRODUK":
     case "ITEM/PRODUK":  return "itemProduk";
     case "NOMINAL":      return "nominal";
     case "KATEGORI":     return "kategori";
