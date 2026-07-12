@@ -27,6 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import { sendTanabrewNotification } from "@/lib/notificationSender";
 import { openReportWindow, printInvoiceReport, printStockReport, printTanabrewReport, writeReportError } from "@/lib/reportPrint";
 import type { ActivityLog, Invoice, InvoiceItem, StockMovement } from "@/types";
+import { syncInvoiceToSpreadsheet } from "@/lib/spreadsheet/invoiceSync";
 
 type ActiveTab = "invoice" | "stok" | "aktivitas";
 type PayStatusFilter = "semua" | "LUNAS" | "BELUM LUNAS";
@@ -717,6 +718,9 @@ const Riwayat = () => {
       showActionNotice("Invoice berhasil ditandai lunas", `No Invoice: ${paidInvoice.no_invoice}`);
       toast({ title: "Berhasil", description: `Invoice ${paidInvoice.no_invoice} sudah LUNAS.` });
       sendInvoiceNotification("UPDATE_PAYMENT_STATUS", paidInvoice);
+      
+      // Trigger Google Spreadsheet synchronization asynchronously
+      void syncInvoiceToSpreadsheet(paidInvoice.id || paymentTarget.id);
     } catch {
       toast({ title: "Error", description: "Gagal menandai invoice lunas.", variant: "destructive" });
     } finally {

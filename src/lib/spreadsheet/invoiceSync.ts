@@ -23,6 +23,7 @@ export interface SpreadsheetInvoicePayload {
   createdBy: string;
   role: string;
   timestamp: string;
+  catatan?: string;
 }
 
 export interface SyncResult {
@@ -49,6 +50,48 @@ const formatLocalTime = (date: Date): string => {
   const mm = String(date.getMinutes()).padStart(2, "0");
   const ss = String(date.getSeconds()).padStart(2, "0");
   return `${hh}:${mm}:${ss}`;
+};
+
+/**
+ * Calculates total weight or quantity from invoice items.
+ */
+const calculateTotalQuantityOrWeight = (items: any[]): string => {
+  let totalKg = 0;
+  let totalPcs = 0;
+  let hasKg = false;
+  let hasPcs = false;
+
+  for (const item of items) {
+    const name = (item.nama_barang || "").toLowerCase();
+    const qty = Number(item.jumlah) || 0;
+
+    const kgMatch = name.match(/(\d+(?:\.\d+)?)\s*kg/);
+    const grMatch = name.match(/(\d+(?:\.\d+)?)\s*(?:gr|g)\b/);
+
+    if (kgMatch) {
+      const kgPerItem = parseFloat(kgMatch[1]);
+      totalKg += kgPerItem * qty;
+      hasKg = true;
+    } else if (grMatch) {
+      const grPerItem = parseFloat(grMatch[1]);
+      totalKg += (grPerItem / 1000) * qty;
+      hasKg = true;
+    } else {
+      totalPcs += qty;
+      hasPcs = true;
+    }
+  }
+
+  const parts: string[] = [];
+  if (totalKg > 0) {
+    const kgStr = totalKg % 1 === 0 ? totalKg.toString() : totalKg.toFixed(2);
+    parts.push(`${kgStr} kg`);
+  }
+  if (totalPcs > 0 || parts.length === 0) {
+    parts.push(`${totalPcs} pcs`);
+  }
+
+  return parts.join(", ");
 };
 
 /**
@@ -120,7 +163,7 @@ export const syncInvoiceToSpreadsheet = async (invoiceId: string): Promise<SyncR
       jamInvoice,
       customerName: String(invoiceData.customer || "-"),
       total: Number(invoiceData.total) || 0,
-      paymentMethod: String(invoiceData.nomor_rekening || "-"),
+      paymentMethod: String(invoiceData.nomor_rekening || "Penjualan Offline"),
       paymentStatus: String(invoiceData.status || "BELUM LUNAS"),
       totalItems: Array.isArray(invoiceData.items)
         ? invoiceData.items.reduce((sum: number, item: any) => sum + (Number(item.jumlah) || 0), 0)
@@ -136,6 +179,7 @@ export const syncInvoiceToSpreadsheet = async (invoiceId: string): Promise<SyncR
       createdBy: String(invoiceData.dibuat_oleh || "-"),
       role: String(invoiceData.dibuat_oleh_role || "-"),
       timestamp,
+      catatan: calculateTotalQuantityOrWeight(invoiceData.items || []),
     };
 
     // 4. Send to Spreadsheet Service

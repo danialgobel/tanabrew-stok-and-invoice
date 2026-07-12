@@ -122,17 +122,22 @@ const Pendapatan = ({ showHeader = true }: { showHeader?: boolean }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formState.invoiceNumber || !formState.tanggalInvoice || formState.total <= 0) {
-      alert("Mohon isi nomor ID, Tanggal, dan Nominal total dengan benar.");
+    if (!formState.tanggalInvoice || formState.total <= 0) {
+      alert("Mohon isi Tanggal dan Nominal total dengan benar.");
       return;
     }
 
     setSubmitting(true);
     try {
+      const finalFormState = { ...formState };
+      if (!finalFormState.invoiceNumber.trim()) {
+        finalFormState.invoiceNumber = "TR-" + Date.now();
+      }
+
       if (isEdit) {
-        await editIncomeRecord(formState);
+        await editIncomeRecord(finalFormState);
       } else {
-        await addIncomeRecord(formState);
+        await addIncomeRecord(finalFormState);
       }
       setFormOpen(false);
       await loadData();
@@ -437,13 +442,12 @@ const Pendapatan = ({ showHeader = true }: { showHeader?: boolean }) => {
 
             {/* Invoice Number / ID */}
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground">No. Invoice / ID</label>
+              <label className="text-xs font-semibold text-muted-foreground">No. Invoice / ID (Opsional)</label>
               <input
                 type="text"
-                required
                 value={formState.invoiceNumber}
                 onChange={(e) => setFormState((s) => ({ ...s, invoiceNumber: e.target.value }))}
-                placeholder="Contoh: INV-001"
+                placeholder="Dibuat otomatis jika dikosongkan"
                 className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
               />
             </div>

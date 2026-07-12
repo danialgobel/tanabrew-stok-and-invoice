@@ -89,9 +89,13 @@ function doGet(e) {
           
           // Post-process to extract real invoice number if available in catatan
           var noteStr = record["catatan"] ? record["catatan"].toString().trim() : "";
-          var invMatch = noteStr.match(/INV\/TNB\/\d{4}\/\d{2}\/\d{4}/i) || noteStr.match(/TEST-INV-\d+/i) || noteStr.match(/TR-TEMP-\d+/i);
+          var invMatch = noteStr.match(/INV\/TNB\/\d{4}\/\d{2}\/\d{4}/i) || noteStr.match(/TR-\d+/i) || noteStr.match(/TEST-INV-\d+/i) || noteStr.match(/TR-TEMP-\d+/i);
           if (invMatch) {
             record["invoiceNumber"] = invMatch[0];
+            // Remove the invoice number from the catatan string to show a clean note in UI
+            var cleanNote = noteStr.replace(invMatch[0], "").replace(/\s*\(\s*\)\s*/, "").trim();
+            cleanNote = cleanNote.replace(/^[\s\-\(\)]+|[\s\-\(\)]+$/g, "").trim();
+            record["catatan"] = cleanNote;
           }
           
           records.push(record);
@@ -219,11 +223,11 @@ function handleAddIncome(data) {
   }
   var customerUpper = customerName ? customerName.toUpperCase() : "";
 
-  // Append invoice ID to notes to preserve it
+  // Append invoice ID/transaction ID to notes in parentheses to preserve it
   var notes = data.catatan || "";
   if (invoiceNumber && invoiceNumber !== "-" && notes.indexOf(invoiceNumber) === -1) {
     if (notes) {
-      notes = invoiceNumber + " - " + notes;
+      notes = notes + " (" + invoiceNumber + ")";
     } else {
       notes = invoiceNumber;
     }
@@ -321,11 +325,11 @@ function handleEditIncome(data) {
   }
   var customerUpper = customerName ? customerName.toUpperCase() : "";
 
-  // Append invoice ID to notes if not there
+  // Append invoice ID/transaction ID to notes in parentheses if not there
   var notes = data.catatan || "";
   if (invoiceNumber && invoiceNumber !== "-" && notes.indexOf(invoiceNumber) === -1) {
     if (notes) {
-      notes = invoiceNumber + " - " + notes;
+      notes = notes + " (" + invoiceNumber + ")";
     } else {
       notes = invoiceNumber;
     }
