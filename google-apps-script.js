@@ -213,7 +213,9 @@ function handleAddIncome(data) {
   setVal(row, idx, "CUSTOMER",   data.customerName || "");
 
   var targetRow = findNextEmptyRow(sheet, 7, 1);
-  sheet.getRange(targetRow, 1, 1, lastColumn).setValues([row]);
+  var range = sheet.getRange(targetRow, 1, 1, lastColumn);
+  range.clearDataValidations();
+  range.setValues([row]);
   return { success: true, message: "Pendapatan berhasil ditambahkan", invoiceNumber: invoiceNumber, row: targetRow };
 }
 
@@ -253,7 +255,9 @@ function handleEditIncome(data) {
   setVal(row, idx, "CATATAN",    data.catatan || "");
   setVal(row, idx, "CUSTOMER",   data.customerName || "");
 
-  sheet.getRange(targetRow, 1, 1, lastColumn).setValues([row]);
+  var range = sheet.getRange(targetRow, 1, 1, lastColumn);
+  range.clearDataValidations();
+  range.setValues([row]);
   return { success: true, message: "Pendapatan berhasil diupdate", row: targetRow };
 }
 
@@ -280,7 +284,9 @@ function handleAddExpense(data) {
   setVal(row, idx, "CATATAN",      data.catatan || "");
 
   var targetRow = findNextEmptyRow(sheet, 7, 1);
-  sheet.getRange(targetRow, 1, 1, lastColumn).setValues([row]);
+  var range = sheet.getRange(targetRow, 1, 1, lastColumn);
+  range.clearDataValidations();
+  range.setValues([row]);
   return { success: true, message: "Pengeluaran berhasil ditambahkan", expenseId: data.expenseId, row: targetRow };
 }
 
@@ -318,7 +324,9 @@ function handleEditExpense(data) {
   setVal(row, idx, "NOMINAL",      Number(data.nominal) || 0);
   setVal(row, idx, "CATATAN",      data.catatan || "");
 
-  sheet.getRange(targetRow, 1, 1, lastColumn).setValues([row]);
+  var range = sheet.getRange(targetRow, 1, 1, lastColumn);
+  range.clearDataValidations();
+  range.setValues([row]);
   return { success: true, message: "Pengeluaran berhasil diupdate", row: targetRow };
 }
 
