@@ -722,8 +722,8 @@ const Riwayat = () => {
       toast({ title: "Berhasil", description: `Invoice ${paidInvoice.no_invoice} sudah LUNAS.` });
       sendInvoiceNotification("UPDATE_PAYMENT_STATUS", paidInvoice);
       
-      // Trigger Google Spreadsheet synchronization asynchronously
-      void syncInvoiceToSpreadsheet(paidInvoice.id || paymentTarget.id);
+      // Google Spreadsheet synchronization disabled as per request
+      // void syncInvoiceToSpreadsheet(paidInvoice.id || paymentTarget.id);
     } catch {
       toast({ title: "Error", description: "Gagal menandai invoice lunas.", variant: "destructive" });
     } finally {

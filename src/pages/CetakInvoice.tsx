@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { doc, getDoc, updateDoc, serverTimestamp, increment } from "firebase/firestore";
+import { useEffect, useState, useMemo } from "react";
+import { doc, getDoc, updateDoc, serverTimestamp, increment, collection, query, orderBy, limit, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { addActivityLog } from "@/lib/activityLog";
 import AnimatedNotification from "@/components/AnimatedNotification";
@@ -44,6 +44,45 @@ const CetakInvoice = () => {
   const [savedInvoiceId, setSavedInvoiceId] = useState("");
   const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
   const [loadingInvoice, setLoadingInvoice] = useState(false);
+
+  const [frequentCustomers, setFrequentCustomers] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  useEffect(() => {
+    const fetchFrequentCustomers = async () => {
+      try {
+        const q = query(
+          collection(db, "invoices"),
+          orderBy("created_at", "desc"),
+          limit(120)
+        );
+        const querySnapshot = await getDocs(q);
+        const counts: Record<string, number> = {};
+        
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          const name = data.customer ? String(data.customer).trim() : "";
+          if (name && name !== "-" && name.toLowerCase() !== "offline" && name.toLowerCase() !== "penjualan offline") {
+            counts[name] = (counts[name] || 0) + 1;
+          }
+        });
+        
+        const sorted = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+        setFrequentCustomers(sorted.slice(0, 8));
+      } catch (error) {
+        console.error("Gagal memuat daftar customer sering dihubungi:", error);
+      }
+    };
+    
+    void fetchFrequentCustomers();
+  }, []);
+
+  const filteredCustomers = useMemo(() => {
+    if (!customer.trim()) return frequentCustomers;
+    return frequentCustomers.filter((name) =>
+      name.toLowerCase().includes(customer.toLowerCase().trim())
+    );
+  }, [customer, frequentCustomers]);
 
   useEffect(() => {
     if (!editId) return;
@@ -221,8 +260,8 @@ const CetakInvoice = () => {
         toast({ title: "Berhasil", description: "Invoice diperbarui" });
         sendInvoiceNotification("CREATE_INVOICE", savedInvoiceId, noInvoice);
 
-        // Trigger Google Spreadsheet synchronization asynchronously
-        void syncInvoiceToSpreadsheet(savedInvoiceId);
+        // Google Spreadsheet synchronization disabled as per request
+        // void syncInvoiceToSpreadsheet(savedInvoiceId);
       } else {
         const { invoiceId, noInvoice: generatedNoInvoice } = await createInvoiceWithNumberAndStock({
           invoiceData: {
@@ -253,8 +292,8 @@ const CetakInvoice = () => {
         toast({ title: "Berhasil", description: "Invoice tersimpan" });
         sendInvoiceNotification("CREATE_INVOICE", invoiceId, generatedNoInvoice);
 
-        // Trigger Google Spreadsheet synchronization asynchronously
-        void syncInvoiceToSpreadsheet(invoiceId);
+        // Google Spreadsheet synchronization disabled as per request
+        // void syncInvoiceToSpreadsheet(invoiceId);
       }
     } catch (error) {
       const description = error instanceof Error && error.message ? error.message : "Gagal menyimpan";
@@ -596,8 +635,36 @@ const CetakInvoice = () => {
             <p className="text-sm font-semibold text-primary">Nomor invoice akan dibuat otomatis saat invoice disimpan.</p>
             <p className="mt-1 text-xs text-muted-foreground">Format: INV/TNB/YYYY/MM/0001</p>
           </div>
-          <input placeholder="Customer" value={customer} onChange={(e) => setCustomer(e.target.value)}
-            className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" required />
+          <div className="relative">
+            <input 
+              placeholder="Customer" 
+              value={customer} 
+              onChange={(e) => setCustomer(e.target.value)}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" 
+              required 
+            />
+            {showSuggestions && filteredCustomers.length > 0 && (
+              <div className="absolute left-0 right-0 z-50 mt-1 max-h-48 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-md">
+                <div className="px-2 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase">Customer Sering Ditulis</div>
+                {filteredCustomers.map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setCustomer(name);
+                      setShowSuggestions(false);
+                    }}
+                    className="flex w-full items-center rounded-md px-2 py-2 text-sm text-foreground hover:bg-accent hover:text-accent-foreground text-left"
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <div>
             <label className="mb-1 block text-xs text-muted-foreground">Lokasi Stok Keluar</label>
             <select

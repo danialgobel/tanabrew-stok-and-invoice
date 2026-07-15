@@ -226,14 +226,6 @@ const Pendapatan = ({ showHeader = true }: { showHeader?: boolean }) => {
       <div className={`mx-auto w-full max-w-lg overflow-x-hidden px-4 pb-24 ${showHeader ? "pt-6" : "pt-2"}`}>
         <div className="flex justify-between items-center mb-4">
           {showHeader && <h1 className="text-lg font-bold text-primary">Pendapatan (Spreadsheet)</h1>}
-          <button
-            onClick={handleAddNew}
-            disabled={loading}
-            className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm hover:opacity-90 transition-all ml-auto"
-          >
-            <Plus size={14} />
-            Tambah
-          </button>
         </div>
 
         {/* 4 Summary Cards */}
@@ -368,12 +360,6 @@ const Pendapatan = ({ showHeader = true }: { showHeader?: boolean }) => {
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-primary">{record.invoiceNumber}</span>
-                    <button
-                      onClick={() => handleEdit(record)}
-                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-primary transition-all"
-                    >
-                      <Pencil size={12} />
-                    </button>
                   </div>
                   <span
                     className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${
@@ -418,130 +404,7 @@ const Pendapatan = ({ showHeader = true }: { showHeader?: boolean }) => {
         )}
       </div>
 
-      {/* ===== Add / Edit Form Modal ===== */}
-      {formOpen && (
-        <div
-          className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-foreground/40"
-          onClick={() => setFormOpen(false)}
-        >
-          <form
-            className="bg-card w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-5 pb-12 sm:pb-5 max-h-[85vh] overflow-y-auto space-y-4"
-            style={{ paddingBottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}
-            onClick={(e) => e.stopPropagation()}
-            onSubmit={handleSubmit}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-primary">
-                {isEdit ? "Edit Pendapatan" : "Tambah Pendapatan"}
-              </h3>
-              <button type="button" onClick={() => setFormOpen(false)} className="p-1 rounded-full hover:bg-muted">
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Invoice Number / ID */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground">No. Invoice / ID (Opsional)</label>
-              <input
-                type="text"
-                value={formState.invoiceNumber}
-                onChange={(e) => setFormState((s) => ({ ...s, invoiceNumber: e.target.value }))}
-                placeholder="Dibuat otomatis jika dikosongkan"
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-              />
-            </div>
-
-            {/* Tanggal */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground">Tanggal</label>
-              <input
-                type="date"
-                required
-                value={formState.tanggalInvoice}
-                onChange={(e) => setFormState((s) => ({ ...s, tanggalInvoice: e.target.value }))}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-              />
-            </div>
-
-            {/* Customer */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground">Nama Customer</label>
-              <input
-                type="text"
-                value={formState.customerName}
-                onChange={(e) => setFormState((s) => ({ ...s, customerName: e.target.value }))}
-                placeholder="Contoh: Budi Santoso"
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-              />
-            </div>
-
-            {/* Produk / Jasa */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground">Produk / Jasa</label>
-              <input
-                type="text"
-                value={formState.produkJasa ?? ""}
-                onChange={(e) => setFormState((s) => ({ ...s, produkJasa: e.target.value }))}
-                placeholder="Contoh: Kopi Gayo 250gr"
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-              />
-            </div>
-
-            {/* Kategori / Kanal Bayar */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground">Kategori / Kanal Bayar</label>
-              <select
-                value={formState.paymentMethod}
-                onChange={(e) => setFormState((s) => ({ ...s, paymentMethod: e.target.value }))}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-              >
-                <option value="Penjualan Offline">Penjualan Offline</option>
-                <option value="Penjualan Online">Penjualan Online</option>
-                <option value="Shopee">Shopee</option>
-                <option value="Tokopedia">Tokopedia</option>
-                <option value="Transfer">Transfer</option>
-                <option value="COD">COD</option>
-              </select>
-            </div>
-
-            {/* Total / Nominal */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground">Total (Rp)</label>
-              <input
-                type="number"
-                required
-                min={0}
-                value={formState.total || ""}
-                onChange={(e) => setFormState((s) => ({ ...s, total: Number(e.target.value) }))}
-                placeholder="Contoh: 150000"
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-              />
-            </div>
-
-            {/* Catatan */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground">Catatan (Opsional)</label>
-              <input
-                type="text"
-                value={formState.catatan ?? ""}
-                onChange={(e) => setFormState((s) => ({ ...s, catatan: e.target.value }))}
-                placeholder="Catatan tambahan..."
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-              />
-            </div>
-
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full rounded-lg bg-primary py-2.5 text-sm font-bold text-primary-foreground shadow-sm hover:opacity-90 transition-all disabled:opacity-60"
-            >
-              {submitting ? "Menyimpan..." : isEdit ? "Perbarui Data" : "Simpan ke Spreadsheet"}
-            </button>
-          </form>
-        </div>
-      )}
+      {/* ===== Add / Edit Form Modal disabled ===== */}
     </>
   );
 };

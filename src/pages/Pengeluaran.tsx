@@ -249,14 +249,6 @@ const Pengeluaran = ({ showHeader = true }: { showHeader?: boolean }) => {
       <div className={`mx-auto w-full max-w-lg overflow-x-hidden px-4 pb-24 ${showHeader ? "pt-6" : "pt-2"}`}>
         <div className="flex justify-between items-center mb-4">
           {showHeader && <h1 className="text-lg font-bold text-primary">Pengeluaran (Spreadsheet)</h1>}
-          <button
-            onClick={handleAddNew}
-            disabled={loading}
-            className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm hover:opacity-90 transition-all ml-auto"
-          >
-            <Plus size={14} />
-            Tambah
-          </button>
         </div>
 
         {/* 4 Summary Cards */}
@@ -391,12 +383,6 @@ const Pengeluaran = ({ showHeader = true }: { showHeader?: boolean }) => {
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-primary">{record.expenseId}</span>
-                    <button
-                      onClick={() => handleEdit(record)}
-                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-primary transition-all"
-                    >
-                      <Pencil size={12} />
-                    </button>
                   </div>
                   <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${getCategoryBadgeClass(record.kategori)}`}>
                     {record.kategori || "-"}
@@ -427,86 +413,7 @@ const Pengeluaran = ({ showHeader = true }: { showHeader?: boolean }) => {
         )}
       </div>
 
-      {/* ===== Add / Edit Form Modal ===== */}
-      {formOpen && (
-        <div
-          className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-foreground/40"
-          onClick={() => setFormOpen(false)}
-        >
-          <form
-            className="bg-card w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-5 pb-12 sm:pb-5 max-h-[85vh] overflow-y-auto space-y-4"
-            style={{ paddingBottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}
-            onClick={(e) => e.stopPropagation()}
-            onSubmit={handleSubmit}
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-primary">
-                {isEdit ? "Edit Pengeluaran" : "Tambah Pengeluaran"}
-              </h3>
-              <button type="button" onClick={() => setFormOpen(false)} className="p-1 rounded-full hover:bg-muted">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground">ID Pengeluaran</label>
-              <input type="text" required value={formState.expenseId}
-                onChange={(e) => setFormState((s) => ({ ...s, expenseId: e.target.value }))}
-                placeholder="Contoh: EXP0100"
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground">Tanggal</label>
-              <input type="date" required value={formState.tanggalExpense}
-                onChange={(e) => setFormState((s) => ({ ...s, tanggalExpense: e.target.value }))}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground">Item / Produk</label>
-              <input type="text" required value={formState.itemProduk}
-                onChange={(e) => setFormState((s) => ({ ...s, itemProduk: e.target.value }))}
-                placeholder="Contoh: Green Bean Gayo 2kg"
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground">Kategori</label>
-              <select value={formState.kategori}
-                onChange={(e) => setFormState((s) => ({ ...s, kategori: e.target.value }))}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary">
-                <option value="Bahan baku">Bahan Baku</option>
-                <option value="Jasa Roasting">Jasa Roasting</option>
-                <option value="Packaging">Packaging</option>
-                <option value="Konten & Media">Konten & Media</option>
-                <option value="Lainnya">Lainnya</option>
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground">Nominal (Rp)</label>
-              <input type="number" required min={0} value={formState.nominal || ""}
-                onChange={(e) => setFormState((s) => ({ ...s, nominal: Number(e.target.value) }))}
-                placeholder="Contoh: 310000"
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground">Catatan (Opsional)</label>
-              <input type="text" value={formState.catatan ?? ""}
-                onChange={(e) => setFormState((s) => ({ ...s, catatan: e.target.value }))}
-                placeholder="Catatan tambahan..."
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
-            </div>
-
-            <button type="submit" disabled={submitting}
-              className="w-full rounded-lg bg-primary py-2.5 text-sm font-bold text-primary-foreground shadow-sm hover:opacity-90 transition-all disabled:opacity-60">
-              {submitting ? "Menyimpan..." : isEdit ? "Perbarui Data" : "Simpan ke Spreadsheet"}
-            </button>
-          </form>
-        </div>
-      )}
+      {/* ===== Add / Edit Form Modal disabled ===== */}
     </>
   );
 };
