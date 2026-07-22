@@ -6,12 +6,13 @@ import { addStockMovement } from "@/lib/stockMovement";
 import { useProducts } from "@/hooks/useProducts";
 import { useAuth } from "@/context/AuthContext";
 import type { Product } from "@/types";
-import { Pencil, Printer, RotateCcw, Search, Trash2 } from "lucide-react";
+import { Pencil, Printer, RotateCcw, Search, Trash2, Plus, ArrowLeft, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { printStockReport } from "@/lib/reportPrint";
 import { Skeleton } from "@/components/Skeleton";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import PullToRefresh from "@/components/PullToRefresh";
+import { printPricelist, type PricelistCategory, type PricelistItem } from "@/lib/pricelistPrint";
 
 const emptyForm = { nama_barang: "", stok_jogja: 0, stok_lombok: 0, harga: 0 };
 type StockFilter = "semua" | "menipis" | "habis";
@@ -52,6 +53,171 @@ const UpdateStok = () => {
   const formRef = useRef<HTMLFormElement | null>(null);
   const highlightTimerRef = useRef<number | null>(null);
 
+  // Pricelist feature state
+  const [showPricelistModal, setShowPricelistModal] = useState(false);
+  const [pricelistStep, setPricelistStep] = useState<1 | 2>(1);
+  const [selectedStockLocation, setSelectedStockLocation] = useState<"Jogja" | "Lombok" | "Semua">("Semua");
+  const [pricelistCategories, setPricelistCategories] = useState<PricelistCategory[]>(() => {
+    try {
+      const saved = localStorage.getItem("tanabrew_pricelist_config");
+      return saved ? JSON.parse(saved) : [
+        { id: "cat-1", name: "SINGLE ORIGIN FILTER ROAST 150GR", items: [] },
+        { id: "cat-2", name: "ROASTED BEANS ESPRESSO 1000GR", items: [] }
+      ];
+    } catch {
+      return [
+        { id: "cat-1", name: "SINGLE ORIGIN FILTER ROAST 150GR", items: [] },
+        { id: "cat-2", name: "ROASTED BEANS ESPRESSO 1000GR", items: [] }
+      ];
+    }
+  });
+
+  // Automatically save configuration to localStorage
+  useEffect(() => {
+    localStorage.setItem("tanabrew_pricelist_config", JSON.stringify(pricelistCategories));
+  }, [pricelistCategories]);
+
+  // Filter products that have stock in selected location
+  const availableProductsForPricelist = useMemo(() => {
+    return products.filter(product => {
+      if (selectedStockLocation === "Jogja") return (product.stok_jogja || 0) > 0;
+      if (selectedStockLocation === "Lombok") return (product.stok_lombok || 0) > 0;
+      return (product.total_stok || 0) > 0;
+    });
+  }, [products, selectedStockLocation]);
+
+  const addPricelistCategory = () => {
+    const newCat: PricelistCategory = {
+      id: `cat-${Date.now()}`,
+      name: "KRITERIA BARU",
+      items: []
+    };
+    setPricelistCategories(prev => [...prev, newCat]);
+  };
+
+  const removePricelistCategory = (catId: string) => {
+    setPricelistCategories(prev => prev.filter(c => c.id !== catId));
+  };
+
+  const updateCategoryName = (catId: string, name: string) => {
+    setPricelistCategories(prev => prev.map(c => c.id === catId ? { ...c, name } : c));
+  };
+
+  const addProductToCategory = (catId: string, productId: string) => {
+    if (!productId) return;
+    const prod = products.find(p => p.id === productId);
+    if (!prod) return;
+
+    let name = prod.nama_barang;
+    let desc = "";
+    if (name.includes(" - ")) {
+      const parts = name.split(" - ");
+      name = parts[0].trim();
+      desc = parts.slice(1).join(" - ").trim();
+    }
+
+    const newItem: PricelistItem = {
+      id: `${productId}-${Date.now()}`, // unique item instance id
+      nama_barang: name,
+      harga: prod.harga,
+      deskripsi: desc
+    };
+
+    setPricelistCategories(prev => prev.map(c => {
+      if (c.id === catId) {
+        return {
+          ...c,
+          items: [...c.items, newItem]
+        };
+      }
+      return c;
+    }));
+  };
+
+  const addManualProductToCategory = (catId: string) => {
+    const newItem: PricelistItem = {
+      id: `manual-${Date.now()}`,
+      nama_barang: "",
+      harga: "",
+      deskripsi: ""
+    };
+
+    setPricelistCategories(prev => prev.map(c => {
+      if (c.id === catId) {
+        return {
+          ...c,
+          items: [...c.items, newItem]
+        };
+      }
+      return c;
+    }));
+  };
+
+  const removeProductFromCategory = (catId: string, itemId: string) => {
+    setPricelistCategories(prev => prev.map(c => {
+      if (c.id === catId) {
+        return {
+          ...c,
+          items: c.items.filter(i => i.id !== itemId)
+        };
+      }
+      return c;
+    }));
+  };
+
+  const updateItemField = (catId: string, itemId: string, field: keyof PricelistItem, value: string | number) => {
+    setPricelistCategories(prev => prev.map(c => {
+      if (c.id === catId) {
+        return {
+          ...c,
+          items: c.items.map(i => i.id === itemId ? { ...i, [field]: value } : i)
+        };
+      }
+      return c;
+    }));
+  };
+
+  const resetPricelistConfig = () => {
+    if (window.confirm("Apakah Anda yakin ingin mereset susunan Price List?")) {
+      const defaultConfig = [
+        { id: "cat-1", name: "SINGLE ORIGIN FILTER ROAST 150GR", items: [] },
+        { id: "cat-2", name: "ROASTED BEANS ESPRESSO 1000GR", items: [] }
+      ];
+      setPricelistCategories(defaultConfig);
+    }
+  };
+
+  const handlePrintPricelist = () => {
+    if (pricelistCategories.every(c => c.items.length === 0)) {
+      toast({
+        title: "Perhatian",
+        description: "Silakan tambahkan minimal satu produk ke dalam kriteria sebelum mencetak.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!currentUser || !userProfile) {
+      toast({ title: "Error", description: "Data user belum siap, silakan coba lagi.", variant: "destructive" });
+      return;
+    }
+
+    const ok = printPricelist({
+      categories: pricelistCategories,
+      stockLocation: selectedStockLocation,
+      printedBy: userProfile.name || currentUser.email || "-",
+      roleLabel: formatRole(userProfile.role)
+    });
+
+    if (!ok) {
+      toast({
+        title: "Error",
+        description: "Gagal membuka jendela cetak Price List. Pastikan pop-up browser tidak diblokir.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const totalStok = (form.stok_jogja || 0) + (form.stok_lombok || 0);
   const filteredProducts = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
@@ -69,7 +235,7 @@ const UpdateStok = () => {
   }, [products, searchTerm, stockFilter]);
 
   const formHasInput = Boolean(form.nama_barang.trim()) || form.stok_jogja !== 0 || form.stok_lombok !== 0 || form.harga !== 0;
-  const pullRefreshDisabled = formHasInput || saving || deletingId !== null || pendingDelete !== null;
+  const pullRefreshDisabled = formHasInput || saving || deletingId !== null || pendingDelete !== null || showPricelistModal;
 
   const handleSafeRefresh = useCallback(() => {
     window.setTimeout(() => window.location.reload(), 320);
@@ -386,7 +552,7 @@ const UpdateStok = () => {
           <option value="menipis">Menipis</option>
           <option value="habis">Habis</option>
         </select>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <button
             type="button"
             onClick={resetFilters}
@@ -402,6 +568,17 @@ const UpdateStok = () => {
           >
             <Printer size={15} />
             Cetak Laporan Stok
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setPricelistStep(1);
+              setShowPricelistModal(true);
+            }}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 transition-colors px-3 py-2.5 text-sm font-semibold text-white"
+          >
+            <Printer size={15} />
+            Cetak Price List
           </button>
         </div>
       </div>
@@ -489,6 +666,204 @@ const UpdateStok = () => {
         onCancel={() => setPendingDelete(null)}
         onConfirm={() => pendingDelete && void handleDelete(pendingDelete)}
       />
+
+      {showPricelistModal && (
+        <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-foreground/40" onClick={() => setShowPricelistModal(false)}>
+          <div 
+            className="bg-card w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-5 pb-8 sm:pb-5 max-h-[85vh] overflow-y-auto tanabrew-card-enter flex flex-col" 
+            style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4 border-b border-border pb-2">
+              <h3 className="text-lg font-bold text-primary flex items-center gap-2">
+                {pricelistStep === 2 && (
+                  <button 
+                    type="button" 
+                    onClick={() => setPricelistStep(1)} 
+                    className="p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground"
+                    title="Kembali"
+                  >
+                    <ArrowLeft size={18} />
+                  </button>
+                )}
+                Konfigurasi Price List
+              </h3>
+              <button onClick={() => setShowPricelistModal(false)} className="p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground" aria-label="Tutup modal">
+                <X size={20} />
+              </button>
+            </div>
+
+            {pricelistStep === 1 ? (
+              <div className="space-y-4 py-2">
+                <div className="rounded-lg bg-primary/5 p-3 text-xs text-primary leading-relaxed border border-primary/10">
+                  <strong>Info:</strong> Price List akan disaring berdasarkan stok yang aktif di lokasi terpilih. Produk dengan stok 0 di lokasi tersebut akan disembunyikan agar Anda dapat mencetak katalog yang relevan dengan cepat.
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground mb-2 block">Pilih Lokasi Stok:</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(["Jogja", "Lombok", "Semua"] as const).map((loc) => (
+                      <button
+                        key={loc}
+                        type="button"
+                        onClick={() => setSelectedStockLocation(loc)}
+                        className={`py-3 rounded-lg border text-sm font-bold text-center transition-all ${
+                          selectedStockLocation === loc
+                            ? "bg-primary border-primary text-primary-foreground shadow-sm"
+                            : "bg-background border-border text-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {loc}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="mt-6 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setPricelistStep(2)}
+                    className="bg-primary text-primary-foreground rounded-lg px-5 py-2.5 text-sm font-semibold hover:opacity-90 transition-all flex items-center gap-1"
+                  >
+                    Lanjut ke Susunan
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4 py-1 flex-1 flex flex-col min-h-0">
+                <div className="flex justify-between items-center bg-muted/50 p-2 rounded-lg text-xs">
+                  <span className="font-semibold text-muted-foreground text-[11px]">Lokasi Stok: {selectedStockLocation}</span>
+                  <div className="flex gap-2">
+                    <button 
+                      type="button" 
+                      onClick={resetPricelistConfig} 
+                      className="text-destructive hover:underline font-semibold text-[11px]"
+                    >
+                      Reset Kategori
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-4 overflow-y-auto pr-1 flex-1 max-h-[50vh]">
+                  {pricelistCategories.map((cat) => (
+                    <div key={cat.id} className="border border-border rounded-xl p-3 bg-card space-y-3 relative">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={cat.name}
+                          onChange={(e) => updateCategoryName(cat.id, e.target.value)}
+                          className="flex-1 bg-transparent text-sm font-bold text-primary border-b border-dashed border-primary/30 focus:border-primary focus:outline-none py-0.5"
+                          placeholder="Nama Kriteria/Kategori"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removePricelistCategory(cat.id)}
+                          className="p-1 text-destructive hover:bg-destructive/10 rounded"
+                          title="Hapus Kategori"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+
+                      <div className="space-y-2">
+                        {cat.items.map((item) => (
+                          <div key={item.id} className="p-2.5 rounded-lg bg-muted/40 border border-border/55 text-xs space-y-2">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={item.nama_barang}
+                                onChange={(e) => updateItemField(cat.id, item.id!, "nama_barang", e.target.value)}
+                                className="flex-1 bg-background px-2 py-1 rounded border border-input focus:outline-none"
+                                placeholder="Nama Barang"
+                              />
+                              <input
+                                type="text"
+                                value={item.harga}
+                                onChange={(e) => updateItemField(cat.id, item.id!, "harga", e.target.value)}
+                                className="w-24 bg-background px-2 py-1 rounded border border-input focus:outline-none text-right"
+                                placeholder="Harga"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeProductFromCategory(cat.id, item.id!)}
+                                className="text-muted-foreground hover:text-destructive p-1"
+                                title="Hapus Barang"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                            <input
+                              type="text"
+                              value={item.deskripsi || ""}
+                              onChange={(e) => updateItemField(cat.id, item.id!, "deskripsi", e.target.value)}
+                              className="w-full bg-background px-2 py-1 rounded border border-input focus:outline-none"
+                              placeholder="Deskripsi, contoh: Situbondo, Dried Raisin..."
+                            />
+                          </div>
+                        ))}
+
+                        {cat.items.length === 0 && (
+                          <p className="text-[11px] text-muted-foreground text-center py-2 bg-muted/10 border border-dashed border-border rounded-lg">
+                            Belum ada produk di kriteria ini.
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Dropdown Menu to SELECT saved product */}
+                      <div className="pt-1 flex gap-2">
+                        <select
+                          value=""
+                          onChange={(e) => addProductToCategory(cat.id, e.target.value)}
+                          className="flex-1 bg-background rounded-lg border border-input px-2 py-1.5 text-xs text-muted-foreground focus:outline-none"
+                        >
+                          <option value="">+ Pilih Produk dari Database...</option>
+                          {availableProductsForPricelist
+                            .filter(p => !cat.items.some(existing => existing.id?.startsWith(p.id!))) // avoid duplicates
+                            .map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.nama_barang} (Stok: {selectedStockLocation === "Jogja" ? p.stok_jogja : selectedStockLocation === "Lombok" ? p.stok_lombok : p.total_stok})
+                              </option>
+                            ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => addManualProductToCategory(cat.id)}
+                          className="px-3 py-1.5 bg-primary/10 hover:bg-primary/15 text-primary text-xs font-semibold rounded-lg transition-colors border border-primary/20 shrink-0"
+                        >
+                          + Manual
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={addPricelistCategory}
+                    className="w-full border border-dashed border-primary/40 hover:border-primary text-primary rounded-xl py-2 text-xs font-semibold flex items-center justify-center gap-1 transition-colors"
+                  >
+                    <Plus size={14} /> Tambah Kriteria Baru
+                  </button>
+                </div>
+
+                <div className="mt-4 flex gap-2 border-t border-border pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setPricelistStep(1)}
+                    className="flex-1 bg-muted hover:bg-accent text-muted-foreground hover:text-accent-foreground rounded-lg py-2.5 text-xs font-semibold"
+                  >
+                    Kembali
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePrintPricelist}
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg py-2.5 text-xs font-bold transition-colors"
+                  >
+                    Cetak Price List PDF
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
     </>
   );
