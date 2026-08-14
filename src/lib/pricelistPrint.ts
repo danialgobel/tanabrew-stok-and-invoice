@@ -2,6 +2,7 @@ export interface PricelistItem {
   id?: string;
   nama_barang: string;
   harga: string | number;
+  harga_b2b?: string | number;
   deskripsi?: string;
 }
 
@@ -16,6 +17,7 @@ export interface PrintPricelistInput {
   stockLocation: "Jogja" | "Lombok" | "Semua";
   printedBy: string;
   roleLabel: string;
+  priceMode?: "normal" | "b2b";
 }
 
 type PricelistWindow = Window | null;
@@ -350,21 +352,27 @@ const pricelistShellHtml = (bodyHtml: string) => {
 </html>`;
 };
 
-export const printPricelist = ({ categories, stockLocation, printedBy, roleLabel }: PrintPricelistInput, reportWindow?: PricelistWindow) => {
+export const printPricelist = ({ categories, stockLocation, printedBy, roleLabel, priceMode = "normal" }: PrintPricelistInput, reportWindow?: PricelistWindow) => {
+  const isB2B = priceMode === "b2b";
   // Build category blocks
   const categoriesHtml = categories
     .filter(cat => cat.items && cat.items.length > 0)
     .map(cat => {
       const itemsHtml = cat.items
-        .map(item => `
+        .map(item => {
+          const displayPrice = isB2B
+            ? (item.harga_b2b !== undefined && item.harga_b2b !== "" ? item.harga_b2b : item.harga)
+            : item.harga;
+          return `
           <div class="product-row">
             <div class="product-info">
               <div class="product-name">${escapeHtml(item.nama_barang)}</div>
               ${item.deskripsi ? `<div class="product-desc">${escapeHtml(item.deskripsi)}</div>` : ""}
             </div>
-            <div class="product-price">${escapeHtml(formatPrice(item.harga))}</div>
+            <div class="product-price">${escapeHtml(formatPrice(displayPrice))}</div>
           </div>
-        `)
+        `;
+        })
         .join("");
 
       return `
@@ -417,6 +425,7 @@ export const printPricelist = ({ categories, stockLocation, printedBy, roleLabel
           </div>
           <div class="header-right">
             <h1>PRICE LIST</h1>
+            ${isB2B ? `<div style="margin-top:6px;display:inline-block;background:#1565c0;color:#fff;font-family:'Outfit',sans-serif;font-size:13px;font-weight:800;letter-spacing:2px;padding:3px 12px;border-radius:20px;">B2B</div>` : ""}
           </div>
         </div>
 
@@ -428,7 +437,7 @@ export const printPricelist = ({ categories, stockLocation, printedBy, roleLabel
           <!-- Columns Header -->
           <div class="column-headers">
             <div class="col-product">PRODUCT</div>
-            <div class="col-price">PRICE</div>
+            <div class="col-price">${isB2B ? "B2B PRICE" : "PRICE"}</div>
           </div>
 
           <!-- Price List Categories list -->

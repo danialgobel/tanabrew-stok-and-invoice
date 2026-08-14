@@ -5,6 +5,7 @@ export interface Product {
   stok_lombok: number;
   total_stok: number;
   harga: number;
+  harga_b2b?: number;
   dibuat_oleh?: string;
   dibuat_oleh_uid?: string;
   dibuat_oleh_role?: string;

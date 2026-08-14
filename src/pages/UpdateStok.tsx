@@ -14,7 +14,7 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import PullToRefresh from "@/components/PullToRefresh";
 import { printPricelist, type PricelistCategory, type PricelistItem } from "@/lib/pricelistPrint";
 
-const emptyForm = { nama_barang: "", stok_jogja: 0, stok_lombok: 0, harga: 0 };
+const emptyForm = { nama_barang: "", stok_jogja: 0, stok_lombok: 0, harga: 0, harga_b2b: 0 };
 type StockFilter = "semua" | "menipis" | "habis";
 
 const stockState = (total: number) => {
@@ -55,6 +55,7 @@ const UpdateStok = () => {
 
   // Pricelist feature state
   const [showPricelistModal, setShowPricelistModal] = useState(false);
+  const [pricelistMode, setPricelistMode] = useState<"normal" | "b2b">("normal");
   const [pricelistStep, setPricelistStep] = useState<1 | 2>(1);
   const [selectedStockLocation, setSelectedStockLocation] = useState<"Jogja" | "Lombok" | "Semua">("Semua");
   const [pricelistCategories, setPricelistCategories] = useState<PricelistCategory[]>(() => {
@@ -120,6 +121,7 @@ const UpdateStok = () => {
       id: `${productId}-${Date.now()}`, // unique item instance id
       nama_barang: name,
       harga: prod.harga,
+      harga_b2b: prod.harga_b2b ?? "",
       deskripsi: desc
     };
 
@@ -139,6 +141,7 @@ const UpdateStok = () => {
       id: `manual-${Date.now()}`,
       nama_barang: "",
       harga: "",
+      harga_b2b: "",
       deskripsi: ""
     };
 
@@ -187,7 +190,7 @@ const UpdateStok = () => {
     }
   };
 
-  const handlePrintPricelist = () => {
+  const handlePrintPricelist = (mode: "normal" | "b2b" = "normal") => {
     if (pricelistCategories.every(c => c.items.length === 0)) {
       toast({
         title: "Perhatian",
@@ -206,13 +209,14 @@ const UpdateStok = () => {
       categories: pricelistCategories,
       stockLocation: selectedStockLocation,
       printedBy: userProfile.name || currentUser.email || "-",
-      roleLabel: formatRole(userProfile.role)
+      roleLabel: formatRole(userProfile.role),
+      priceMode: mode,
     });
 
     if (!ok) {
       toast({
         title: "Error",
-        description: "Gagal membuka jendela cetak Price List. Pastikan pop-up browser tidak diblokir.",
+        description: `Gagal membuka jendela cetak Price List${mode === "b2b" ? " B2B" : ""}. Pastikan pop-up browser tidak diblokir.`,
         variant: "destructive"
       });
     }
@@ -234,7 +238,7 @@ const UpdateStok = () => {
     });
   }, [products, searchTerm, stockFilter]);
 
-  const formHasInput = Boolean(form.nama_barang.trim()) || form.stok_jogja !== 0 || form.stok_lombok !== 0 || form.harga !== 0;
+  const formHasInput = Boolean(form.nama_barang.trim()) || form.stok_jogja !== 0 || form.stok_lombok !== 0 || form.harga !== 0 || form.harga_b2b !== 0;
   const pullRefreshDisabled = formHasInput || saving || deletingId !== null || pendingDelete !== null || showPricelistModal;
 
   const handleSafeRefresh = useCallback(() => {
@@ -263,6 +267,7 @@ const UpdateStok = () => {
         stok_lombok: Number(form.stok_lombok) || 0,
         total_stok: totalStok,
         harga: Number(form.harga) || 0,
+        harga_b2b: Number(form.harga_b2b) || 0,
       };
       const auditUser = { uid: currentUser.uid, name: userProfile.name, role: userProfile.role };
 
@@ -361,7 +366,7 @@ const UpdateStok = () => {
   };
 
   const handleEdit = (p: Product) => {
-    setForm({ nama_barang: p.nama_barang, stok_jogja: p.stok_jogja, stok_lombok: p.stok_lombok, harga: p.harga });
+    setForm({ nama_barang: p.nama_barang, stok_jogja: p.stok_jogja, stok_lombok: p.stok_lombok, harga: p.harga, harga_b2b: p.harga_b2b ?? 0 });
     setEditId(p.id!);
     setEditingProductName(p.nama_barang);
     setHighlightEditForm(true);
@@ -500,9 +505,9 @@ const UpdateStok = () => {
             />
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex-1">
-            <label className="text-xs text-muted-foreground mb-1 block">Harga</label>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Harga Normal</label>
             <input
               type="number"
               value={form.harga}
@@ -510,10 +515,19 @@ const UpdateStok = () => {
               className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
-          <div className="text-center pt-5">
-            <p className="text-xs text-muted-foreground">Total</p>
-            <p className="text-lg font-bold text-primary">{totalStok}</p>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Harga B2B</label>
+            <input
+              type="number"
+              value={form.harga_b2b}
+              onChange={(e) => setForm({ ...form, harga_b2b: Number(e.target.value) })}
+              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
           </div>
+        </div>
+        <div className="text-center">
+          <p className="text-xs text-muted-foreground">Total Stok</p>
+          <p className="text-lg font-bold text-primary">{totalStok}</p>
         </div>
         <button
           type="submit"
@@ -552,11 +566,11 @@ const UpdateStok = () => {
           <option value="menipis">Menipis</option>
           <option value="habis">Habis</option>
         </select>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <button
             type="button"
             onClick={resetFilters}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-muted px-3 py-2.5 text-sm font-semibold text-muted-foreground"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-muted px-3 py-2.5 text-sm font-semibold text-muted-foreground sm:col-span-2"
           >
             <RotateCcw size={15} />
             Reset Filter
@@ -564,7 +578,7 @@ const UpdateStok = () => {
           <button
             type="button"
             onClick={handlePrintStockReport}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground sm:col-span-2"
           >
             <Printer size={15} />
             Cetak Laporan Stok
@@ -572,6 +586,7 @@ const UpdateStok = () => {
           <button
             type="button"
             onClick={() => {
+              setPricelistMode("normal");
               setPricelistStep(1);
               setShowPricelistModal(true);
             }}
@@ -579,6 +594,18 @@ const UpdateStok = () => {
           >
             <Printer size={15} />
             Cetak Price List
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setPricelistMode("b2b");
+              setPricelistStep(1);
+              setShowPricelistModal(true);
+            }}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 transition-colors px-3 py-2.5 text-sm font-semibold text-white"
+          >
+            <Printer size={15} />
+            Cetak Price List B2B
           </button>
         </div>
       </div>
@@ -627,7 +654,12 @@ const UpdateStok = () => {
                     <td className="px-2 py-2 text-center text-xs">{p.stok_jogja}</td>
                     <td className="px-2 py-2 text-center text-xs">{p.stok_lombok}</td>
                     <td className="px-2 py-2 text-center text-xs font-medium">{p.total_stok}</td>
-                    <td className="px-2 py-2 text-right text-xs">{fmt(p.harga)}</td>
+                    <td className="px-2 py-2 text-right text-xs">
+                      <div>{fmt(p.harga)}</div>
+                      {(p.harga_b2b ?? 0) > 0 && (
+                        <div className="text-[10px] text-blue-600 font-medium">B2B: {fmt(p.harga_b2b!)}</div>
+                      )}
+                    </td>
                     <td className="px-2 py-2 text-center align-middle">
                       <div className="flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
                         <button
@@ -686,7 +718,7 @@ const UpdateStok = () => {
                     <ArrowLeft size={18} />
                   </button>
                 )}
-                Konfigurasi Price List
+                Konfigurasi Price List {pricelistMode === "b2b" && <span className="text-xs font-bold bg-blue-600 text-white px-2 py-0.5 rounded-full">B2B</span>}
               </h3>
               <button onClick={() => setShowPricelistModal(false)} className="p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground" aria-label="Tutup modal">
                 <X size={20} />
@@ -774,13 +806,6 @@ const UpdateStok = () => {
                                 className="flex-1 bg-background px-2 py-1 rounded border border-input focus:outline-none"
                                 placeholder="Nama Barang"
                               />
-                              <input
-                                type="text"
-                                value={item.harga}
-                                onChange={(e) => updateItemField(cat.id, item.id!, "harga", e.target.value)}
-                                className="w-24 bg-background px-2 py-1 rounded border border-input focus:outline-none text-right"
-                                placeholder="Harga"
-                              />
                               <button
                                 type="button"
                                 onClick={() => removeProductFromCategory(cat.id, item.id!)}
@@ -789,6 +814,28 @@ const UpdateStok = () => {
                               >
                                 <Trash2 size={13} />
                               </button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-[10px] text-muted-foreground mb-0.5 block">Harga Normal</label>
+                                <input
+                                  type="text"
+                                  value={item.harga}
+                                  onChange={(e) => updateItemField(cat.id, item.id!, "harga", e.target.value)}
+                                  className="w-full bg-background px-2 py-1 rounded border border-input focus:outline-none text-right"
+                                  placeholder="Harga Normal"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-blue-600 mb-0.5 block font-semibold">Harga B2B</label>
+                                <input
+                                  type="text"
+                                  value={item.harga_b2b ?? ""}
+                                  onChange={(e) => updateItemField(cat.id, item.id!, "harga_b2b", e.target.value)}
+                                  className="w-full bg-background px-2 py-1 rounded border border-blue-200 focus:outline-none focus:ring-1 focus:ring-blue-400 text-right text-blue-700"
+                                  placeholder="Harga B2B"
+                                />
+                              </div>
                             </div>
                             <input
                               type="text"
@@ -843,21 +890,32 @@ const UpdateStok = () => {
                   </button>
                 </div>
 
-                <div className="mt-4 flex gap-2 border-t border-border pt-3">
-                  <button
-                    type="button"
-                    onClick={() => setPricelistStep(1)}
-                    className="flex-1 bg-muted hover:bg-accent text-muted-foreground hover:text-accent-foreground rounded-lg py-2.5 text-xs font-semibold"
-                  >
-                    Kembali
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handlePrintPricelist}
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg py-2.5 text-xs font-bold transition-colors"
-                  >
-                    Cetak Price List PDF
-                  </button>
+                <div className="mt-4 flex flex-col gap-2 border-t border-border pt-3">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPricelistStep(1)}
+                      className="flex-1 bg-muted hover:bg-accent text-muted-foreground hover:text-accent-foreground rounded-lg py-2.5 text-xs font-semibold"
+                    >
+                      Kembali
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handlePrintPricelist("normal")}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg py-2.5 text-xs font-bold transition-colors"
+                    >
+                      Cetak Price List
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handlePrintPricelist("b2b")}
+                      className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2.5 text-xs font-bold transition-colors"
+                    >
+                      Cetak Price List B2B
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
