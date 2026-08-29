@@ -466,13 +466,21 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     ? (origin ? `${origin}/obrolan` : "/obrolan")
     : (origin ? `${origin}/riwayat` : "/riwayat");
 
+  const avatarUrl = origin
+    ? `${origin}/api/user-avatar?name=${encodeURIComponent(body.actorName)}`
+    : `https://ui-avatars.com/api/?name=${encodeURIComponent(body.actorName)}&background=2E7D32&color=fff&size=192&bold=true`;
+
   const notificationPayload: Record<string, unknown> = {
     app_id: appId,
     target_channel: "push",
     headings: { en: title },
     contents: { en: message },
     url: targetUrl,
-    chrome_web_icon: origin ? `${origin}/tanabrew-logo.png` : "/tanabrew-logo.png",
+    chrome_web_icon: body.type === "TEAM_CHAT_MESSAGE" ? avatarUrl : (origin ? `${origin}/tanabrew-logo.png` : "/tanabrew-logo.png"),
+    large_icon: body.type === "TEAM_CHAT_MESSAGE" ? avatarUrl : undefined,
+    chrome_web_image: body.type === "TEAM_CHAT_MESSAGE" ? avatarUrl : undefined,
+    big_picture: body.type === "TEAM_CHAT_MESSAGE" ? avatarUrl : undefined,
+    ios_attachments: body.type === "TEAM_CHAT_MESSAGE" ? { avatar: avatarUrl } : undefined,
     data: {
       type: body.type,
       invoiceId: body.invoiceId || "",
