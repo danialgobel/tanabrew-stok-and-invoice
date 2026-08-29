@@ -145,15 +145,38 @@ const GodMode = () => {
   // 1. Users Management
   const loadUsers = async () => {
     setLoadingUsers(true);
-    addLog("Mengambil data akun pengguna dari Firestore...", "info");
+    addLog("Mengambil data akun pengguna dari server...", "info");
     try {
+      if (currentUser) {
+        try {
+          const token = await currentUser.getIdToken();
+          const res = await fetch("/api/admin-users", {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && Array.isArray(data.users)) {
+              setUsersList(data.users);
+              addLog(`Berhasil memuat ${data.users.length} pengguna (Admin Root Access).`, "success");
+              setLoadingUsers(false);
+              return;
+            }
+          }
+        } catch (apiErr) {
+          console.warn("Admin API fallback to client Firestore", apiErr);
+        }
+      }
+
       const snap = await getDocs(collection(db, "users"));
       const records = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       setUsersList(records);
       addLog(`Berhasil memuat ${records.length} pengguna terdaftar.`, "success");
     } catch (err: any) {
       addLog(`Gagal memuat pengguna: ${err.message}`, "error");
-      toast({ title: "Error", description: "Gagal memuat daftar user", variant: "destructive" });
+      toast({ title: "Error", description: "Gagal memuat daftar user: " + err.message, variant: "destructive" });
     } finally {
       setLoadingUsers(false);
     }
@@ -163,6 +186,38 @@ const GodMode = () => {
     setUpdatingUserRole(userId);
     addLog(`Mengubah role user '${userName}' (${userId}) menjadi '${newRole}'...`, "warn");
     try {
+      if (currentUser) {
+        try {
+          const token = await currentUser.getIdToken();
+          const res = await fetch("/api/admin-users", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              action: "update_role",
+              userId,
+              newRole,
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success) {
+              setUsersList((prev) =>
+                prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
+              );
+              addLog(`Role '${userName}' berhasil diubah ke '${newRole}' (Admin Root).`, "success");
+              toast({ title: "Berhasil", description: `Role ${userName} diubah ke ${newRole.toUpperCase()}` });
+              setUpdatingUserRole(null);
+              return;
+            }
+          }
+        } catch (apiErr) {
+          console.warn("Admin API update_role fallback", apiErr);
+        }
+      }
+
       await updateDoc(doc(db, "users", userId), {
         role: newRole,
         updated_at: serverTimestamp(),
@@ -182,6 +237,9 @@ const GodMode = () => {
 
   // 2. Master Data Explorer
   const loadCollectionData = async (colName: CollectionName) => {
+    if (colName === "users") {
+      void loadUsers();
+    }
     setLoadingData(true);
     addLog(`Mengambil data dari koleksi '${colName}'...`, "info");
     try {
@@ -272,6 +330,33 @@ const GodMode = () => {
     const targetCol = deleteTarget.collection || activeCollection;
     addLog(`Menghapus dokumen '${deleteTarget.id}' dari '${targetCol}'...`, "warn");
     try {
+      if (targetCol === "users" && currentUser) {
+        try {
+          const token = await currentUser.getIdToken();
+          const res = await fetch("/api/admin-users", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              action: "delete_user",
+              userId: deleteTarget.id,
+            }),
+          });
+          if (res.ok) {
+            setUsersList((prev) => prev.filter((u) => u.id !== deleteTarget.id));
+            addLog(`User '${deleteTarget.display}' (${deleteTarget.id}) berhasil dihapus (Admin Root).`, "success");
+            toast({ title: "Berhasil", description: "User berhasil dihapus" });
+            setDeleting(false);
+            setDeleteTarget(null);
+            return;
+          }
+        } catch (apiErr) {
+          console.warn("Admin API delete_user fallback", apiErr);
+        }
+      }
+
       await deleteDoc(doc(db, targetCol, deleteTarget.id));
       if (targetCol === "users") {
         setUsersList((prev) => prev.filter((u) => u.id !== deleteTarget.id));
