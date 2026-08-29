@@ -1,24 +1,49 @@
-import { Home, Package, FileText, History, Database, Terminal } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Home, Package, FileText, History, Database, User } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { triggerHaptic } from "@/lib/haptics";
+import { collection, query, where, onSnapshot, limit } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 const BottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { userProfile } = useAuth();
-  const isWebdev = userProfile?.role === "webdev";
+  const [hasUnpaid, setHasUnpaid] = useState(false);
+
+  useEffect(() => {
+    const q = query(
+      collection(db, "invoices"),
+      where("status", "in", ["BELUM LUNAS", "DRAFT", "Pending"]),
+      limit(1)
+    );
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        setHasUnpaid(!snapshot.empty);
+      },
+      (error) => {
+        console.warn("Unpaid badge listener error", error);
+      }
+    );
+    return () => unsubscribe();
+  }, []);
+
+  const isStaff = userProfile?.role === "staff";
 
   const tabs = [
     { path: "/", label: "Beranda", icon: Home },
-    { path: "/update-stok", label: "Update Stok", icon: Package },
-    { path: "/cetak-invoice", label: "Cetak Invoice", icon: FileText },
-    { path: "/riwayat", label: "Riwayat", icon: History },
-    { path: "/spreadsheet", label: "Spreadsheet", icon: Database },
+    { path: "/update-stok", label: "Stok", icon: Package },
+    { path: "/cetak-invoice", label: "Kasir", icon: FileText },
+    { path: "/riwayat", label: "Riwayat", icon: History, badge: hasUnpaid },
   ];
 
-  if (isWebdev) {
-    tabs.push({ path: "/god-mode", label: "God Mode", icon: Terminal });
+  if (!isStaff) {
+    tabs.push({ path: "/spreadsheet", label: "Finansial", icon: Database, badge: false });
   }
+
+  tabs.push({ path: "/akun", label: "Akun", icon: User, badge: false });
 
   return (
     <nav
@@ -31,13 +56,24 @@ const BottomNav = () => {
           return (
             <button
               key={tab.path}
-              onClick={() => navigate(tab.path)}
-              className={`flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-2 transition-colors ${
-                active ? "text-primary" : "text-muted-foreground"
+              onClick={() => {
+                triggerHaptic(10);
+                navigate(tab.path);
+              }}
+              className={`relative flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-2 transition-colors ${
+                active ? "text-primary font-bold" : "text-muted-foreground"
               }`}
             >
-              <tab.icon size={22} strokeWidth={active ? 2.5 : 2} />
-              <span className="max-w-full truncate text-[11px] font-medium leading-tight">{tab.label}</span>
+              <div className="relative">
+                <tab.icon size={20} strokeWidth={active ? 2.5 : 2} />
+                {tab.badge && (
+                  <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-75"></span>
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-destructive"></span>
+                  </span>
+                )}
+              </div>
+              <span className="max-w-full truncate text-[10px] leading-tight">{tab.label}</span>
             </button>
           );
         })}
@@ -47,3 +83,4 @@ const BottomNav = () => {
 };
 
 export default BottomNav;
+

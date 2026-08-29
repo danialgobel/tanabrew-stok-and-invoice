@@ -1,20 +1,36 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { collection, addDoc, doc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, doc, updateDoc, deleteDoc, writeBatch, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { addActivityLog } from "@/lib/activityLog";
 import { addStockMovement } from "@/lib/stockMovement";
 import { useProducts } from "@/hooks/useProducts";
 import { useAuth } from "@/context/AuthContext";
 import type { Product } from "@/types";
-import { Pencil, Printer, RotateCcw, Search, Trash2, Plus, ArrowLeft, X } from "lucide-react";
+import { Pencil, Printer, RotateCcw, Search, Trash2, Plus, ArrowLeft, X, ArrowRightLeft, AlertTriangle, Tag } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { printStockReport } from "@/lib/reportPrint";
 import { Skeleton } from "@/components/Skeleton";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import PullToRefresh from "@/components/PullToRefresh";
 import { printPricelist, type PricelistCategory, type PricelistItem } from "@/lib/pricelistPrint";
+import { triggerHaptic } from "@/lib/haptics";
 
-const emptyForm = { nama_barang: "", stok_jogja: 0, stok_lombok: 0, harga: 0, harga_b2b: 0 };
+export const PRODUCT_CATEGORIES = [
+  "Kopi Biji (Beans)",
+  "Kopi Bubuk / Drip",
+  "Sirup & Bahan",
+  "Alat & Kemasan",
+  "Lainnya"
+] as const;
+
+const emptyForm = {
+  nama_barang: "",
+  kategori: "Kopi Biji (Beans)",
+  stok_jogja: 0,
+  stok_lombok: 0,
+  harga: 0,
+  harga_b2b: 0,
+};
 type StockFilter = "semua" | "menipis" | "habis";
 
 const stockState = (total: number) => {
@@ -26,11 +42,11 @@ const stockState = (total: number) => {
     };
   }
 
-  if (total > 0 && total <= 3) {
+  if (total > 0 && total <= 5) {
     return {
-      rowClass: "bg-yellow-100/70",
+      rowClass: "bg-amber-500/10",
       label: "Stok Menipis",
-      labelClass: "bg-yellow-200/80 text-yellow-800",
+      labelClass: "bg-amber-500/20 text-amber-700 dark:text-amber-400",
     };
   }
 
@@ -49,15 +65,30 @@ const UpdateStok = () => {
   const [pendingDelete, setPendingDelete] = useState<Product | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [stockFilter, setStockFilter] = useState<StockFilter>("semua");
+  const [selectedCategory, setSelectedCategory] = useState<string>("Semua");
   const [editingProductName, setEditingProductName] = useState("");
   const [highlightEditForm, setHighlightEditForm] = useState(false);
   const formRef = useRef<HTMLFormElement | null>(null);
   const highlightTimerRef = useRef<number | null>(null);
 
+  // Transfer Stok feature state
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferForm, setTransferForm] = useState<{
+    productId: string;
+    direction: "jogja_to_lombok" | "lombok_to_jogja";
+    qty: number;
+  }>({
+    productId: "",
+    direction: "jogja_to_lombok",
+    qty: 1,
+  });
+  const [transferring, setTransferring] = useState(false);
+
   // Pricelist feature state
   const [showPricelistModal, setShowPricelistModal] = useState(false);
   const [pricelistMode, setPricelistMode] = useState<"normal" | "b2b">("normal");
   const [pricelistStep, setPricelistStep] = useState<1 | 2>(1);
+
   const [selectedStockLocation, setSelectedStockLocation] = useState<"Jogja" | "Lombok" | "Semua">("Semua");
   const [pricelistCategories, setPricelistCategories] = useState<PricelistCategory[]>(() => {
     try {
@@ -224,6 +255,11 @@ const UpdateStok = () => {
   };
 
   const totalStok = (form.stok_jogja || 0) + (form.stok_lombok || 0);
+
+  const lowStockProducts = useMemo(() => {
+    return products.filter((p) => (p.total_stok ?? 0) <= 5 || (p.stok_jogja ?? 0) <= 0 || (p.stok_lombok ?? 0) <= 0);
+  }, [products]);
+
   const filteredProducts = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
 
@@ -233,14 +269,17 @@ const UpdateStok = () => {
       const matchesFilter =
         stockFilter === "semua"
         || (stockFilter === "habis" && total === 0)
-        || (stockFilter === "menipis" && total > 0 && total <= 3);
+        || (stockFilter === "menipis" && total > 0 && total <= 5);
+      const matchesCategory =
+        selectedCategory === "Semua"
+        || (product.kategori || "Kopi Biji (Beans)") === selectedCategory;
 
-      return matchesSearch && matchesFilter;
+      return matchesSearch && matchesFilter && matchesCategory;
     });
-  }, [products, searchTerm, stockFilter]);
+  }, [products, searchTerm, stockFilter, selectedCategory]);
 
   const formHasInput = Boolean(form.nama_barang.trim()) || form.stok_jogja !== 0 || form.stok_lombok !== 0 || form.harga !== 0 || form.harga_b2b !== 0;
-  const pullRefreshDisabled = formHasInput || saving || deletingId !== null || pendingDelete !== null || showPricelistModal;
+  const pullRefreshDisabled = formHasInput || saving || deletingId !== null || pendingDelete !== null || showPricelistModal || showTransferModal;
 
   const handleSafeRefresh = useCallback(() => {
     window.setTimeout(() => window.location.reload(), 320);
@@ -251,6 +290,101 @@ const UpdateStok = () => {
       if (highlightTimerRef.current) window.clearTimeout(highlightTimerRef.current);
     };
   }, []);
+
+  const handleExecuteTransfer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isOwner) {
+      toast({ title: "Akses Ditolak", description: "Hanya Owner yang berhak melakukan transfer stok.", variant: "destructive" });
+      return;
+    }
+
+    const prod = products.find((p) => p.id === transferForm.productId);
+    if (!prod || !prod.id) {
+      toast({ title: "Pilih Produk", description: "Silakan pilih produk yang akan ditransfer.", variant: "destructive" });
+      return;
+    }
+
+    const qty = Number(transferForm.qty) || 0;
+    if (qty <= 0) {
+      toast({ title: "Jumlah Tidak Valid", description: "Jumlah transfer harus lebih dari 0.", variant: "destructive" });
+      return;
+    }
+
+    const sourceStock = transferForm.direction === "jogja_to_lombok" ? (prod.stok_jogja || 0) : (prod.stok_lombok || 0);
+    const sourceName = transferForm.direction === "jogja_to_lombok" ? "Jogja" : "Lombok";
+    const destName = transferForm.direction === "jogja_to_lombok" ? "Lombok" : "Jogja";
+
+    if (qty > sourceStock) {
+      toast({
+        title: "Stok Tidak Cukup",
+        description: `Stok ${prod.nama_barang} di Gudang ${sourceName} hanya tersedia ${sourceStock} unit.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setTransferring(true);
+    triggerHaptic(15);
+    try {
+      const batch = writeBatch(db);
+      const prodRef = doc(db, "products", prod.id);
+      const newJogja = transferForm.direction === "jogja_to_lombok" ? (prod.stok_jogja || 0) - qty : (prod.stok_jogja || 0) + qty;
+      const newLombok = transferForm.direction === "jogja_to_lombok" ? (prod.stok_lombok || 0) + qty : (prod.stok_lombok || 0) - qty;
+
+      batch.update(prodRef, {
+        stok_jogja: newJogja,
+        stok_lombok: newLombok,
+        updated_at: serverTimestamp(),
+        diedit_oleh: userProfile?.name,
+        diedit_oleh_uid: currentUser?.uid,
+        diedit_oleh_role: userProfile?.role,
+      });
+
+      await batch.commit();
+
+      const auditUser = {
+        uid: currentUser?.uid || "",
+        name: userProfile?.name || "Owner",
+        role: userProfile?.role || "owner",
+      };
+
+      await addStockMovement({
+        productId: prod.id,
+        productName: prod.nama_barang,
+        movementType: "TRANSFER_STOCK",
+        location: "Semua",
+        quantityChange: 0,
+        stockBefore: prod.total_stok || 0,
+        stockAfter: prod.total_stok || 0,
+        source: "manual",
+        referenceId: prod.id,
+        referenceLabel: prod.nama_barang,
+        description: `Transfer ${qty} unit ${prod.nama_barang} dari Gudang ${sourceName} ke Gudang ${destName}.`,
+        user: auditUser,
+      });
+
+      await addActivityLog({
+        user: auditUser,
+        action: "TRANSFER_STOCK",
+        targetType: "product",
+        targetId: prod.id,
+        targetName: prod.nama_barang,
+        description: `${auditUser.name} mentransfer ${qty} unit ${prod.nama_barang} (${sourceName} -> ${destName})`,
+      });
+
+      triggerHaptic(25);
+      toast({
+        title: "Transfer Berhasil",
+        description: `${qty} unit ${prod.nama_barang} berhasil dipindahkan dari Gudang ${sourceName} ke Gudang ${destName}.`,
+      });
+      setShowTransferModal(false);
+      setTransferForm({ productId: "", direction: "jogja_to_lombok", qty: 1 });
+    } catch (err: any) {
+      toast({ title: "Gagal Transfer", description: err.message, variant: "destructive" });
+    } finally {
+      setTransferring(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -266,9 +400,11 @@ const UpdateStok = () => {
     }
 
     setSaving(true);
+    triggerHaptic(15);
     try {
       const data = {
         nama_barang: form.nama_barang.trim(),
+        kategori: form.kategori || "Kopi Biji (Beans)",
         stok_jogja: Number(form.stok_jogja) || 0,
         stok_lombok: Number(form.stok_lombok) || 0,
         total_stok: totalStok,
@@ -377,7 +513,14 @@ const UpdateStok = () => {
       return;
     }
 
-    setForm({ nama_barang: p.nama_barang, stok_jogja: p.stok_jogja, stok_lombok: p.stok_lombok, harga: p.harga, harga_b2b: p.harga_b2b ?? 0 });
+    setForm({
+      nama_barang: p.nama_barang,
+      kategori: p.kategori || "Kopi Biji (Beans)",
+      stok_jogja: p.stok_jogja,
+      stok_lombok: p.stok_lombok,
+      harga: p.harga,
+      harga_b2b: p.harga_b2b ?? 0,
+    });
     setEditId(p.id!);
     setEditingProductName(p.nama_barang);
     setHighlightEditForm(true);
@@ -495,13 +638,24 @@ const UpdateStok = () => {
               Sedang mengedit: {editingProductName || form.nama_barang}
             </p>
           )}
-          <input
-            placeholder="Nama Barang"
-            value={form.nama_barang}
-            onChange={(e) => setForm({ ...form, nama_barang: e.target.value })}
-            className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            required
-          />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <input
+              placeholder="Nama Barang"
+              value={form.nama_barang}
+              onChange={(e) => setForm({ ...form, nama_barang: e.target.value })}
+              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              required
+            />
+            <select
+              value={form.kategori}
+              onChange={(e) => setForm({ ...form, kategori: e.target.value })}
+              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              {PRODUCT_CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Stok Jogja</label>
@@ -571,13 +725,49 @@ const UpdateStok = () => {
         </div>
       )}
 
+      {/* Peringatan Stok Rendah */}
+      {lowStockProducts.length > 0 && (
+        <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-xs space-y-1">
+          <div className="flex items-center gap-1.5 font-bold text-amber-800 dark:text-amber-300">
+            <AlertTriangle size={15} />
+            <span>Peringatan Stok Menipis ({lowStockProducts.length} Produk)</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Beberapa produk memiliki total stok &le; 5 unit atau stok salah satu gudang kosong (0 unit). Segera jadwalkan roasting / restock.
+          </p>
+        </div>
+      )}
+
+      {/* Filter Kategori Tabs */}
+      <div className="mb-3 flex items-center gap-1 overflow-x-auto pb-1 text-xs">
+        {["Semua", ...PRODUCT_CATEGORIES].map((cat) => {
+          const active = selectedCategory === cat;
+          return (
+            <button
+              key={cat}
+              onClick={() => {
+                triggerHaptic(10);
+                setSelectedCategory(cat);
+              }}
+              className={`shrink-0 rounded-lg px-2.5 py-1.5 font-semibold transition-all border ${
+                active
+                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                  : "bg-card text-muted-foreground border-border hover:bg-muted"
+              }`}
+            >
+              {cat}
+            </button>
+          );
+        })}
+      </div>
+
       <div className="mb-4 rounded-xl border border-border bg-card p-4 space-y-3">
         <div className="flex items-center gap-2 rounded-lg border border-input bg-background px-3 py-2.5">
           <Search size={16} className="text-muted-foreground" />
           <input
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Cari nama barang"
+            placeholder="Cari nama barang..."
             className="min-w-0 flex-1 bg-transparent text-sm outline-none"
           />
         </div>
@@ -587,8 +777,8 @@ const UpdateStok = () => {
           className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
         >
           <option value="semua">Semua Stok</option>
-          <option value="menipis">Menipis</option>
-          <option value="habis">Habis</option>
+          <option value="menipis">Stok Menipis (&le; 5 unit)</option>
+          <option value="habis">Stok Habis (0 unit)</option>
         </select>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <button
@@ -599,6 +789,19 @@ const UpdateStok = () => {
             <RotateCcw size={15} />
             Reset Filter
           </button>
+          {isOwner && (
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic(15);
+                setShowTransferModal(true);
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2.5 text-sm font-bold text-primary hover:bg-primary/15 sm:col-span-2"
+            >
+              <ArrowRightLeft size={16} />
+              Transfer Stok (Jogja ⇄ Lombok)
+            </button>
+          )}
           <button
             type="button"
             onClick={handlePrintStockReport}
@@ -950,9 +1153,132 @@ const UpdateStok = () => {
           </div>
         </div>
       )}
+
+      {/* MODAL TRANSFER STOK ANTAR GUDANG */}
+      {showTransferModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setShowTransferModal(false)}>
+          <div className="bg-card w-full max-w-md rounded-2xl p-5 border border-border shadow-xl space-y-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                  <ArrowRightLeft size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-foreground">Transfer Stok Gudang</h3>
+                  <p className="text-xs text-muted-foreground">Pindahkan stok antara Jogja dan Lombok</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTransferModal(false)}
+                className="p-1 rounded-full text-muted-foreground hover:bg-muted"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleExecuteTransfer} className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground mb-1 block">Pilih Produk:</label>
+                <select
+                  value={transferForm.productId}
+                  onChange={(e) => setTransferForm({ ...transferForm, productId: e.target.value })}
+                  className="w-full rounded-lg border border-input bg-background p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                  required
+                >
+                  <option value="">-- Pilih Produk --</option>
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nama_barang} (Jogja: {p.stok_jogja} | Lombok: {p.stok_lombok})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Arah Pemindahan:</label>
+                <div className="grid grid-cols-2 gap-2 text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setTransferForm({ ...transferForm, direction: "jogja_to_lombok" })}
+                    className={`rounded-xl border p-3 text-center transition-all ${
+                      transferForm.direction === "jogja_to_lombok"
+                        ? "border-primary bg-primary/10 text-primary shadow-sm"
+                        : "border-border bg-background text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    Jogja &rarr; Lombok
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTransferForm({ ...transferForm, direction: "lombok_to_jogja" })}
+                    className={`rounded-xl border p-3 text-center transition-all ${
+                      transferForm.direction === "lombok_to_jogja"
+                        ? "border-primary bg-primary/10 text-primary shadow-sm"
+                        : "border-border bg-background text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    Lombok &rarr; Jogja
+                  </button>
+                </div>
+              </div>
+
+              {transferForm.productId && (
+                <div className="rounded-xl bg-muted/40 p-3 text-xs space-y-1 border border-border/50">
+                  {(() => {
+                    const sel = products.find((p) => p.id === transferForm.productId);
+                    if (!sel) return null;
+                    const srcStock = transferForm.direction === "jogja_to_lombok" ? sel.stok_jogja : sel.stok_lombok;
+                    const srcName = transferForm.direction === "jogja_to_lombok" ? "Jogja" : "Lombok";
+                    const dstName = transferForm.direction === "jogja_to_lombok" ? "Lombok" : "Jogja";
+                    return (
+                      <>
+                        <p className="font-bold text-foreground">{sel.nama_barang}</p>
+                        <p className="text-muted-foreground">
+                          Stok asal ({srcName}): <strong className="text-foreground">{srcStock} unit</strong> &rarr; Stok tujuan ({dstName}): <strong className="text-foreground">{transferForm.direction === "jogja_to_lombok" ? sel.stok_lombok : sel.stok_jogja} unit</strong>
+                        </p>
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground mb-1 block">Jumlah Unit yang Ditransfer:</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={transferForm.qty}
+                  onChange={(e) => setTransferForm({ ...transferForm, qty: Math.max(1, parseInt(e.target.value) || 1) })}
+                  className="w-full rounded-lg border border-input bg-background p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setShowTransferModal(false)}
+                  className="rounded-lg bg-muted py-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted/80"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={transferring || !transferForm.productId}
+                  className="rounded-lg bg-primary py-2.5 text-xs font-bold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                >
+                  {transferring ? "Memproses..." : "Konfirmasi Transfer"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
     </>
   );
 };
 
 export default UpdateStok;
+

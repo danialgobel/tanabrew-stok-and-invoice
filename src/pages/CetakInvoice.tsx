@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/Skeleton";
 import { syncInvoiceToSpreadsheet } from "@/lib/spreadsheet/invoiceSync";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { triggerHaptic } from "@/lib/haptics";
 
 type ActionNotice = {
   id: number;
@@ -200,11 +201,18 @@ const CetakInvoice = () => {
     });
   };
 
-  const addItem = () => setItems([...items, { nama_barang: "", harga: 0, jumlah: 1, subtotal: 0 }]);
-  const removeItem = (idx: number) => items.length > 1 && setItems(items.filter((_, i) => i !== idx));
+  const addItem = () => {
+    triggerHaptic(10);
+    setItems([...items, { nama_barang: "", harga: 0, jumlah: 1, subtotal: 0 }]);
+  };
+  const removeItem = (idx: number) => {
+    triggerHaptic(10);
+    if (items.length > 1) setItems(items.filter((_, i) => i !== idx));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    triggerHaptic(15);
     const invoiceItems = items.filter((i) => i.nama_barang && i.jumlah > 0);
     if (!customer.trim() || invoiceItems.length === 0) return;
     if (!currentUser || !userProfile) {

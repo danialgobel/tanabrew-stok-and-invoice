@@ -1,6 +1,7 @@
 export interface Product {
   id?: string;
   nama_barang: string;
+  kategori?: string;
   stok_jogja: number;
   stok_lombok: number;
   total_stok: number;
@@ -73,7 +74,7 @@ export interface StockMovement {
   id?: string;
   product_id?: string;
   product_name?: string;
-  movement_type?: "STOCK_IN" | "STOCK_EDIT" | "STOCK_OUT_INVOICE" | "PRODUCT_CREATE" | "PRODUCT_DELETE";
+  movement_type?: "STOCK_IN" | "STOCK_EDIT" | "STOCK_OUT_INVOICE" | "PRODUCT_CREATE" | "PRODUCT_DELETE" | "TRANSFER_STOCK";
   location?: "Jogja" | "Lombok" | "Semua" | "System";
   quantity_change?: number;
   stock_before?: number;

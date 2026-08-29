@@ -2,7 +2,8 @@ import { useProducts } from "@/hooks/useProducts";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { arrayUnion, collection, doc, limit, onSnapshot, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
-import { Bell, LogOut, X } from "lucide-react";
+import { Bell, LogOut, X, TrendingUp, DollarSign, ShoppingBag, Award, User as UserIcon, Calendar, ArrowRight } from "lucide-react";
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from "recharts";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -10,6 +11,7 @@ import WelcomeAnimation from "@/components/WelcomeAnimation";
 import { CardSkeleton, Skeleton } from "@/components/Skeleton";
 import PullToRefresh from "@/components/PullToRefresh";
 import { sendTanabrewNotification } from "@/lib/notificationSender";
+import { triggerHaptic } from "@/lib/haptics";
 import {
   getNotificationPermissionState,
   requestNotificationPermission,
@@ -244,12 +246,7 @@ const Beranda = () => {
   }, [currentUser?.uid]);
 
   useEffect(() => {
-    if (!isAdmin) {
-      setAdminInvoices([]);
-      setInvoiceReminderError(false);
-      return;
-    }
-
+    setLoadingDashboard(true);
     const unsubscribe = onSnapshot(
       collection(db, "invoices"),
       (snap) => {
@@ -260,23 +257,27 @@ const Beranda = () => {
           return bDate - aDate;
         });
         setAdminInvoices(data);
+        setDashboardInvoices(data);
+        setLoadingDashboard(false);
         setInvoiceReminderError(false);
       },
       () => {
         setInvoiceReminderError(true);
         setAdminInvoices([]);
+        setDashboardInvoices([]);
+        setLoadingDashboard(false);
       },
     );
 
     return () => unsubscribe();
-  }, [isAdmin]);
+  }, []);
 
   const unprintedInvoices = useMemo(
     () => adminInvoices.filter((invoice) => invoice.is_printed !== true),
     [adminInvoices],
   );
   const lowStockProducts = useMemo(
-    () => products.filter((p) => (p.total_stok || 0) > 0 && (p.total_stok || 0) <= 3),
+    () => products.filter((p) => (p.total_stok || 0) > 0 && (p.total_stok || 0) <= 5),
     [products],
   );
   const emptyStockProducts = useMemo(
@@ -284,62 +285,88 @@ const Beranda = () => {
     [products],
   );
   const safeStockProducts = useMemo(
-    () => products.filter((p) => (p.total_stok || 0) > 3),
+    () => products.filter((p) => (p.total_stok || 0) > 5),
     [products],
   );
   const hasAdminWarning = invoiceReminderError || unprintedInvoices.length > 0 || lowStockProducts.length > 0 || emptyStockProducts.length > 0;
-  const dashboardDays = useMemo(() => {
-    const today = new Date();
-    const days = Array.from({ length: 7 }, (_, index) => {
-      const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (6 - index));
-      const key = date.toISOString().slice(0, 10);
-      return {
-        key,
-        label: new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "2-digit" }).format(date),
-        revenue: 0,
-        count: 0,
-      };
+
+  const todayOverview = useMemo(() => {
+    const now = new Date();
+    const todayYear = now.getFullYear();
+    const todayMonth = now.getMonth();
+    const todayDate = now.getDate();
+
+    const todayInvoices = dashboardInvoices.filter((inv) => {
+      const time = getDateValue(inv.created_at) || getDateValue(inv.tanggal);
+      if (!time) return false;
+      const d = new Date(time);
+      return d.getFullYear() === todayYear && d.getMonth() === todayMonth && d.getDate() === todayDate;
     });
 
-    dashboardInvoices.forEach((invoice) => {
-      const time = getDateValue(invoice.created_at) || getDateValue(invoice.tanggal);
+    const revenue = todayInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
+    const count = todayInvoices.length;
+    const itemsSold = todayInvoices.reduce(
+      (sum, inv) => sum + (inv.items || []).reduce((itemSum, item) => itemSum + (item.jumlah || 0), 0),
+      0,
+    );
+
+    return { revenue, count, itemsSold };
+  }, [dashboardInvoices]);
+
+  const chartRevenueData = useMemo(() => {
+    const now = new Date();
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (6 - i));
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const label = i === 6 ? "Hari Ini" : new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "2-digit" }).format(d);
+      return { key, label, omzet: 0, transaksi: 0 };
+    });
+
+    dashboardInvoices.forEach((inv) => {
+      const time = getDateValue(inv.created_at) || getDateValue(inv.tanggal);
       if (!time) return;
-
-      const date = new Date(time);
-      const key = date.toISOString().slice(0, 10);
-      const day = days.find((item) => item.key === key);
-      if (!day) return;
-
-      day.revenue += invoice.total || 0;
-      day.count += 1;
+      const d = new Date(time);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const matched = days.find((day) => day.key === key);
+      if (matched) {
+        matched.omzet += inv.total || 0;
+        matched.transaksi += 1;
+      }
     });
 
     return days;
   }, [dashboardInvoices]);
-  const maxRevenue = Math.max(...dashboardDays.map((day) => day.revenue), 1);
-  const maxInvoiceCount = Math.max(...dashboardDays.map((day) => day.count), 1);
+
   const dashboardStatus = useMemo(
     () => ({
       lunas: dashboardInvoices.filter((invoice) => invoice.status === "LUNAS").length,
-      belumLunas: dashboardInvoices.filter((invoice) => invoice.status === "BELUM LUNAS").length,
+      belumLunas: dashboardInvoices.filter((invoice) => invoice.status === "BELUM LUNAS" || invoice.status === "Pending").length,
     }),
     [dashboardInvoices],
   );
-  const topInvoiceProducts = useMemo(() => {
-    const productMap = new Map<string, number>();
 
-    dashboardInvoices.forEach((invoice) => {
-      (invoice.items || []).forEach((item) => {
-        if (!item.nama_barang) return;
-        productMap.set(item.nama_barang, (productMap.get(item.nama_barang) || 0) + (item.jumlah || 0));
+  const topBestSellers = useMemo(() => {
+    const map = new Map<string, number>();
+    let totalPcs = 0;
+    dashboardInvoices.forEach((inv) => {
+      (inv.items || []).forEach((it) => {
+        if (!it.nama_barang) return;
+        const qty = it.jumlah || 0;
+        map.set(it.nama_barang, (map.get(it.nama_barang) || 0) + qty);
+        totalPcs += qty;
       });
     });
 
-    return Array.from(productMap.entries())
-      .map(([name, count]) => ({ name, count }))
+    return Array.from(map.entries())
+      .map(([name, count]) => ({
+        name,
+        count,
+        percentage: totalPcs > 0 ? Math.round((count / totalPcs) * 100) : 0,
+      }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
   }, [dashboardInvoices]);
+
   const hasDashboardData = dashboardInvoices.length > 0 || products.length > 0;
 
   const handleLogout = async () => {
@@ -654,30 +681,63 @@ const Beranda = () => {
           <p className="text-sm text-muted-foreground">Trademark</p>
         </div>
 
-        <div className="tanabrew-card-enter bg-card rounded-xl border border-border p-4 mb-6 flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-primary truncate">Login sebagai: {displayName}</p>
-            <div className="flex items-center gap-1.5 mt-1">
-              <span className="text-xs text-muted-foreground">Role: {roleLabel}</span>
-              {isAdmin && notificationStatus === "granted" && (
-                <>
-                  <span className="text-muted-foreground/30">•</span>
-                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Notifikasi aktif
-                  </span>
-                </>
-              )}
+        {/* Header Profil Pengguna */}
+        <div className="tanabrew-card-enter bg-card rounded-2xl border border-border p-4 mb-4 flex items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-sm border border-primary/20 shrink-0">
+              {displayName.slice(0, 2).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-foreground truncate">{displayName}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-[11px] font-semibold text-muted-foreground uppercase">{roleLabel}</span>
+                {isAdmin && notificationStatus === "granted" && (
+                  <>
+                    <span className="text-muted-foreground/30">•</span>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Notif Aktif
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
           <button
-            onClick={handleLogout}
-            disabled={loggingOut}
-            className="inline-flex items-center gap-1 rounded-lg bg-muted px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+            onClick={() => {
+              triggerHaptic(10);
+              navigate("/akun");
+            }}
+            className="inline-flex items-center gap-1 rounded-xl border border-border bg-muted/60 px-3 py-2 text-xs font-bold text-foreground hover:bg-muted transition-colors"
           >
-            <LogOut size={14} />
-            Logout
+            <UserIcon size={14} />
+            Akun
           </button>
+        </div>
+
+        {/* Ringkasan Cepat Hari Ini (Today's Quick Overview) */}
+        <div className="tanabrew-card-enter grid grid-cols-3 gap-2.5 mb-6">
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-1 shadow-sm">
+            <div className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
+              <DollarSign size={13} />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Omzet Hari Ini</span>
+            </div>
+            <p className="text-xs sm:text-sm font-bold text-foreground truncate">Rp {fmt(todayOverview.revenue)}</p>
+          </div>
+          <div className="rounded-2xl border border-blue-500/20 bg-blue-500/5 p-3 space-y-1 shadow-sm">
+            <div className="flex items-center gap-1 text-blue-700 dark:text-blue-400">
+              <TrendingUp size={13} />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Transaksi</span>
+            </div>
+            <p className="text-xs sm:text-sm font-bold text-foreground">{todayOverview.count} Transaksi</p>
+          </div>
+          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-3 space-y-1 shadow-sm">
+            <div className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
+              <ShoppingBag size={13} />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Terjual</span>
+            </div>
+            <p className="text-xs sm:text-sm font-bold text-foreground">{todayOverview.itemsSold} Pcs</p>
+          </div>
         </div>
 
         {notificationStatus !== "granted" && !showWelcomeAnimation && (
@@ -937,126 +997,167 @@ const Beranda = () => {
           </div>
         )}
 
-        <div className="tanabrew-card-enter tanabrew-dashboard-panel rounded-xl border border-border bg-card p-4 mb-6" style={{ animationDelay: "90ms" }}>
-          <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="tanabrew-card-enter tanabrew-dashboard-panel rounded-2xl border border-border bg-card p-4 mb-6 shadow-sm" style={{ animationDelay: "90ms" }}>
+          <div className="mb-4 flex items-center justify-between gap-3 border-b border-border pb-3">
             <div>
-              <h2 className="text-sm font-bold text-primary">Dashboard Operasional</h2>
-              <p className="text-xs text-muted-foreground">Ringkasan invoice dan stok terbaru</p>
+              <h2 className="text-sm font-bold text-foreground">Analitik & Performa Toko</h2>
+              <p className="text-xs text-muted-foreground">Tren pendapatan 7 hari terakhir & peringkat produk terlaris</p>
             </div>
           </div>
 
           {loadingDashboard || loading ? (
             <div className="space-y-3">
-              <Skeleton className="h-28 w-full" />
+              <Skeleton className="h-36 w-full rounded-xl" />
               <div className="grid grid-cols-2 gap-2">
-                <Skeleton className="h-14 w-full" />
-                <Skeleton className="h-14 w-full" />
+                <Skeleton className="h-12 w-full rounded-lg" />
+                <Skeleton className="h-12 w-full rounded-lg" />
               </div>
             </div>
           ) : !hasDashboardData ? (
-            <p className="rounded-lg bg-muted px-3 py-4 text-center text-sm text-muted-foreground">Belum ada data grafik.</p>
+            <p className="rounded-xl bg-muted px-3 py-4 text-center text-xs text-muted-foreground">Belum ada data transaksi yang dicatat.</p>
           ) : (
             <div className="space-y-5">
-              <div>
-                <div className="mb-2 flex items-center justify-between text-xs">
-                  <span className="font-semibold text-primary">Pemasukan 7 Hari</span>
-                  <span className="text-muted-foreground">Rp {fmt(dashboardDays.reduce((sum, day) => sum + day.revenue, 0))}</span>
+              {/* Grafik Tren Omzet 7 Hari */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-foreground flex items-center gap-1.5">
+                    <TrendingUp size={14} className="text-emerald-600 dark:text-emerald-400" />
+                    Tren Omzet 7 Hari Terakhir
+                  </span>
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400 font-mono text-[11px]">
+                    Rp {fmt(chartRevenueData.reduce((sum, day) => sum + day.omzet, 0))}
+                  </span>
                 </div>
-                <div className="grid grid-cols-7 items-end gap-2 rounded-lg bg-primary/5 p-3" style={{ minHeight: 132 }}>
-                  {dashboardDays.map((day, index) => (
-                    <div key={day.key} className="flex h-28 flex-col items-center justify-end gap-1">
-                      <div
-                        className="tanabrew-dashboard-bar w-full rounded-t-md bg-primary/80 transition-all"
-                        style={{ height: `${Math.max(8, (day.revenue / maxRevenue) * 88)}px`, animationDelay: `${index * 80}ms` }}
-                        title={`Rp ${fmt(day.revenue)}`}
+
+                <div className="w-full rounded-xl bg-muted/30 p-2.5 border border-border/50" style={{ height: 175 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartRevenueData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                        </linearGradient>
+                      </defs>
+                      <XAxis
+                        dataKey="label"
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                       />
-                      <span className="text-[10px] text-muted-foreground">{day.label}</span>
-                    </div>
-                  ))}
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(val) => `${val >= 1000000 ? (val / 1000000).toFixed(1) + "M" : val >= 1000 ? (val / 1000).toFixed(0) + "k" : val}`}
+                        tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "hsl(var(--card))",
+                          borderColor: "hsl(var(--border))",
+                          borderRadius: "0.75rem",
+                          fontSize: "11px",
+                          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                        }}
+                        formatter={(val: number) => [`Rp ${fmt(val)}`, "Omzet"]}
+                        labelFormatter={(lbl) => `Tanggal: ${lbl}`}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="omzet"
+                        stroke="#10b981"
+                        strokeWidth={2.5}
+                        fillOpacity={1}
+                        fill="url(#revenueGradient)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
 
-              <div>
-                <div className="mb-2 flex items-center justify-between text-xs">
-                  <span className="font-semibold text-primary">Invoice 7 Hari</span>
-                  <span className="text-muted-foreground">{dashboardDays.reduce((sum, day) => sum + day.count, 0)} invoice</span>
-                </div>
-                <div className="grid grid-cols-7 items-end gap-2 rounded-lg bg-muted p-3" style={{ minHeight: 112 }}>
-                  {dashboardDays.map((day, index) => (
-                    <div key={day.key} className="flex h-24 flex-col items-center justify-end gap-1">
-                      <div
-                        className="tanabrew-dashboard-bar w-full rounded-t-md bg-emerald-500/80 transition-all"
-                        style={{ height: `${Math.max(8, (day.count / maxInvoiceCount) * 72)}px`, animationDelay: `${100 + index * 80}ms` }}
-                        title={`${day.count} invoice`}
-                      />
-                      <span className="text-[10px] text-muted-foreground">{day.label}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
+              {/* Status Transaksi & Stok Grid */}
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <button
                   type="button"
-                  onClick={() => setSummaryModal("lunas")}
-                  className="tanabrew-dashboard-stat rounded-lg bg-primary/10 px-3 py-2 text-left w-full cursor-pointer hover:opacity-90 active:scale-95 transition-all select-none hover:shadow-sm"
-                  style={{ animationDelay: "100ms" }}
+                  onClick={() => {
+                    triggerHaptic(10);
+                    setSummaryModal("lunas");
+                  }}
+                  className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-2.5 text-left hover:bg-emerald-500/15 transition-all"
                 >
-                  <p className="text-muted-foreground">Invoice Lunas</p>
-                  <p className="font-bold text-primary">{dashboardStatus.lunas}</p>
+                  <p className="text-[11px] text-muted-foreground">Invoice Lunas</p>
+                  <p className="text-base font-bold text-emerald-700 dark:text-emerald-400">{dashboardStatus.lunas}</p>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSummaryModal("belum_lunas")}
-                  className="tanabrew-dashboard-stat rounded-lg bg-destructive/10 px-3 py-2 text-left w-full cursor-pointer hover:opacity-90 active:scale-95 transition-all select-none hover:shadow-sm"
-                  style={{ animationDelay: "180ms" }}
+                  onClick={() => {
+                    triggerHaptic(10);
+                    setSummaryModal("belum_lunas");
+                  }}
+                  className="rounded-xl border border-destructive/20 bg-destructive/10 p-2.5 text-left hover:bg-destructive/15 transition-all"
                 >
-                  <p className="text-muted-foreground">Belum Lunas</p>
-                  <p className="font-bold text-destructive">{dashboardStatus.belumLunas}</p>
+                  <p className="text-[11px] text-muted-foreground">Belum Lunas / Pending</p>
+                  <p className="text-base font-bold text-destructive">{dashboardStatus.belumLunas}</p>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSummaryModal("stok_aman")}
-                  className="tanabrew-dashboard-stat rounded-lg bg-primary/10 px-3 py-2 text-left w-full cursor-pointer hover:opacity-90 active:scale-95 transition-all select-none hover:shadow-sm"
-                  style={{ animationDelay: "260ms" }}
+                  onClick={() => {
+                    triggerHaptic(10);
+                    setSummaryModal("stok_menipis");
+                  }}
+                  className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-2.5 text-left hover:bg-amber-500/15 transition-all"
                 >
-                  <p className="text-muted-foreground">Stok Aman</p>
-                  <p className="font-bold text-primary">{safeStockProducts.length}</p>
+                  <p className="text-[11px] text-muted-foreground">Stok Menipis (&le; 5)</p>
+                  <p className="text-base font-bold text-amber-700 dark:text-amber-400">{lowStockProducts.length}</p>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSummaryModal("stok_menipis")}
-                  className="tanabrew-dashboard-stat rounded-lg bg-yellow-100/80 px-3 py-2 text-left w-full cursor-pointer hover:opacity-90 active:scale-95 transition-all select-none hover:shadow-sm"
-                  style={{ animationDelay: "340ms" }}
+                  onClick={() => {
+                    triggerHaptic(10);
+                    setSummaryModal("stok_habis");
+                  }}
+                  className="rounded-xl border border-destructive/20 bg-destructive/10 p-2.5 text-left hover:bg-destructive/15 transition-all"
                 >
-                  <p className="text-muted-foreground">Stok Menipis</p>
-                  <p className="font-bold text-yellow-800">{lowStockProducts.length}</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSummaryModal("stok_habis")}
-                  className="tanabrew-dashboard-stat rounded-lg bg-destructive/10 px-3 py-2 text-left w-full cursor-pointer hover:opacity-90 active:scale-95 transition-all select-none hover:shadow-sm"
-                  style={{ animationDelay: "420ms" }}
-                >
-                  <p className="text-muted-foreground">Stok Habis</p>
-                  <p className="font-bold text-destructive">{emptyStockProducts.length}</p>
+                  <p className="text-[11px] text-muted-foreground">Stok Habis (0)</p>
+                  <p className="text-base font-bold text-destructive">{emptyStockProducts.length}</p>
                 </button>
               </div>
 
-              <div>
-                <p className="mb-2 text-xs font-semibold text-primary">Produk Sering Masuk Invoice</p>
-                {topInvoiceProducts.length === 0 ? (
-                  <p className="rounded-lg bg-muted px-3 py-3 text-center text-xs text-muted-foreground">Belum ada produk di invoice.</p>
+              {/* 5 Produk Terlaris (Top 5 Best Seller) */}
+              <div className="space-y-2.5 pt-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-foreground flex items-center gap-1.5">
+                    <Award size={14} className="text-amber-500" />
+                    Peringkat 5 Produk Terlaris
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">Berdasarkan data penjualan</span>
+                </div>
+
+                {topBestSellers.length === 0 ? (
+                  <p className="rounded-xl bg-muted/40 px-3 py-3 text-center text-xs text-muted-foreground">Belum ada riwayat penjualan produk.</p>
                 ) : (
                   <div className="space-y-2">
-                    {topInvoiceProducts.map((product, index) => (
-                      <div
-                        key={product.name}
-                        className="tanabrew-dashboard-list-item flex items-center justify-between gap-3 rounded-lg bg-muted px-3 py-2 text-xs"
-                        style={{ animationDelay: `${index * 80}ms` }}
-                      >
-                        <span className="font-semibold text-foreground truncate">{product.name}</span>
-                        <span className="font-bold text-primary">{product.count} pcs</span>
+                    {topBestSellers.map((item, idx) => (
+                      <div key={item.name} className="rounded-xl border border-border bg-card p-2.5 space-y-1.5">
+                        <div className="flex items-center justify-between text-xs gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className={`flex h-5 w-5 items-center justify-center rounded-md font-bold text-[10px] shrink-0 ${
+                              idx === 0 ? "bg-amber-500/20 text-amber-600 border border-amber-500/30" :
+                              idx === 1 ? "bg-slate-300/30 text-slate-700 dark:text-slate-300 border border-slate-300/40" :
+                              idx === 2 ? "bg-amber-700/20 text-amber-800 dark:text-amber-300 border border-amber-700/30" :
+                              "bg-muted text-muted-foreground"
+                            }`}>
+                              #{idx + 1}
+                            </span>
+                            <span className="font-semibold text-foreground truncate">{item.name}</span>
+                          </div>
+                          <span className="font-bold text-primary shrink-0 text-xs">{item.count} pcs</span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                          <div
+                            className="h-full rounded-full bg-primary transition-all duration-500"
+                            style={{ width: `${Math.min(100, Math.max(8, item.percentage))}%` }}
+                          />
+                        </div>
                       </div>
                     ))}
                   </div>
