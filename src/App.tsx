@@ -62,14 +62,6 @@ const AppRoutes = () => {
     userProfile?.name,
     userProfile?.role,
   ]);
-  
-  useEffect(() => {
-    if (userProfile?.role === "webdev") {
-      document.body.classList.add("role-webdev");
-    } else {
-      document.body.classList.remove("role-webdev");
-    }
-  }, [userProfile?.role]);
 
   return (
     <>

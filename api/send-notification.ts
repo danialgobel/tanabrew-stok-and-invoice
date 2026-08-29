@@ -1,7 +1,7 @@
 import type { App } from "firebase-admin/app";
 
 type InvoiceNotificationType = "CREATE_INVOICE" | "PRINT_INVOICE" | "UPDATE_PAYMENT_STATUS" | "TEST_NOTIFICATION" | "OWNER_ANNOUNCEMENT";
-type InvoiceNotificationRole = "owner" | "admin" | "staff";
+type InvoiceNotificationRole = "owner" | "admin" | "staff" | "webdev";
 
 type ApiRequest = {
   method?: string;
@@ -19,9 +19,9 @@ type ApiResponse = {
 type InvoiceNotificationPayload = {
   type: InvoiceNotificationType;
   invoiceId?: string;
-  invoiceNumber: string;
-  customer: string;
-  total: number;
+  invoiceNumber?: string;
+  customer?: string;
+  total?: number;
   actorName: string;
   actorRole: InvoiceNotificationRole;
   title?: string;
@@ -82,11 +82,11 @@ const isValidPayload = (payload: Record<string, unknown> | null): payload is Inv
   return (
     allowedTypes.includes(type) &&
     (isTestNotification || isOwnerAnnouncement || (typeof payload.invoiceId === "string" && payload.invoiceId.trim().length > 0)) &&
-    (isOwnerAnnouncement || (typeof payload.invoiceNumber === "string" && payload.invoiceNumber.trim().length > 0)) &&
-    (isOwnerAnnouncement || typeof payload.customer === "string") &&
+    (isOwnerAnnouncement || isTestNotification || (typeof payload.invoiceNumber === "string" && payload.invoiceNumber.trim().length > 0)) &&
+    (isOwnerAnnouncement || isTestNotification || typeof payload.customer === "string") &&
     typeof payload.actorName === "string" &&
     payload.actorName.trim().length > 0 &&
-    (actorRole === "owner" || actorRole === "admin" || actorRole === "staff") &&
+    (actorRole === "owner" || actorRole === "admin" || actorRole === "staff" || actorRole === "webdev") &&
     Number.isFinite(total) &&
     total >= 0
   );
@@ -281,7 +281,7 @@ const verifyFirebaseToken = async (authorization: string) => {
   return decodedToken.uid;
 };
 
-const loadNotificationRecipientUids = async (roles: InvoiceNotificationRole[] = ["owner", "admin", "staff"]) => {
+const loadNotificationRecipientUids = async (roles: InvoiceNotificationRole[] = ["owner", "admin", "staff", "webdev"]) => {
   const db = await getAdminDb();
   const snapshots = await Promise.all(
     roles.map((role) => db.collection("users").where("role", "==", role).get()),
@@ -395,7 +395,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       const userDoc = await db.collection("users").doc(requesterUid).get();
       const userData = userDoc.exists ? userDoc.data() : null;
 
-      if (!userData || userData.role !== "owner") {
+      if (!userData || (userData.role !== "owner" && userData.role !== "webdev")) {
         console.warn("[Tanabrew Notification] unauthorized announcement attempt", {
           uid: requesterUid,
           role: userData?.role
@@ -403,7 +403,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         return res.status(403).json({
           success: false,
           error: "UNAUTHORIZED_ANNOUNCEMENT",
-          message: "Hanya owner yang dapat mengirim arahan owner."
+          message: "Hanya owner atau webdev yang dapat mengirim arahan owner."
         });
       }
     }
@@ -436,22 +436,20 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     });
   }
 
-  if (recipientUids.length === 0) {
+  const isBroadcast = body.type === "OWNER_ANNOUNCEMENT" || body.type === "TEST_NOTIFICATION";
+  if (!isBroadcast && recipientUids.length === 0) {
     return res.status(404).json({
       success: false,
       error: "NO_NOTIFICATION_RECIPIENTS",
-      message: "Tidak ada user admin/staff yang bisa dikirimi notifikasi.",
+      message: "Tidak ada user yang bisa dikirimi notifikasi.",
     });
   }
 
   const { title, message } = buildNotificationContent(body);
   const origin = getRequestOrigin(req);
-  const notificationPayload = {
+  const notificationPayload: Record<string, unknown> = {
     app_id: appId,
     target_channel: "push",
-    include_aliases: {
-      external_id: recipientUids,
-    },
     headings: { en: title },
     contents: { en: message },
     url: origin ? `${origin}/riwayat` : "/riwayat",
@@ -459,9 +457,18 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     data: {
       type: body.type,
       invoiceId: body.invoiceId || "",
-      invoiceNumber: body.invoiceNumber,
+      invoiceNumber: body.invoiceNumber || "",
     },
   };
+
+  if (isBroadcast) {
+    // Broadcast to ALL subscribed web and mobile devices
+    notificationPayload.included_segments = ["Total Subscriptions"];
+  } else {
+    notificationPayload.include_aliases = {
+      external_id: recipientUids,
+    };
+  }
 
   try {
     const response = await fetch("https://api.onesignal.com/notifications", {

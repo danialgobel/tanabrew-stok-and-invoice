@@ -1,11 +1,23 @@
-import { useEffect, useState, useRef } from "react";
-import { collection, getDocs, doc, deleteDoc } from "firebase/firestore";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
+import {
+  collection,
+  getDocs,
+  doc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  writeBatch,
+  serverTimestamp,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { Skeleton } from "@/components/Skeleton";
+import { sendTanabrewNotification } from "@/lib/notificationSender";
+import { getNotificationPermissionState, requestNotificationPermission } from "@/lib/onesignal";
+import { addActivityLog } from "@/lib/activityLog";
 import {
   Terminal as TerminalIcon,
   ShieldAlert,
@@ -17,9 +29,21 @@ import {
   History,
   Users,
   AlertTriangle,
+  CheckCircle2,
+  Download,
+  Upload,
+  Wrench,
+  Send,
+  Edit,
+  Plus,
+  X,
+  Search,
+  Activity,
+  HardDrive,
 } from "lucide-react";
 
 type CollectionName = "invoices" | "products" | "activity_logs" | "stock_movements" | "users";
+type GodModeTab = "users" | "explorer" | "health" | "notifications" | "backup" | "spreadsheet" | "logs";
 
 interface LogEntry {
   timestamp: string;
@@ -27,23 +51,69 @@ interface LogEntry {
   message: string;
 }
 
+interface IntegrityIssue {
+  id: string;
+  type: "stock_mismatch" | "negative_stock" | "invalid_invoice";
+  title: string;
+  description: string;
+  severity: "error" | "warning";
+  payload?: any;
+}
+
 const GodMode = () => {
-  const { userProfile } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  const [activeTab, setActiveTab] = useState<GodModeTab>("users");
   const [activeCollection, setActiveCollection] = useState<CollectionName>("invoices");
-  const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [explorerData, setExplorerData] = useState<any[]>([]);
+  const [loadingData, setLoadingData] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [devLogs, setDevLogs] = useState<LogEntry[]>([]);
-  
-  // Confirmation state
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; display: string } | null>(null);
+
+  // Users Tab State
+  const [usersList, setUsersList] = useState<any[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [updatingUserRole, setUpdatingUserRole] = useState<string | null>(null);
+
+  // Edit / JSON Modal State
+  const [editingRecord, setEditingRecord] = useState<any | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editJsonString, setEditJsonString] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  // Create Modal State
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createJsonString, setCreateJsonString] = useState("{\n  \n}");
+  const [savingCreate, setSavingCreate] = useState(false);
+
+  // Delete Confirmation State
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; display: string; collection?: CollectionName } | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Health Check State
+  const [healthIssues, setHealthIssues] = useState<IntegrityIssue[]>([]);
+  const [scanningHealth, setScanningHealth] = useState(false);
+  const [fixingHealth, setFixingHealth] = useState(false);
+
+  // Notification Broadcast State
+  const [notifTitle, setNotifTitle] = useState("Pengumuman dari Developer");
+  const [notifMessage, setNotifMessage] = useState("");
+  const [sendingNotif, setSendingNotif] = useState(false);
+
+  // Backup / Restore State
+  const [exportingBackup, setExportingBackup] = useState(false);
+  const [restoringBackup, setRestoringBackup] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Spreadsheet Tester State
+  const [testingSpreadsheet, setTestingSpreadsheet] = useState(false);
+  const [spreadsheetStatus, setSpreadsheetStatus] = useState<string | null>(null);
 
   const logsEndRef = useRef<HTMLDivElement>(null);
 
-  // Restrict access
+  // Access check
   useEffect(() => {
     if (userProfile && userProfile.role !== "webdev") {
       toast({
@@ -55,41 +125,70 @@ const GodMode = () => {
     }
   }, [userProfile, navigate, toast]);
 
-  // Dev log helpers
-  const addLog = (message: string, type: LogEntry["type"] = "info") => {
+  const addLog = useCallback((message: string, type: LogEntry["type"] = "info") => {
     const time = new Date().toLocaleTimeString("id-ID", { hour12: false });
     setDevLogs((prev) => [...prev, { timestamp: time, type, message }]);
-  };
+  }, []);
 
-  // Scroll terminal logs to bottom
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [devLogs]);
 
-  // Initial console message
+  // Initial greeting
   useEffect(() => {
-    setDevLogs([]);
-    addLog("Sistem pengawasan developer dinyalakan...", "info");
-    addLog("Role pengguna divalidasi: WEB DEV (God Mode)", "success");
-    addLog("Mengoneksikan ke Firebase Firestore...", "info");
-    void loadData(activeCollection);
+    addLog("Master Developer Control Center diinisialisasi.", "info");
+    addLog(`User aktif: ${userProfile?.name || "Developer"} (${userProfile?.email || "n/a"})`, "success");
+    void loadUsers();
+    void runHealthScan();
   }, []);
 
-  const loadData = async (collectionName: CollectionName) => {
-    setLoading(true);
-    addLog(`Mengambil data dari koleksi '${collectionName}'...`, "info");
+  // 1. Users Management
+  const loadUsers = async () => {
+    setLoadingUsers(true);
+    addLog("Mengambil data akun pengguna dari Firestore...", "info");
     try {
-      const snap = await getDocs(collection(db, collectionName));
+      const snap = await getDocs(collection(db, "users"));
       const records = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      
-      // Sort logs/movements/invoices by date descending if possible
-      if (collectionName === "activity_logs" || collectionName === "stock_movements") {
-        records.sort((a: any, b: any) => {
-          const tA = a.created_at?.seconds || 0;
-          const tB = b.created_at?.seconds || 0;
-          return tB - tA;
-        });
-      } else if (collectionName === "invoices") {
+      setUsersList(records);
+      addLog(`Berhasil memuat ${records.length} pengguna terdaftar.`, "success");
+    } catch (err: any) {
+      addLog(`Gagal memuat pengguna: ${err.message}`, "error");
+      toast({ title: "Error", description: "Gagal memuat daftar user", variant: "destructive" });
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const handleChangeRole = async (userId: string, newRole: string, userName: string) => {
+    setUpdatingUserRole(userId);
+    addLog(`Mengubah role user '${userName}' (${userId}) menjadi '${newRole}'...`, "warn");
+    try {
+      await updateDoc(doc(db, "users", userId), {
+        role: newRole,
+        updated_at: serverTimestamp(),
+      });
+      setUsersList((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
+      );
+      addLog(`Role '${userName}' berhasil diubah ke '${newRole}'.`, "success");
+      toast({ title: "Berhasil", description: `Role ${userName} diubah ke ${newRole.toUpperCase()}` });
+    } catch (err: any) {
+      addLog(`Gagal mengubah role: ${err.message}`, "error");
+      toast({ title: "Error", description: "Gagal memperbarui role", variant: "destructive" });
+    } finally {
+      setUpdatingUserRole(null);
+    }
+  };
+
+  // 2. Master Data Explorer
+  const loadCollectionData = async (colName: CollectionName) => {
+    setLoadingData(true);
+    addLog(`Mengambil data dari koleksi '${colName}'...`, "info");
+    try {
+      const snap = await getDocs(collection(db, colName));
+      const records = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+      if (colName === "activity_logs" || colName === "stock_movements" || colName === "invoices") {
         records.sort((a: any, b: any) => {
           const tA = a.created_at?.seconds || 0;
           const tB = b.created_at?.seconds || 0;
@@ -97,268 +196,990 @@ const GodMode = () => {
         });
       }
 
-      setData(records);
-      addLog(`Koleksi '${collectionName}' berhasil dimuat. Total data: ${records.length}`, "success");
+      setExplorerData(records);
+      addLog(`Koleksi '${colName}' berhasil dimuat (${records.length} dokumen).`, "success");
     } catch (err: any) {
-      addLog(`Gagal memuat koleksi '${collectionName}': ${err.message}`, "error");
+      addLog(`Gagal memuat koleksi '${colName}': ${err.message}`, "error");
       toast({ title: "Error", description: "Gagal memuat data Firestore", variant: "destructive" });
     } finally {
-      setLoading(false);
+      setLoadingData(false);
     }
   };
 
-  const handleCollectionChange = (colName: CollectionName) => {
-    setActiveCollection(colName);
-    void loadData(colName);
+  const handleSelectCollection = (col: CollectionName) => {
+    setActiveCollection(col);
+    void loadCollectionData(col);
   };
 
-  const initiateDelete = (id: string, record: any) => {
-    let display = id;
-    if (activeCollection === "invoices") {
-      display = record.no_invoice || id;
-    } else if (activeCollection === "products") {
-      display = record.nama_barang || id;
-    } else if (activeCollection === "users") {
-      display = `${record.name} (${record.email})`;
-    } else if (activeCollection === "activity_logs") {
-      display = record.description || id;
-    } else if (activeCollection === "stock_movements") {
-      display = record.description || id;
+  const handleOpenEdit = (record: any) => {
+    setEditingRecord(record);
+    const { id, ...rest } = record;
+    setEditJsonString(JSON.stringify(rest, null, 2));
+    setEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingRecord?.id) return;
+    setSavingEdit(true);
+    addLog(`Menyimpan perubahan dokumen '${editingRecord.id}' di koleksi '${activeCollection}'...`, "info");
+    try {
+      const parsed = JSON.parse(editJsonString);
+      await updateDoc(doc(db, activeCollection, editingRecord.id), {
+        ...parsed,
+        updated_at: serverTimestamp(),
+      });
+      setExplorerData((prev) =>
+        prev.map((item) => (item.id === editingRecord.id ? { id: item.id, ...parsed } : item))
+      );
+      addLog(`Dokumen '${editingRecord.id}' berhasil diperbarui.`, "success");
+      toast({ title: "Berhasil", description: "Dokumen berhasil diperbarui di Firestore" });
+      setEditModalOpen(false);
+      setEditingRecord(null);
+    } catch (err: any) {
+      addLog(`Gagal menyimpan edit: ${err.message}`, "error");
+      toast({ title: "Error JSON / Firestore", description: err.message, variant: "destructive" });
+    } finally {
+      setSavingEdit(false);
     }
-    setDeleteTarget({ id, display });
   };
 
-  const handleDelete = async () => {
+  const handleSaveCreate = async () => {
+    setSavingCreate(true);
+    addLog(`Membuat dokumen baru di koleksi '${activeCollection}'...`, "info");
+    try {
+      const parsed = JSON.parse(createJsonString);
+      const newDocRef = doc(collection(db, activeCollection));
+      await setDoc(newDocRef, {
+        ...parsed,
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp(),
+      });
+      addLog(`Dokumen baru '${newDocRef.id}' berhasil ditambahkan ke '${activeCollection}'.`, "success");
+      toast({ title: "Berhasil", description: `Dokumen baru dibuat: ${newDocRef.id}` });
+      setCreateModalOpen(false);
+      void loadCollectionData(activeCollection);
+    } catch (err: any) {
+      addLog(`Gagal membuat dokumen: ${err.message}`, "error");
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setSavingCreate(false);
+    }
+  };
+
+  const handleDeleteDocument = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
-    const { id, display } = deleteTarget;
-    addLog(`Memulai penghapusan dokumen '${id}' dari '${activeCollection}'...`, "warn");
+    const targetCol = deleteTarget.collection || activeCollection;
+    addLog(`Menghapus dokumen '${deleteTarget.id}' dari '${targetCol}'...`, "warn");
     try {
-      await deleteDoc(doc(db, activeCollection, id));
-      setData((prev) => prev.filter((r) => r.id !== id));
-      addLog(`Dokumen '${display}' (${id}) berhasil dihapus.`, "success");
-      toast({ title: "Berhasil", description: `Data berhasil dihapus dari Firebase` });
+      await deleteDoc(doc(db, targetCol, deleteTarget.id));
+      if (targetCol === "users") {
+        setUsersList((prev) => prev.filter((u) => u.id !== deleteTarget.id));
+      } else {
+        setExplorerData((prev) => prev.filter((d) => d.id !== deleteTarget.id));
+      }
+      addLog(`Dokumen '${deleteTarget.display}' (${deleteTarget.id}) berhasil dihapus.`, "success");
+      toast({ title: "Berhasil", description: "Data berhasil dihapus dari Firebase" });
     } catch (err: any) {
-      addLog(`Gagal menghapus dokumen '${id}': ${err.message}`, "error");
-      toast({ title: "Error", description: "Gagal menghapus data dari Firebase", variant: "destructive" });
+      addLog(`Gagal menghapus: ${err.message}`, "error");
+      toast({ title: "Error", description: "Gagal menghapus data", variant: "destructive" });
     } finally {
       setDeleting(false);
       setDeleteTarget(null);
     }
   };
 
-  const getCollectionIcon = (col: CollectionName) => {
-    switch (col) {
-      case "invoices":
-        return <FileText size={18} />;
-      case "products":
-        return <Package size={18} />;
-      case "users":
-        return <Users size={18} />;
-      case "activity_logs":
-        return <History size={18} />;
-      case "stock_movements":
-        return <Database size={18} />;
+  // 3. Health Check & Auto-Fix
+  const runHealthScan = async () => {
+    setScanningHealth(true);
+    addLog("Memulai pemindaian kesehatan integritas database...", "info");
+    const issues: IntegrityIssue[] = [];
+
+    try {
+      const productsSnap = await getDocs(collection(db, "products"));
+      const products = productsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+      products.forEach((p: any) => {
+        const jogja = Number(p.stok_jogja) || 0;
+        const lombok = Number(p.stok_lombok) || 0;
+        const total = Number(p.total_stok) || 0;
+
+        if (jogja + lombok !== total) {
+          issues.push({
+            id: `mismatch-${p.id}`,
+            type: "stock_mismatch",
+            title: `Selisih Total Stok: ${p.nama_barang || p.id}`,
+            description: `Stok Jogja (${jogja}) + Lombok (${lombok}) = ${jogja + lombok}, namun total_stok tercatat ${total}.`,
+            severity: "error",
+            payload: { productId: p.id, nama: p.nama_barang, jogja, lombok, correctTotal: jogja + lombok },
+          });
+        }
+
+        if (jogja < 0 || lombok < 0 || total < 0) {
+          issues.push({
+            id: `neg-${p.id}`,
+            type: "negative_stock",
+            title: `Stok Negatif: ${p.nama_barang || p.id}`,
+            description: `Produk memiliki stok bernilai negatif: Jogja (${jogja}), Lombok (${lombok}), Total (${total}).`,
+            severity: "warning",
+            payload: { productId: p.id },
+          });
+        }
+      });
+
+      const invoiceSnap = await getDocs(collection(db, "invoices"));
+      invoiceSnap.docs.forEach((d) => {
+        const inv = d.data();
+        if (!inv.no_invoice || !inv.items || !Array.isArray(inv.items) || inv.items.length === 0) {
+          issues.push({
+            id: `inv-${d.id}`,
+            type: "invalid_invoice",
+            title: `Invoice Tidak Lengkap: ${inv.no_invoice || d.id}`,
+            description: `Invoice memiliki data kosong atau tanpa daftar produk.`,
+            severity: "warning",
+            payload: { invoiceId: d.id },
+          });
+        }
+      });
+
+      setHealthIssues(issues);
+      if (issues.length === 0) {
+        addLog("Pemindaian selesai: Semua data konsisten dan sehat! (0 Masalah)", "success");
+      } else {
+        addLog(`Pemindaian selesai: Ditemukan ${issues.length} masalah integritas data.`, "warn");
+      }
+    } catch (err: any) {
+      addLog(`Gagal melakukan pemindaian kesehatan: ${err.message}`, "error");
+    } finally {
+      setScanningHealth(false);
     }
   };
+
+  const handleAutoFixStocks = async () => {
+    setFixingHealth(true);
+    addLog("Menjalankan 1-Click Auto-Fix & Rebalance Stok...", "info");
+    try {
+      const productsSnap = await getDocs(collection(db, "products"));
+      const batch = writeBatch(db);
+      let fixedCount = 0;
+
+      productsSnap.docs.forEach((docSnap) => {
+        const p = docSnap.data();
+        const jogja = Number(p.stok_jogja) || 0;
+        const lombok = Number(p.stok_lombok) || 0;
+        const correctTotal = jogja + lombok;
+
+        if (p.total_stok !== correctTotal) {
+          batch.update(docSnap.ref, {
+            total_stok: correctTotal,
+            updated_at: serverTimestamp(),
+          });
+          fixedCount++;
+        }
+      });
+
+      if (fixedCount > 0) {
+        await batch.commit();
+        addLog(`Auto-fix berhasil: Memperbaiki ${fixedCount} produk dengan selisih stok.`, "success");
+        toast({ title: "Berhasil", description: `${fixedCount} produk berhasil diperbaiki dan diseimbangkan total stoknya.` });
+      } else {
+        addLog("Tidak ada produk yang memerlukan perbaikan total stok.", "info");
+        toast({ title: "Informasi", description: "Semua total stok produk sudah sesuai." });
+      }
+
+      await runHealthScan();
+    } catch (err: any) {
+      addLog(`Gagal auto-fix stok: ${err.message}`, "error");
+      toast({ title: "Error", description: "Gagal memperbaiki stok", variant: "destructive" });
+    } finally {
+      setFixingHealth(false);
+    }
+  };
+
+  // 4. Push Notification Broadcast
+  const handleSendBroadcast = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser || !userProfile) {
+      toast({ title: "Error", description: "User belum siap", variant: "destructive" });
+      return;
+    }
+
+    if (!notifMessage.trim()) {
+      toast({ title: "Error", description: "Pesan notifikasi wajib diisi", variant: "destructive" });
+      return;
+    }
+
+    setSendingNotif(true);
+    addLog(`Mengirim broadcast notifikasi ke seluruh perangkat: "${notifTitle}"...`, "info");
+
+    try {
+      const res = await sendTanabrewNotification(
+        {
+          type: "OWNER_ANNOUNCEMENT",
+          actorName: userProfile.name || "Developer",
+          actorRole: "webdev",
+          title: notifTitle.trim(),
+          message: notifMessage.trim(),
+          invoiceNumber: "DEV-BROADCAST",
+          customer: "ALL",
+          total: 0,
+        },
+        currentUser
+      );
+
+      addLog(`Notifikasi broadcast berhasil dikirim! Message ID: ${res.messageId || "OK"}`, "success");
+      toast({ title: "Notifikasi Terkirim", description: `Broadcast berhasil dikirim ke seluruh perangkat aktif.` });
+      setNotifMessage("");
+
+      await addActivityLog({
+        user: { uid: currentUser.uid, name: userProfile.name, role: userProfile.role },
+        action: "OWNER_ANNOUNCEMENT",
+        targetType: "notification",
+        targetId: res.messageId || "broadcast",
+        targetName: notifTitle,
+        description: `Developer mengirim broadcast notifikasi: ${notifTitle}`,
+      });
+    } catch (err: any) {
+      addLog(`Gagal mengirim broadcast: ${err.message}`, "error");
+      toast({ title: "Gagal Mengirim", description: err.message, variant: "destructive" });
+    } finally {
+      setSendingNotif(false);
+    }
+  };
+
+  // 5. Backup & Restore
+  const handleExportBackup = async () => {
+    setExportingBackup(true);
+    addLog("Memulai pembuatan full backup database Firestore...", "info");
+    try {
+      const collectionsToBackup: CollectionName[] = ["invoices", "products", "users", "activity_logs", "stock_movements"];
+      const backupData: Record<string, any[]> = {};
+
+      for (const col of collectionsToBackup) {
+        addLog(`Mengekstrak data dari koleksi '${col}'...`, "info");
+        const snap = await getDocs(collection(db, col));
+        backupData[col] = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      }
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const filename = `tanabrew-backup-${timestamp}.json`;
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      addLog(`Full backup berhasil diunduh: ${filename}`, "success");
+      toast({ title: "Backup Berhasil", description: `File ${filename} berhasil diunduh.` });
+    } catch (err: any) {
+      addLog(`Gagal membuat backup: ${err.message}`, "error");
+      toast({ title: "Error Backup", description: err.message, variant: "destructive" });
+    } finally {
+      setExportingBackup(false);
+    }
+  };
+
+  const handleRestoreFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const confirmRestore = window.confirm(
+      "PERINGATAN: Memulihkan database akan memperbarui atau menimpa dokumen Firestore yang ada di file backup. Lanjutkan?"
+    );
+    if (!confirmRestore) {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    setRestoringBackup(true);
+    addLog(`Membaca file backup '${file.name}'...`, "info");
+
+    try {
+      const text = await file.text();
+      const backupData = JSON.parse(text);
+
+      let totalRestored = 0;
+      for (const col of Object.keys(backupData)) {
+        const records = backupData[col];
+        if (Array.isArray(records)) {
+          addLog(`Memulihkan ${records.length} dokumen ke koleksi '${col}'...`, "info");
+          for (const item of records) {
+            const { id, ...data } = item;
+            if (id) {
+              await setDoc(doc(db, col, id), data, { merge: true });
+              totalRestored++;
+            }
+          }
+        }
+      }
+
+      addLog(`Restore selesai! Total ${totalRestored} dokumen berhasil dipulihkan.`, "success");
+      toast({ title: "Restore Berhasil", description: `${totalRestored} data berhasil dipulihkan ke Firestore.` });
+      void runHealthScan();
+    } catch (err: any) {
+      addLog(`Gagal memuilhkan backup: ${err.message}`, "error");
+      toast({ title: "Error Restore", description: err.message, variant: "destructive" });
+    } finally {
+      setRestoringBackup(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  // 6. Spreadsheet Sync Tester
+  const handleTestSpreadsheet = async () => {
+    setTestingSpreadsheet(true);
+    addLog("Menguji koneksi Google Apps Script Spreadsheet API...", "info");
+    try {
+      const start = Date.now();
+      await fetch("https://script.google.com/macros/s/AKfycbyQ2XqB5jYtE_fNqH7yP-1zY0f5yZ2Q-j-q7-q/exec?action=ping", {
+        method: "GET",
+        mode: "no-cors",
+      });
+      const duration = Date.now() - start;
+      setSpreadsheetStatus(`Endpoint Terhubung (Respon: ${duration}ms)`);
+      addLog(`Google Apps Script merespons dalam ${duration}ms.`, "success");
+      toast({ title: "Koneksi Berhasil", description: `Google Spreadsheet API terhubung (${duration}ms).` });
+    } catch (err: any) {
+      setSpreadsheetStatus(`Gagal terhubung: ${err.message}`);
+      addLog(`Koneksi Spreadsheet gagal: ${err.message}`, "error");
+      toast({ title: "Koneksi Gagal", description: err.message, variant: "destructive" });
+    } finally {
+      setTestingSpreadsheet(false);
+    }
+  };
+
+  // 7. Maintenance Log Cleanup
+  const handleClearOldLogs = async () => {
+    const confirmClean = window.confirm("Hapus log aktivitas yang lebih lama dari 90 hari?");
+    if (!confirmClean) return;
+
+    addLog("Memulai pembersihan log aktivitas lama...", "info");
+    try {
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      const snap = await getDocs(collection(db, "activity_logs"));
+      let deleted = 0;
+      const batch = writeBatch(db);
+
+      snap.docs.forEach((d) => {
+        const data = d.data();
+        const date = data.created_at?.toDate ? data.created_at.toDate() : null;
+        if (date && date < ninetyDaysAgo) {
+          batch.delete(d.ref);
+          deleted++;
+        }
+      });
+
+      if (deleted > 0) {
+        await batch.commit();
+        addLog(`Berhasil menghapus ${deleted} log aktivitas lama.`, "success");
+        toast({ title: "Pembersihan Selesai", description: `${deleted} log lama berhasil dibersihkan.` });
+      } else {
+        addLog("Tidak ada log lama yang perlu dibersihkan.", "info");
+        toast({ title: "Informasi", description: "Tidak ada log lebih dari 90 hari." });
+      }
+    } catch (err: any) {
+      addLog(`Gagal membersihkan log: ${err.message}`, "error");
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  // Filtered explorer documents
+  const filteredExplorerData = useMemo(() => {
+    if (!searchQuery.trim()) return explorerData;
+    const q = searchQuery.toLowerCase();
+    return explorerData.filter((item) => {
+      const str = JSON.stringify(item).toLowerCase();
+      return str.includes(q);
+    });
+  }, [explorerData, searchQuery]);
 
   if (userProfile?.role !== "webdev") {
     return null;
   }
 
   return (
-    <div className="mx-auto w-full max-w-lg overflow-x-hidden px-4 pb-48 pt-6">
+    <div className="mx-auto w-full max-w-lg overflow-x-hidden px-4 pb-48 pt-6 space-y-4">
       {/* Dev Header */}
-      <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4 relative overflow-hidden shadow-[0_0_15px_rgba(139,92,246,0.1)]">
-        <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full px-2 py-0.5 text-[9px] font-mono tracking-widest uppercase animate-pulse">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
-          ROOT_ACCESS
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary/20 text-primary shadow-[0_0_10px_rgba(139,92,246,0.3)]">
-            <ShieldAlert size={24} />
+      <div className="rounded-xl border border-primary/30 bg-card p-4 shadow-sm relative overflow-hidden">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-lg bg-primary/10 text-primary">
+              <ShieldAlert size={22} />
+            </div>
+            <div>
+              <h1 className="text-base font-bold text-primary">
+                God Mode (Dev Center)
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                Pusat Kendali & Pemeliharaan Tanabrew
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-sm font-mono font-bold tracking-wider text-primary-foreground uppercase">
-              Tanabrew God Mode
-            </h1>
-            <p className="text-xs text-muted-foreground font-mono">
-              Web Developer Admin Dashboard
-            </p>
-          </div>
+          <span className="shrink-0 flex items-center gap-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-full px-2 py-0.5 text-[10px] font-semibold">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+            ROOT
+          </span>
         </div>
       </div>
 
-      {/* Database Navigation Tab list */}
-      <div className="grid grid-cols-5 gap-1 mb-4">
-        {(["invoices", "products", "users", "activity_logs", "stock_movements"] as CollectionName[]).map((col) => {
-          const active = activeCollection === col;
+      {/* Navigation Tabs (7 Submodules) */}
+      <div className="grid grid-cols-4 gap-1.5 text-xs font-semibold">
+        {[
+          { key: "users", label: "Users", icon: Users },
+          { key: "explorer", label: "Master Data", icon: Database },
+          { key: "health", label: "Health Check", icon: Wrench },
+          { key: "notifications", label: "Broadcast", icon: Send },
+          { key: "backup", label: "Backup", icon: HardDrive },
+          { key: "spreadsheet", label: "Spreadsheet", icon: FileText },
+          { key: "logs", label: "Console", icon: TerminalIcon },
+        ].map((tab) => {
+          const active = activeTab === tab.key;
           return (
             <button
-              key={col}
-              onClick={() => handleCollectionChange(col)}
-              title={col}
-              className={`flex flex-col items-center justify-center rounded-lg p-2 transition-all border ${
+              key={tab.key}
+              onClick={() => {
+                setActiveTab(tab.key as GodModeTab);
+                if (tab.key === "explorer" && explorerData.length === 0) {
+                  void loadCollectionData(activeCollection);
+                }
+              }}
+              className={`flex items-center justify-center gap-1 rounded-lg border py-2.5 px-1 transition-all ${
                 active
-                  ? "border-primary bg-primary/15 text-primary shadow-[0_0_10px_rgba(139,92,246,0.25)]"
+                  ? "border-primary bg-primary text-primary-foreground shadow-sm"
                   : "border-border bg-card text-muted-foreground hover:bg-muted"
               }`}
             >
-              {getCollectionIcon(col)}
-              <span className="text-[9px] font-mono font-bold uppercase mt-1 tracking-tighter truncate max-w-full">
-                {col.split("_")[0]}
-              </span>
+              <tab.icon size={13} />
+              <span className="truncate">{tab.label}</span>
             </button>
           );
         })}
       </div>
 
-      {/* Explorer Panel */}
-      <div className="bg-card border border-border rounded-xl p-4 shadow-sm min-h-[300px] flex flex-col">
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="text-xs font-mono font-bold text-accent uppercase tracking-wider flex items-center gap-1.5">
-            <Database size={14} /> Explorer: {activeCollection}
-          </h2>
+      {/* SUBMODULE 1: USERS MANAGEMENT & ROLE SWITCHER */}
+      {activeTab === "users" && (
+        <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-bold text-primary">Manajemen Akun & Role</h2>
+              <p className="text-xs text-muted-foreground">Ubah role atau kelola akun pengguna Firestore</p>
+            </div>
+            <button
+              onClick={loadUsers}
+              disabled={loadingUsers}
+              className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-muted-foreground"
+            >
+              <RefreshCw size={14} className={loadingUsers ? "animate-spin" : ""} />
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {loadingUsers ? (
+              <>
+                <Skeleton className="h-16 w-full rounded-xl" />
+                <Skeleton className="h-16 w-full rounded-xl" />
+              </>
+            ) : usersList.length === 0 ? (
+              <p className="text-center py-6 text-xs text-muted-foreground">Belum ada data user.</p>
+            ) : (
+              usersList.map((user) => (
+                <div key={user.id} className="rounded-xl border border-border bg-muted/30 p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-foreground truncate">{user.name || "Tanpa Nama"}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
+                    </div>
+                    <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase bg-primary/10 text-primary">
+                      {user.role || "staff"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/50">
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <span className="text-[10px] text-muted-foreground">Ubah Role:</span>
+                      {(["staff", "admin", "owner", "webdev"] as const).map((r) => (
+                        <button
+                          key={r}
+                          onClick={() => handleChangeRole(user.id, r, user.name)}
+                          disabled={updatingUserRole === user.id || user.role === r}
+                          className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase border transition-colors ${
+                            user.role === r
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-background text-muted-foreground border-border hover:bg-muted"
+                          }`}
+                        >
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setDeleteTarget({ id: user.id, display: user.email || user.name, collection: "users" })}
+                      className="p-1 rounded text-destructive hover:bg-destructive/10 shrink-0"
+                      title="Hapus User"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* SUBMODULE 2: MASTER DATA EXPLORER & DOCUMENT EDITOR */}
+      {activeTab === "explorer" && (
+        <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-bold text-primary">Database Explorer</h2>
+            <button
+              onClick={() => {
+                setCreateJsonString("{\n  \n}");
+                setCreateModalOpen(true);
+              }}
+              className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground hover:opacity-90"
+            >
+              <Plus size={13} /> Tambah Data
+            </button>
+          </div>
+
+          {/* Collection Switcher */}
+          <div className="grid grid-cols-5 gap-1">
+            {(["invoices", "products", "users", "activity_logs", "stock_movements"] as CollectionName[]).map((col) => {
+              const active = activeCollection === col;
+              return (
+                <button
+                  key={col}
+                  onClick={() => handleSelectCollection(col)}
+                  className={`rounded-lg py-1.5 text-[10px] font-bold uppercase border truncate ${
+                    active
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border bg-background text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {col.split("_")[0]}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search Box */}
+          <div className="flex items-center gap-2 rounded-lg border border-input bg-background px-3 py-2">
+            <Search size={14} className="text-muted-foreground shrink-0" />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={`Cari di koleksi ${activeCollection}...`}
+              className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery("")} className="text-muted-foreground hover:text-foreground">
+                <X size={13} />
+              </button>
+            )}
+          </div>
+
+          {/* Document list */}
+          <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
+            {loadingData ? (
+              <>
+                <Skeleton className="h-14 w-full rounded-xl" />
+                <Skeleton className="h-14 w-full rounded-xl" />
+                <Skeleton className="h-14 w-full rounded-xl" />
+              </>
+            ) : filteredExplorerData.length === 0 ? (
+              <p className="text-center py-8 text-xs text-muted-foreground">Tidak ada dokumen.</p>
+            ) : (
+              filteredExplorerData.map((record) => (
+                <div
+                  key={record.id}
+                  className="rounded-xl border border-border bg-muted/20 p-3 flex items-start justify-between gap-3 hover:border-primary/30 transition-colors"
+                >
+                  <div className="min-w-0 flex-1 text-xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <p className="font-bold text-primary truncate">
+                        {record.no_invoice || record.nama_barang || record.name || record.product_name || record.action || record.id}
+                      </p>
+                      <span className="text-[10px] text-muted-foreground font-mono">ID: {record.id.slice(0, 8)}...</span>
+                    </div>
+                    {record.customer && <p className="text-muted-foreground text-[11px]">Customer: {record.customer}</p>}
+                    {record.total !== undefined && <p className="text-muted-foreground text-[11px]">Total: Rp {new Intl.NumberFormat("id-ID").format(record.total)}</p>}
+                    {record.total_stok !== undefined && <p className="text-muted-foreground text-[11px]">Stok Jogja: {record.stok_jogja} | Lombok: {record.stok_lombok} | Total: {record.total_stok}</p>}
+                    {record.description && <p className="text-muted-foreground text-[11px] truncate">{record.description}</p>}
+                  </div>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => handleOpenEdit(record)}
+                      className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-primary"
+                      title="Edit Fields"
+                    >
+                      <Edit size={13} />
+                    </button>
+                    <button
+                      onClick={() => setDeleteTarget({ id: record.id, display: record.no_invoice || record.nama_barang || record.id })}
+                      className="p-1.5 rounded-lg border border-destructive/20 bg-destructive/5 text-destructive hover:bg-destructive hover:text-white"
+                      title="Hapus Dokumen"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* SUBMODULE 3: HEALTH CHECK & 1-CLICK AUTO-FIX */}
+      {activeTab === "health" && (
+        <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-bold text-primary">Integritas Data & Stok</h2>
+              <p className="text-xs text-muted-foreground">Pindai dan perbaiki otomatis selisih stok database</p>
+            </div>
+            <button
+              onClick={runHealthScan}
+              disabled={scanningHealth}
+              className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-muted"
+            >
+              <RefreshCw size={13} className={scanningHealth ? "animate-spin" : ""} /> Pindai Ulang
+            </button>
+          </div>
+
           <button
-            onClick={() => void loadData(activeCollection)}
-            disabled={loading}
-            className="p-1 rounded border border-border hover:bg-muted text-muted-foreground hover:text-foreground"
+            onClick={handleAutoFixStocks}
+            disabled={fixingHealth || scanningHealth}
+            className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-xs font-bold text-primary-foreground hover:opacity-90 disabled:opacity-50"
           >
-            <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
+            <Wrench size={15} />
+            {fixingHealth ? "Menyeimbangkan Stok..." : "⚡ 1-Click Auto-Fix & Rebalance Semua Stok"}
+          </button>
+
+          <div className="space-y-2">
+            <h3 className="text-xs font-bold text-muted-foreground uppercase">Hasil Pemindaian:</h3>
+            {scanningHealth ? (
+              <Skeleton className="h-16 w-full rounded-xl" />
+            ) : healthIssues.length === 0 ? (
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-center space-y-1">
+                <CheckCircle2 size={24} className="mx-auto text-emerald-500" />
+                <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Database Sehat & Konsisten</p>
+                <p className="text-[11px] text-muted-foreground">Tidak ditemukan ketidaksesuaian stok atau data rusak.</p>
+              </div>
+            ) : (
+              healthIssues.map((issue) => (
+                <div
+                  key={issue.id}
+                  className={`rounded-xl border p-3 text-xs space-y-1 ${
+                    issue.severity === "error"
+                      ? "border-destructive/30 bg-destructive/5"
+                      : "border-amber-500/30 bg-amber-500/5"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 font-bold text-foreground">
+                    <AlertTriangle size={14} className={issue.severity === "error" ? "text-destructive" : "text-amber-500"} />
+                    {issue.title}
+                  </div>
+                  <p className="text-muted-foreground text-[11px]">{issue.description}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* SUBMODULE 4: PUSH NOTIFICATION BROADCAST TESTER */}
+      {activeTab === "notifications" && (
+        <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+          <div>
+            <h2 className="text-sm font-bold text-primary">Broadcast Notifikasi</h2>
+            <p className="text-xs text-muted-foreground">Kirim web push notification langsung ke seluruh perangkat aktif</p>
+          </div>
+
+          <form onSubmit={handleSendBroadcast} className="space-y-3">
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground mb-1 block">Judul Notifikasi</label>
+              <input
+                value={notifTitle}
+                onChange={(e) => setNotifTitle(e.target.value)}
+                placeholder="Contoh: Pengumuman Penting"
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                required
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground mb-1 block">Isi Pesan Notifikasi</label>
+              <textarea
+                value={notifMessage}
+                onChange={(e) => setNotifMessage(e.target.value)}
+                placeholder="Tulis pesan yang akan muncul di notifikasi HP/Desktop..."
+                rows={3}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={sendingNotif}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-xs font-bold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              <Send size={14} />
+              {sendingNotif ? "Mengirim ke Seluruh Perangkat..." : "Kirim Broadcast Push Notification"}
+            </button>
+          </form>
+
+          <div className="rounded-lg bg-muted p-3 text-xs space-y-1">
+            <p className="font-semibold text-foreground">Status Izin Notifikasi Browser Anda:</p>
+            <p className="text-muted-foreground capitalize font-mono text-[11px]">{getNotificationPermissionState()}</p>
+            <button
+              onClick={() => void requestNotificationPermission().then(() => toast({ title: "Izin diperbarui" }))}
+              className="mt-1 text-xs text-primary font-semibold hover:underline"
+            >
+              Uji Coba Minta Izin Notifikasi
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* SUBMODULE 5: DATABASE BACKUP & RESTORE */}
+      {activeTab === "backup" && (
+        <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+          <div>
+            <h2 className="text-sm font-bold text-primary">Backup & Restore Database</h2>
+            <p className="text-xs text-muted-foreground">Cadangkan atau pulihkan semua koleksi Firestore dalam format JSON</p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3">
+            <button
+              onClick={handleExportBackup}
+              disabled={exportingBackup}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/10 py-3 text-xs font-bold text-primary hover:bg-primary/15 disabled:opacity-50"
+            >
+              <Download size={16} />
+              {exportingBackup ? "Mengekstrak Database..." : "Export Full Backup JSON (Unduh)"}
+            </button>
+
+            <div className="relative">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleRestoreFile}
+                disabled={restoringBackup}
+                className="hidden"
+                id="restore-file-input"
+              />
+              <label
+                htmlFor="restore-file-input"
+                className={`w-full inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-muted/40 py-3 text-xs font-bold text-foreground hover:bg-muted cursor-pointer ${
+                  restoringBackup ? "opacity-50 pointer-events-none" : ""
+                }`}
+              >
+                <Upload size={16} />
+                {restoringBackup ? "Memulihkan Database..." : "Restore Database from JSON File"}
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SUBMODULE 6: GOOGLE SPREADSHEET SYNC */}
+      {activeTab === "spreadsheet" && (
+        <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+          <div>
+            <h2 className="text-sm font-bold text-primary">Google Apps Script & Spreadsheet</h2>
+            <p className="text-xs text-muted-foreground">Uji respon sinkronisasi spreadsheet otomatis</p>
+          </div>
+
+          <button
+            onClick={handleTestSpreadsheet}
+            disabled={testingSpreadsheet}
+            className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/5 py-2.5 text-xs font-bold text-primary hover:bg-primary/10 disabled:opacity-50"
+          >
+            <Activity size={14} />
+            {testingSpreadsheet ? "Menguji API..." : "Tes Koneksi Google Apps Script API"}
+          </button>
+
+          {spreadsheetStatus && (
+            <div className="rounded-lg bg-muted p-3 text-xs font-mono">
+              <p className="font-semibold text-foreground">Hasil Pengujian:</p>
+              <p className="text-muted-foreground text-[11px] mt-1">{spreadsheetStatus}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SUBMODULE 7: LOGS & CONSOLE MAINTENANCE */}
+      {activeTab === "logs" && (
+        <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-bold text-primary">Log & Pemeliharaan</h2>
+              <p className="text-xs text-muted-foreground">Pembersihan log lama dan konsol runtime</p>
+            </div>
+            <button
+              onClick={handleClearOldLogs}
+              className="inline-flex items-center gap-1 rounded-lg border border-destructive/30 bg-destructive/10 px-2 py-1 text-[11px] font-semibold text-destructive hover:bg-destructive/20"
+            >
+              <Trash2 size={12} /> Bersihkan Log &gt; 90 Hari
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* TERMINAL CONSOLE LOG (Always visible at bottom for transparency) */}
+      <div className="rounded-xl border border-border bg-background p-3 shadow-inner space-y-2">
+        <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center gap-1.5 font-mono font-bold text-primary">
+            <TerminalIcon size={13} />
+            <span>DEV CONSOLE OUTPUT</span>
+          </div>
+          <button
+            onClick={() => setDevLogs([])}
+            className="text-[10px] text-muted-foreground hover:text-foreground font-mono"
+          >
+            Clear
           </button>
         </div>
 
-        {/* Content Explorer List */}
-        <div className="flex-1 space-y-3 overflow-y-auto max-h-[350px] pr-1">
-          {loading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-12 w-full rounded-lg" />
-              <Skeleton className="h-12 w-full rounded-lg" />
-              <Skeleton className="h-12 w-full rounded-lg" />
-            </div>
-          ) : data.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-muted-foreground font-mono text-xs">
-              <AlertTriangle size={24} className="mb-2 text-primary/40" />
-              Koleksi kosong / Tidak ada dokumen.
-            </div>
+        <div className="font-mono text-[10px] leading-relaxed h-32 overflow-y-auto space-y-1 bg-muted/50 p-2.5 rounded-lg border border-border select-text">
+          {devLogs.length === 0 ? (
+            <p className="text-muted-foreground italic">Konsol kosong.</p>
           ) : (
-            data.map((record) => (
-              <div
-                key={record.id}
-                className="p-3 bg-muted/40 border border-border rounded-lg flex items-center justify-between gap-3 hover:border-primary/20 transition-all"
-              >
-                <div className="min-w-0 flex-1 font-mono text-[11px] leading-relaxed">
-                  {/* Dynamic Render Fields per Collection */}
-                  {activeCollection === "invoices" && (
-                    <>
-                      <div className="flex justify-between">
-                        <span className="font-bold text-primary">{record.no_invoice || record.id}</span>
-                        <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${record.status === "LUNAS" ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>{record.status}</span>
-                      </div>
-                      <p className="text-muted-foreground truncate">Cust: {record.customer}</p>
-                      <p className="text-muted-foreground">Total: Rp {new Intl.NumberFormat("id-ID").format(record.total || 0)}</p>
-                    </>
-                  )}
-
-                  {activeCollection === "products" && (
-                    <>
-                      <p className="font-bold text-primary truncate">{record.nama_barang}</p>
-                      <p className="text-muted-foreground">Stok J: {record.stok_jogja} • Stok L: {record.stok_lombok}</p>
-                      <p className="text-muted-foreground">Harga: Rp {new Intl.NumberFormat("id-ID").format(record.harga || 0)}</p>
-                    </>
-                  )}
-
-                  {activeCollection === "users" && (
-                    <>
-                      <p className="font-bold text-primary truncate">{record.name}</p>
-                      <p className="text-muted-foreground truncate">{record.email}</p>
-                      <p className="text-muted-foreground capitalize">Role: {record.role}</p>
-                    </>
-                  )}
-
-                  {activeCollection === "activity_logs" && (
-                    <>
-                      <div className="flex justify-between">
-                        <span className="font-bold text-accent">{record.action}</span>
-                        <span className="text-muted-foreground text-[9px]">
-                          {record.created_at && typeof record.created_at.toDate === "function" 
-                            ? record.created_at.toDate().toLocaleString("id-ID")
-                            : "n/a"}
-                        </span>
-                      </div>
-                      <p className="text-muted-foreground break-words">{record.description}</p>
-                    </>
-                  )}
-
-                  {activeCollection === "stock_movements" && (
-                    <>
-                      <div className="flex justify-between">
-                        <span className="font-bold text-primary truncate">{record.product_name}</span>
-                        <span className={`px-1 rounded text-[9px] font-bold ${record.quantity_change > 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>
-                          {record.quantity_change > 0 ? "+" : ""}{record.quantity_change}
-                        </span>
-                      </div>
-                      <p className="text-muted-foreground break-words">{record.description}</p>
-                      <p className="text-muted-foreground">Lokasi: {record.location}</p>
-                    </>
-                  )}
-
-                  <div className="mt-1.5 pt-1.5 border-t border-border/20 text-[9px] text-muted-foreground flex justify-between">
-                    <span>ID: {record.id}</span>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => initiateDelete(record.id, record)}
-                  className="p-2 bg-destructive/10 text-destructive border border-destructive/20 rounded-lg hover:bg-destructive hover:text-white transition-all shrink-0"
+            devLogs.map((log, idx) => (
+              <div key={idx} className="flex items-start gap-1">
+                <span className="text-muted-foreground select-none">[{log.timestamp}]</span>
+                <span
+                  className={
+                    log.type === "success"
+                      ? "text-emerald-600 dark:text-emerald-400 font-bold"
+                      : log.type === "warn"
+                      ? "text-amber-500 font-semibold"
+                      : log.type === "error"
+                      ? "text-destructive font-bold"
+                      : "text-primary"
+                  }
                 >
-                  <Trash2 size={14} />
-                </button>
+                  {log.type === "error"
+                    ? "[ERR]"
+                    : log.type === "warn"
+                    ? "[WARN]"
+                    : log.type === "success"
+                    ? "[OK]"
+                    : "[SYS]"}
+                </span>
+                <span className="break-all whitespace-pre-wrap">{log.message}</span>
               </div>
             ))
           )}
-        </div>
-      </div>
-
-      {/* Terminal logs panel */}
-      <div className="mt-4 bg-[#050508] border border-primary/20 rounded-xl p-3 shadow-inner relative">
-        <div className="absolute top-2.5 right-3 flex items-center gap-1 text-[9px] font-mono text-primary/60">
-          <TerminalIcon size={10} />
-          CONSOLE
-        </div>
-        <h3 className="text-xs font-mono font-bold text-primary mb-2 tracking-wider flex items-center gap-1">
-          &gt;_ Logs Output
-        </h3>
-        <div className="font-mono text-[9px] text-[#00ff66] h-28 overflow-y-auto space-y-1 bg-black/60 p-2 rounded border border-primary/10 select-text">
-          {devLogs.map((log, idx) => (
-            <div key={idx} className="flex items-start gap-1">
-              <span className="text-muted-foreground select-none">[{log.timestamp}]</span>
-              <span className={
-                log.type === "success" ? "text-emerald-400 font-bold" :
-                log.type === "warn" ? "text-amber-400" :
-                log.type === "error" ? "text-rose-400 font-bold" : "text-emerald-500"
-              }>
-                {log.type === "error" ? "[ERR]" : log.type === "warn" ? "[WARN]" : log.type === "success" ? "[OK]" : "[SYS]"}
-              </span>
-              <span className="break-all whitespace-pre-wrap">{log.message}</span>
-            </div>
-          ))}
           <div ref={logsEndRef} />
         </div>
       </div>
 
-      {/* Confirm Deletion Dialog */}
+      {/* EDIT MODAL */}
+      {editModalOpen && editingRecord && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-foreground/40 p-4" onClick={() => setEditModalOpen(false)}>
+          <div className="bg-card w-full max-w-lg rounded-2xl p-5 space-y-4 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-primary">Edit Dokumen Firestore</h3>
+                <p className="text-xs text-muted-foreground font-mono truncate">ID: {editingRecord.id}</p>
+              </div>
+              <button onClick={() => setEditModalOpen(false)} className="p-1 rounded-full hover:bg-muted">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground mb-1 block">JSON Data Fields:</label>
+              <textarea
+                value={editJsonString}
+                onChange={(e) => setEditJsonString(e.target.value)}
+                rows={10}
+                className="w-full rounded-lg border border-input bg-background p-3 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setEditModalOpen(false)}
+                className="rounded-lg bg-muted py-2 text-xs font-semibold text-muted-foreground"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                disabled={savingEdit}
+                className="rounded-lg bg-primary py-2 text-xs font-bold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                {savingEdit ? "Menyimpan..." : "Simpan Perubahan"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CREATE MODAL */}
+      {createModalOpen && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-foreground/40 p-4" onClick={() => setCreateModalOpen(false)}>
+          <div className="bg-card w-full max-w-lg rounded-2xl p-5 space-y-4 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-primary">Tambah Dokumen Baru</h3>
+                <p className="text-xs text-muted-foreground">Koleksi: {activeCollection}</p>
+              </div>
+              <button onClick={() => setCreateModalOpen(false)} className="p-1 rounded-full hover:bg-muted">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground mb-1 block">JSON Payload:</label>
+              <textarea
+                value={createJsonString}
+                onChange={(e) => setCreateJsonString(e.target.value)}
+                rows={10}
+                className="w-full rounded-lg border border-input bg-background p-3 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setCreateModalOpen(false)}
+                className="rounded-lg bg-muted py-2 text-xs font-semibold text-muted-foreground"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveCreate}
+                disabled={savingCreate}
+                className="rounded-lg bg-primary py-2 text-xs font-bold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                {savingCreate ? "Membuat..." : "Buat Dokumen"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRM DELETE DIALOG */}
       <ConfirmDialog
         open={Boolean(deleteTarget)}
-        title="Konfirmasi Penghapusan"
-        description={`Apakah Anda yakin ingin menghapus data "${deleteTarget?.display}" dari koleksi "${activeCollection}" di Firebase Firestore? Tindakan ini akan menghapus data secara permanen dan tidak bisa dibatalkan.`}
+        title="Hapus Dokumen Firestore?"
+        description={`Apakah Anda yakin ingin menghapus data "${deleteTarget?.display || deleteTarget?.id}" dari koleksi "${deleteTarget?.collection || activeCollection}"? Tindakan ini bersifat permanen.`}
         confirmLabel="Hapus Permanen"
-        cancelLabel="Batal"
-        danger={true}
         loading={deleting}
         onCancel={() => setDeleteTarget(null)}
-        onConfirm={() => void handleDelete()}
+        onConfirm={handleDeleteDocument}
       />
     </div>
   );

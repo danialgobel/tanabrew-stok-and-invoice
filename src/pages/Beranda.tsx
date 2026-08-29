@@ -487,8 +487,9 @@ const Beranda = () => {
       return;
     }
 
-    if (userProfile.role !== "owner") {
-      toast({ title: "Error", description: "Hanya owner yang dapat mengirim arahan owner.", variant: "destructive" });
+    const isOwnerOrDev = userProfile.role === "owner" || userProfile.role === "webdev";
+    if (!isOwnerOrDev) {
+      toast({ title: "Error", description: "Hanya owner atau developer yang dapat mengirim arahan owner.", variant: "destructive" });
       return;
     }
 
@@ -507,13 +508,17 @@ const Beranda = () => {
 
     setAnnouncementLoading(true);
     try {
-      await syncCurrentNotificationIdentity();
-      await new Promise((resolve) => window.setTimeout(resolve, 1500));
+      try {
+        await syncCurrentNotificationIdentity();
+      } catch (syncErr) {
+        console.warn("Sync identity sebelum kirim arahan dilewati", syncErr);
+      }
+
       const result = await sendTanabrewNotification(
         {
           type: "OWNER_ANNOUNCEMENT",
-          actorName: userProfile.name || "Owner",
-          actorRole: "owner",
+          actorName: userProfile.name || (userProfile.role === "webdev" ? "Developer" : "Owner"),
+          actorRole: (userProfile.role as "owner" | "webdev") || "owner",
           title: cleanTitle,
           message: `Dari Owner: ${cleanMessage}`,
           invoiceNumber: "ANNOUNCEMENT",
@@ -525,7 +530,7 @@ const Beranda = () => {
 
       toast({
         title: "Arahan terkirim",
-        description: `Berhasil dikirim ke ${result.recipientCount || 0} user. Message ID: ${result.messageId}`,
+        description: `Berhasil dikirim ke seluruh perangkat aktif. Message ID: ${result.messageId || "OK"}`,
       });
       
       setAnnouncementMessage("");
@@ -536,13 +541,13 @@ const Beranda = () => {
           user: {
             uid: currentUser.uid,
             name: userProfile.name || "Owner",
-            role: "owner"
+            role: userProfile.role
           },
           action: "OWNER_ANNOUNCEMENT",
           targetType: "notification",
           targetId: result.messageId || "announcement",
           targetName: cleanTitle,
-          description: `owner mengirim arahan: ${cleanTitle}`
+          description: `${userProfile.role} mengirim arahan: ${cleanTitle}`
         });
       } catch (logErr) {
         console.warn("Gagal mencatat log aktivitas untuk Arahan Owner", logErr);
