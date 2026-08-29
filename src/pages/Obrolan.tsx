@@ -76,8 +76,8 @@ const Obrolan = () => {
           return (roleOrder[b.role] || 0) - (roleOrder[a.role] || 0);
         });
         setTeamMembers(sortedMembers);
-        if (data.messages && data.messages.length > 0 && messages.length === 0) {
-          setMessages(data.messages);
+        if (data.messages && data.messages.length > 0) {
+          setMessages((prev) => (prev.length === 0 ? data.messages : prev));
         }
       }
     } catch (err) {
@@ -85,7 +85,7 @@ const Obrolan = () => {
     } finally {
       setRefreshing(false);
     }
-  }, [currentUser, messages.length]);
+  }, [currentUser]);
 
   // 2. Realtime listener for instant messages (0 lag, 0 delay) + presence sync
   useEffect(() => {

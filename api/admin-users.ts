@@ -124,14 +124,25 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   const db = await getAdminDb();
 
-  // GET: List all users from Firestore via Admin SDK
+  // GET: List all users from Firestore via Admin SDK cross-verified with Firebase Auth
   if (req.method === "GET") {
     try {
       const snap = await db.collection("users").get();
-      const users = snap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      }));
+      const auth = await getAdminAuth();
+      const authUsersResult = await auth.listUsers().catch(() => null);
+      const activeAuthUids = authUsersResult ? new Set(authUsersResult.users.map((u) => u.uid)) : null;
+
+      const users: any[] = [];
+      for (const d of snap.docs) {
+        if (activeAuthUids && !activeAuthUids.has(d.id)) {
+          void db.collection("users").doc(d.id).delete().catch(() => {});
+          continue;
+        }
+        users.push({
+          id: d.id,
+          ...d.data(),
+        });
+      }
 
       return res.status(200).json({ success: true, users });
     } catch (err: any) {

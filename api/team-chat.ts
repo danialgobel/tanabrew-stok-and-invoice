@@ -131,10 +131,22 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         { merge: true }
       );
 
-      // 2. Fetch all users
+      // 2. Fetch all users from Firestore and cross-verify with Firebase Auth
       const usersSnap = await db.collection("users").get();
+      const auth = await getAdminAuth();
+      const authUsersResult = await auth.listUsers().catch(() => null);
+      const activeAuthUids = authUsersResult ? new Set(authUsersResult.users.map((u) => u.uid)) : null;
+
       const nowMs = Date.now();
-      const users = usersSnap.docs.map((doc) => {
+      const users: any[] = [];
+
+      for (const doc of usersSnap.docs) {
+        // If Firebase Auth verification is available, purge deleted accounts
+        if (activeAuthUids && !activeAuthUids.has(doc.id)) {
+          void db.collection("users").doc(doc.id).delete().catch(() => {});
+          continue;
+        }
+
         const data = doc.data();
         let lastActiveMs = 0;
         if (data.last_active_at) {
@@ -145,7 +157,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         // Online if active within last 5 minutes (300000 ms)
         const isOnline = doc.id === user.uid || (nowMs - lastActiveMs < 5 * 60 * 1000);
 
-        return {
+        users.push({
           uid: doc.id,
           name: data.name || data.email?.split("@")[0] || "User",
           email: data.email || "",
@@ -153,8 +165,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           photo_url: data.photo_url || "",
           last_active_at: data.last_active_at || null,
           is_online: isOnline,
-        };
-      });
+        });
+      }
 
       // 3. Fetch latest messages from team_messages
       const msgSnap = await db.collection("team_messages")
