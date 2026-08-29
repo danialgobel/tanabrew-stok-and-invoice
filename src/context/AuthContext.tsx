@@ -87,6 +87,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       try {
         const userRef = doc(db, "users", user.uid);
+        // Update presence
+        void updateDoc(userRef, { last_active_at: serverTimestamp() }).catch(() => {});
+
         // Real-time listener for user profile updates
         profileUnsubscribe = onSnapshot(
           userRef,

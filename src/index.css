@@ -80,11 +80,12 @@
   table {
     max-width: 100%;
   }
-  @media (max-width: 640px) {
+  @media (max-width: 768px) {
     input,
     select,
     textarea {
-      font-size: 16px;
+      font-size: 16px !important;
+      touch-action: manipulation;
     }
   }
 }
