@@ -93,11 +93,11 @@ const CetakInvoice = () => {
         const snap = await getDoc(doc(db, "invoices", editId));
         if (snap.exists()) {
           const data = snap.data();
-          const isWebdev = userProfile?.role === "webdev";
-          if (!isWebdev && (data.is_printed || data.status === "LUNAS")) {
+          const isOwnerOrWebdev = userProfile?.role === "owner" || userProfile?.role === "webdev";
+          if (!isOwnerOrWebdev && (data.is_printed || data.status === "LUNAS")) {
             toast({
               title: "Akses Ditolak",
-              description: "Invoice yang sudah dicetak atau lunas tidak dapat diedit.",
+              description: "Hanya Owner yang dapat mengedit invoice yang sudah dicetak atau lunas.",
               variant: "destructive",
             });
             navigate("/riwayat");

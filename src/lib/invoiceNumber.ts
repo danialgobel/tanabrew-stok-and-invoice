@@ -233,9 +233,9 @@ export const updateInvoiceWithStock = async ({
     }
     const oldInvoice = invoiceSnap.data();
 
-    // Check if printed or paid (only allow edit if not printed and not paid, unless they are webdev)
-    const isWebdev = user.role === "webdev";
-    if (!isWebdev && (oldInvoice.is_printed || oldInvoice.status === "LUNAS")) {
+    // Check if printed or paid (only allow edit if not printed and not paid, unless they are owner or webdev)
+    const isOwnerOrWebdev = user.role === "owner" || user.role === "webdev";
+    if (!isOwnerOrWebdev && (oldInvoice.is_printed || oldInvoice.status === "LUNAS")) {
       throw new Error("Invoice yang sudah dicetak atau lunas tidak dapat diedit.");
     }
 
@@ -389,3 +389,121 @@ export const updateInvoiceWithStock = async ({
     };
   });
 };
+
+interface DeleteInvoiceWithStockInput {
+  invoiceId: string;
+  user: InvoiceTransactionUser;
+}
+
+export const deleteInvoiceWithStock = async ({
+  invoiceId,
+  user,
+}: DeleteInvoiceWithStockInput) => {
+  const invoiceRef = doc(db, "invoices", invoiceId);
+  const activityRef = doc(collection(db, "activity_logs"));
+
+  return runTransaction(db, async (transaction) => {
+    const invoiceSnap = await transaction.get(invoiceRef);
+    if (!invoiceSnap.exists()) {
+      throw new Error("Invoice tidak ditemukan.");
+    }
+    const invoice = invoiceSnap.data();
+
+    const isOwnerOrWebdev = user.role === "owner" || user.role === "webdev";
+    if (!isOwnerOrWebdev) {
+      throw new Error("Hanya Owner yang memiliki akses untuk menghapus invoice.");
+    }
+
+    const stockLocation = (invoice.stock_location as "Jogja" | "Lombok") || "Jogja";
+    const items = Array.isArray(invoice.items) ? invoice.items : [];
+
+    const itemsMap = new Map<string, { productId: string; productName: string; quantity: number }>();
+    items.forEach((item: any) => {
+      if (item.product_id) {
+        const current = itemsMap.get(item.product_id);
+        itemsMap.set(item.product_id, {
+          productId: item.product_id,
+          productName: item.nama_barang || "",
+          quantity: (current?.quantity || 0) + (Number(item.jumlah) || 0),
+        });
+      }
+    });
+
+    const productIds = Array.from(itemsMap.keys());
+    const productRefsMap = new Map<string, any>();
+    const productSnapsMap = new Map<string, any>();
+
+    await Promise.all(
+      productIds.map(async (pid) => {
+        const pref = doc(db, "products", pid);
+        const psnap = await transaction.get(pref);
+        productRefsMap.set(pid, pref);
+        productSnapsMap.set(pid, psnap);
+      })
+    );
+
+    productIds.forEach((pid) => {
+      const pref = productRefsMap.get(pid);
+      const psnap = productSnapsMap.get(pid);
+      if (!psnap || !psnap.exists()) return;
+
+      const product = psnap.data();
+      const itemInfo = itemsMap.get(pid)!;
+      const qty = itemInfo.quantity;
+
+      const oldJogja = Number(product.stok_jogja || 0);
+      const oldLombok = Number(product.stok_lombok || 0);
+      const newJogja = stockLocation === "Jogja" ? oldJogja + qty : oldJogja;
+      const newLombok = stockLocation === "Lombok" ? oldLombok + qty : oldLombok;
+
+      transaction.update(pref, {
+        stok_jogja: newJogja,
+        stok_lombok: newLombok,
+        total_stok: newJogja + newLombok,
+        diedit_oleh: user.name,
+        diedit_oleh_uid: user.uid,
+        diedit_oleh_role: user.role,
+        updated_at: serverTimestamp(),
+      });
+
+      const movementRef = doc(collection(db, "stock_movements"));
+      transaction.set(
+        movementRef,
+        buildStockMovementData({
+          productId: pid,
+          productName: itemInfo.productName || product.nama_barang || "Produk",
+          movementType: "STOCK_IN",
+          location: stockLocation,
+          quantityChange: qty,
+          stockBefore: stockLocation === "Jogja" ? oldJogja : oldLombok,
+          stockAfter: stockLocation === "Jogja" ? newJogja : newLombok,
+          source: "invoice",
+          referenceId: invoiceId,
+          referenceLabel: invoice.no_invoice || "",
+          description: `Stok ${stockLocation} bertambah ${qty} karena invoice ${invoice.no_invoice} dihapus oleh ${user.name}.`,
+          user,
+        })
+      );
+    });
+
+    transaction.delete(invoiceRef);
+
+    transaction.set(activityRef, {
+      user_id: user.uid,
+      user_name: user.name,
+      user_role: user.role,
+      action: "DELETE_INVOICE",
+      target_type: "invoice",
+      target_id: invoiceId,
+      target_name: invoice.no_invoice || "-",
+      description: `${user.name} menghapus invoice ${invoice.no_invoice || invoiceId} untuk customer ${invoice.customer || "-"}`,
+      created_at: serverTimestamp(),
+    });
+
+    return {
+      invoiceId,
+      noInvoice: invoice.no_invoice || "",
+    };
+  });
+};
+

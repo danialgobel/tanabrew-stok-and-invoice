@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Pendapatan from "./Pendapatan";
 import Pengeluaran from "./Pengeluaran";
-import { TrendingUp, TrendingDown, BarChart3, RefreshCw } from "lucide-react";
+import { TrendingUp, TrendingDown, BarChart3, RefreshCw, Download } from "lucide-react";
 import { fetchIncomeRecords } from "@/lib/spreadsheet/incomeService";
 import { fetchExpenseRecords } from "@/lib/spreadsheet/expenseService";
+import { downloadCsv, monthFileStamp } from "@/lib/csvExport";
 
 type Tab = "pendapatan" | "pengeluaran" | "laporan";
 
@@ -164,6 +165,27 @@ const LaporanTab = () => {
           </div>
         </div>
       </div>
+
+      <button
+        onClick={() => {
+          try {
+            const filename = `Ringkasan-Keuangan-${monthFileStamp()}.csv`;
+            const headers = ["Kategori Ringkasan", "Pemasukan", "Pengeluaran", "Laba Bersih", "Margin Profit"];
+            const rows = [
+              ["Ringkasan Keseluruhan (All-Time)", totalIncome, totalExpense, netRevenue, `${profitRatio}%`],
+              ["Bulan Ini", monthIncome, monthExpense, monthNet, `${monthRatio}%`],
+            ];
+            downloadCsv(filename, headers, rows);
+          } catch (e) {
+            alert("Gagal export CSV: " + e);
+          }
+        }}
+        disabled={loading || (incomes.length === 0 && expenses.length === 0)}
+        className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 py-2.5 text-xs font-semibold text-primary hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <Download size={14} />
+        Export CSV Ringkasan Keuangan
+      </button>
     </div>
   );
 };
