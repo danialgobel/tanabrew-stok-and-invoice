@@ -8,9 +8,13 @@ interface WelcomeAnimationProps {
 }
 
 const formatRole = (role?: string) => {
-  if (role === "admin") return "Admin";
-  if (role === "staff") return "Staff";
-  return "User";
+  if (!role) return "Pengguna";
+  const r = role.toLowerCase().trim();
+  if (r === "owner") return "Owner";
+  if (r === "admin") return "Admin";
+  if (r === "webdev" || r === "godmode") return "Developer (God Mode)";
+  if (r === "staff") return "Staff";
+  return role.charAt(0).toUpperCase() + role.slice(1);
 };
 
 const WelcomeAnimation = ({ name, role, onFinish }: WelcomeAnimationProps) => {

@@ -7,16 +7,17 @@ import {
   signInWithEmailAndPassword,
   signOut,
 } from "firebase/auth";
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
-type UserRole = "owner" | "admin" | "staff" | "webdev";
+export type UserRole = "owner" | "admin" | "staff" | "webdev";
 
-interface UserProfile {
+export interface UserProfile {
   uid: string;
   name: string;
   email: string;
   role: UserRole;
+  photo_url?: string;
   created_at?: unknown;
   last_seen_activity_id?: string;
   last_seen_activity_at?: unknown;
@@ -29,6 +30,7 @@ interface AuthContextValue {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string, accessCode: string) => Promise<void>;
+  updateUserProfile: (data: Partial<UserProfile>) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -58,9 +60,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    let profileUnsubscribe: (() => void) | null = null;
+
+    const authUnsubscribe = onAuthStateChanged(auth, async (user) => {
       setLoading(true);
       setCurrentUser(user);
+
+      if (profileUnsubscribe) {
+        profileUnsubscribe();
+        profileUnsubscribe = null;
+      }
 
       if (!user) {
         setUserProfile(null);
@@ -69,17 +78,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       try {
-        const profile = await getUserProfile(user.uid);
-        setUserProfile(profile);
+        const userRef = doc(db, "users", user.uid);
+        // Real-time listener for user profile updates
+        profileUnsubscribe = onSnapshot(
+          userRef,
+          (snap) => {
+            if (snap.exists()) {
+              setUserProfile({ uid: user.uid, ...snap.data() } as UserProfile);
+            } else {
+              setUserProfile(null);
+            }
+            setLoading(false);
+          },
+          (error) => {
+            console.error("Gagal sinkron profil user", error);
+            setLoading(false);
+          }
+        );
       } catch (error) {
         console.error("Gagal mengambil profil user", error);
         setUserProfile(null);
-      } finally {
         setLoading(false);
       }
     });
 
-    return unsubscribe;
+    return () => {
+      authUnsubscribe();
+      if (profileUnsubscribe) profileUnsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -113,12 +139,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUserProfile({ uid: credential.user.uid, ...profileData });
   };
 
+  const updateUserProfile = async (data: Partial<UserProfile>) => {
+    if (!currentUser) throw new Error("Pengguna belum login");
+    const userRef = doc(db, "users", currentUser.uid);
+    await updateDoc(userRef, data);
+    setUserProfile((prev) => (prev ? { ...prev, ...data } : null));
+  };
+
   const logout = async () => {
     await signOut(auth);
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, userProfile, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ currentUser, userProfile, loading, login, register, updateUserProfile, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -18,10 +18,13 @@ import {
   Info,
   CheckCircle2,
   Lock,
+  Camera,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 
 const Akun = () => {
-  const { userProfile, currentUser, logout } = useAuth();
+  const { userProfile, currentUser, logout, updateUserProfile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -29,6 +32,7 @@ const Akun = () => {
   const [loggingOut, setLoggingOut] = useState(false);
   const [notifState, setNotifState] = useState(() => getNotificationPermissionState());
   const [updatingNotif, setUpdatingNotif] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const getInitials = (name?: string, email?: string) => {
     const text = name || email || "User";
@@ -50,6 +54,66 @@ const Akun = () => {
         return { label: "Developer (God Mode)", class: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20" };
       default:
         return { label: "Staff", class: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20" };
+    }
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Format Tidak Valid", description: "Pilih file gambar (JPG, PNG, WebP).", variant: "destructive" });
+      return;
+    }
+
+    setUploadingPhoto(true);
+    triggerHaptic(15);
+
+    try {
+      const reader = new FileReader();
+      reader.onload = (readerEvent) => {
+        const img = new Image();
+        img.onload = async () => {
+          const canvas = document.createElement("canvas");
+          const size = 256;
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext("2d");
+
+          if (ctx) {
+            // Square crop centered
+            const minDim = Math.min(img.width, img.height);
+            const startX = (img.width - minDim) / 2;
+            const startY = (img.height - minDim) / 2;
+            ctx.drawImage(img, startX, startY, minDim, minDim, 0, 0, size, size);
+            const base64 = canvas.toDataURL("image/jpeg", 0.85);
+
+            await updateUserProfile({ photo_url: base64 });
+            triggerHaptic(25);
+            toast({ title: "Foto Profil Berhasil Diperbarui", description: "Foto akun telah tersimpan dan tampil di seluruh aplikasi." });
+          }
+          setUploadingPhoto(false);
+        };
+        img.onerror = () => {
+          toast({ title: "Error", description: "Gagal memproses gambar", variant: "destructive" });
+          setUploadingPhoto(false);
+        };
+        img.src = readerEvent.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      toast({ title: "Gagal Upload", description: err.message, variant: "destructive" });
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    triggerHaptic(15);
+    try {
+      await updateUserProfile({ photo_url: "" });
+      toast({ title: "Foto Profil Dihapus", description: "Kembali menggunakan inisial nama akun." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     }
   };
 
@@ -93,17 +157,54 @@ const Akun = () => {
       {/* Header Profil */}
       <div className="rounded-2xl border border-border bg-card p-5 shadow-sm space-y-4">
         <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary font-bold text-xl border border-primary/20 shrink-0">
-            {getInitials(userProfile?.name, userProfile?.email)}
+          <div className="relative shrink-0">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary font-bold text-xl border border-primary/20 overflow-hidden">
+              {uploadingPhoto ? (
+                <Loader2 size={24} className="animate-spin text-primary" />
+              ) : userProfile?.photo_url ? (
+                <img
+                  src={userProfile.photo_url}
+                  alt={userProfile.name || "Profil"}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                getInitials(userProfile?.name, userProfile?.email)
+              )}
+            </div>
+            <label
+              className="absolute -bottom-1.5 -right-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md cursor-pointer hover:opacity-90 active:scale-95 transition-all"
+              title="Ganti Foto Profil"
+            >
+              <Camera size={13} />
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoUpload}
+                disabled={uploadingPhoto}
+                className="hidden"
+              />
+            </label>
           </div>
+
           <div className="min-w-0 flex-1 space-y-1">
             <h1 className="text-base font-bold text-foreground truncate">
               {userProfile?.name || currentUser?.displayName || "Pengguna Tanabrew"}
             </h1>
             <p className="text-xs text-muted-foreground truncate">{userProfile?.email || currentUser?.email}</p>
-            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold border uppercase ${roleInfo.class}`}>
-              <Shield size={10} /> {roleInfo.label}
-            </span>
+            <div className="flex items-center gap-2 pt-0.5">
+              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold border uppercase ${roleInfo.class}`}>
+                <Shield size={10} /> {roleInfo.label}
+              </span>
+              {userProfile?.photo_url && (
+                <button
+                  type="button"
+                  onClick={handleRemovePhoto}
+                  className="text-[10px] text-destructive hover:underline font-semibold"
+                >
+                  Hapus Foto
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

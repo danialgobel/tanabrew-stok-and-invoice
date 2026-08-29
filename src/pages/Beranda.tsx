@@ -684,8 +684,16 @@ const Beranda = () => {
         {/* Header Profil Pengguna */}
         <div className="tanabrew-card-enter bg-card rounded-2xl border border-border p-4 mb-4 flex items-center justify-between gap-3 shadow-sm">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-sm border border-primary/20 shrink-0">
-              {displayName.slice(0, 2).toUpperCase()}
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-sm border border-primary/20 shrink-0 overflow-hidden">
+              {userProfile?.photo_url ? (
+                <img
+                  src={userProfile.photo_url}
+                  alt={displayName}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                displayName.slice(0, 2).toUpperCase()
+              )}
             </div>
             <div className="min-w-0">
               <p className="text-sm font-bold text-foreground truncate">{displayName}</p>
