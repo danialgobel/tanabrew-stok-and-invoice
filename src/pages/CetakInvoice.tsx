@@ -34,7 +34,9 @@ const CetakInvoice = () => {
   const [tanggal, setTanggal] = useState("");
   const [noInvoice, setNoInvoice] = useState("");
   const [customer, setCustomer] = useState("");
-  const [stockLocation, setStockLocation] = useState<StockLocation>("Jogja");
+  const [stockLocation, setStockLocation] = useState<StockLocation>(() => {
+    return (localStorage.getItem("tanabrew_default_warehouse") as StockLocation) || "Jogja";
+  });
   
   const [items, setItems] = useState<InvoiceItem[]>([{ nama_barang: "", harga: 0, jumlah: 1, subtotal: 0 }]);
   const [diskon, setDiskon] = useState(0);

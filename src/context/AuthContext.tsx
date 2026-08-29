@@ -6,6 +6,11 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut,
+  updatePassword,
+  updateProfile,
+  sendPasswordResetEmail,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
 } from "firebase/auth";
 import { doc, getDoc, onSnapshot, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -31,6 +36,9 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string, accessCode: string) => Promise<void>;
   updateUserProfile: (data: Partial<UserProfile>) => Promise<void>;
+  updateDisplayName: (newName: string) => Promise<void>;
+  changeUserPassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  sendPasswordReset: (email?: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -146,12 +154,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUserProfile((prev) => (prev ? { ...prev, ...data } : null));
   };
 
+  const updateDisplayName = async (newName: string) => {
+    if (!currentUser) throw new Error("Pengguna belum login");
+    const cleanName = newName.trim();
+    if (!cleanName) throw new Error("Nama tidak boleh kosong");
+
+    await updateProfile(currentUser, { displayName: cleanName });
+    await updateUserProfile({ name: cleanName });
+  };
+
+  const changeUserPassword = async (currentPassword: string, newPassword: string) => {
+    if (!currentUser || !currentUser.email) throw new Error("Pengguna belum login");
+    if (!newPassword || newPassword.length < 6) throw new Error("Password baru minimal 6 karakter");
+
+    const credential = EmailAuthProvider.credential(currentUser.email, currentPassword);
+    await reauthenticateWithCredential(currentUser, credential);
+    await updatePassword(currentUser, newPassword);
+  };
+
+  const sendPasswordReset = async (email?: string) => {
+    const targetEmail = (email || currentUser?.email || "").trim();
+    if (!targetEmail) throw new Error("Email tidak boleh kosong");
+    await sendPasswordResetEmail(auth, targetEmail);
+  };
+
   const logout = async () => {
     await signOut(auth);
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, userProfile, loading, login, register, updateUserProfile, logout }}>
+    <AuthContext.Provider
+      value={{
+        currentUser,
+        userProfile,
+        loading,
+        login,
+        register,
+        updateUserProfile,
+        updateDisplayName,
+        changeUserPassword,
+        sendPasswordReset,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
