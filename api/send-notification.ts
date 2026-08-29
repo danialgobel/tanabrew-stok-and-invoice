@@ -1,6 +1,12 @@
 import type { App } from "firebase-admin/app";
 
-type InvoiceNotificationType = "CREATE_INVOICE" | "PRINT_INVOICE" | "UPDATE_PAYMENT_STATUS" | "TEST_NOTIFICATION" | "OWNER_ANNOUNCEMENT";
+type InvoiceNotificationType = 
+  | "CREATE_INVOICE" 
+  | "PRINT_INVOICE" 
+  | "UPDATE_PAYMENT_STATUS" 
+  | "TEST_NOTIFICATION" 
+  | "OWNER_ANNOUNCEMENT"
+  | "TEAM_CHAT_MESSAGE";
 type InvoiceNotificationRole = "owner" | "admin" | "staff" | "webdev";
 
 type ApiRequest = {
@@ -47,6 +53,7 @@ const allowedTypes: InvoiceNotificationType[] = [
   "UPDATE_PAYMENT_STATUS",
   "TEST_NOTIFICATION",
   "OWNER_ANNOUNCEMENT",
+  "TEAM_CHAT_MESSAGE",
 ];
 
 const getHeader = (req: ApiRequest, name: string) => {
@@ -78,12 +85,13 @@ const isValidPayload = (payload: Record<string, unknown> | null): payload is Inv
   const total = Number(payload.total || 0);
   const isTestNotification = type === "TEST_NOTIFICATION";
   const isOwnerAnnouncement = type === "OWNER_ANNOUNCEMENT";
+  const isTeamChatMessage = type === "TEAM_CHAT_MESSAGE";
 
   return (
     allowedTypes.includes(type) &&
-    (isTestNotification || isOwnerAnnouncement || (typeof payload.invoiceId === "string" && payload.invoiceId.trim().length > 0)) &&
-    (isOwnerAnnouncement || isTestNotification || (typeof payload.invoiceNumber === "string" && payload.invoiceNumber.trim().length > 0)) &&
-    (isOwnerAnnouncement || isTestNotification || typeof payload.customer === "string") &&
+    (isTestNotification || isOwnerAnnouncement || isTeamChatMessage || (typeof payload.invoiceId === "string" && payload.invoiceId.trim().length > 0)) &&
+    (isOwnerAnnouncement || isTestNotification || isTeamChatMessage || (typeof payload.invoiceNumber === "string" && payload.invoiceNumber.trim().length > 0)) &&
+    (isOwnerAnnouncement || isTestNotification || isTeamChatMessage || typeof payload.customer === "string") &&
     typeof payload.actorName === "string" &&
     payload.actorName.trim().length > 0 &&
     (actorRole === "owner" || actorRole === "admin" || actorRole === "staff" || actorRole === "webdev") &&
@@ -117,6 +125,13 @@ const buildNotificationContent = (payload: InvoiceNotificationPayload) => {
     return {
       title: payload.title || "Arahan Owner Tanabrew",
       message: payload.message || "Ada arahan baru dari Owner.",
+    };
+  }
+
+  if (payload.type === "TEAM_CHAT_MESSAGE") {
+    return {
+      title: payload.title || `[Pesan Tim] ${payload.actorName}`,
+      message: payload.message || "Ada pesan baru di obrolan tim.",
     };
   }
 
@@ -436,7 +451,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     });
   }
 
-  const isBroadcast = body.type === "OWNER_ANNOUNCEMENT" || body.type === "TEST_NOTIFICATION";
+  const isBroadcast = body.type === "OWNER_ANNOUNCEMENT" || body.type === "TEST_NOTIFICATION" || body.type === "TEAM_CHAT_MESSAGE";
   if (!isBroadcast && recipientUids.length === 0) {
     return res.status(404).json({
       success: false,
@@ -447,12 +462,16 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   const { title, message } = buildNotificationContent(body);
   const origin = getRequestOrigin(req);
+  const targetUrl = body.type === "TEAM_CHAT_MESSAGE"
+    ? (origin ? `${origin}/obrolan` : "/obrolan")
+    : (origin ? `${origin}/riwayat` : "/riwayat");
+
   const notificationPayload: Record<string, unknown> = {
     app_id: appId,
     target_channel: "push",
     headings: { en: title },
     contents: { en: message },
-    url: origin ? `${origin}/riwayat` : "/riwayat",
+    url: targetUrl,
     chrome_web_icon: origin ? `${origin}/tanabrew-logo.png` : "/tanabrew-logo.png",
     data: {
       type: body.type,

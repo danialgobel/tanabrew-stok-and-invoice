@@ -29,10 +29,10 @@ import {
   HelpCircle,
   Pencil,
   ChevronDown,
-  ExternalLink,
-  Sparkles,
+  MessageSquare,
   Check,
   X,
+  Sparkles,
 } from "lucide-react";
 
 const Akun = () => {
@@ -96,13 +96,13 @@ const Akun = () => {
   const getRoleBadge = (role?: string) => {
     switch (role) {
       case "owner":
-        return { label: "Owner (Pemilik)", class: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" };
+        return { label: "Owner", class: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" };
       case "admin":
-        return { label: "Admin Operasional", class: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20" };
+        return { label: "Admin", class: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20" };
       case "webdev":
-        return { label: "Developer (God Mode)", class: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20" };
+        return { label: "Developer", class: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20" };
       default:
-        return { label: "Staff Kasir", class: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20" };
+        return { label: "Staff", class: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20" };
     }
   };
 
@@ -110,7 +110,7 @@ const Akun = () => {
     triggerHaptic(15);
     setDefaultWarehouse(loc);
     localStorage.setItem("tanabrew_default_warehouse", loc);
-    toast({ title: "Gudang Default Disimpan", description: `Kasir akan mengutamakan stok ${loc}.` });
+    toast({ title: "Gudang Default Disimpan", description: `Kasir/Invoice akan mengutamakan stok ${loc}.` });
   };
 
   const handleHapticToggle = () => {
@@ -156,7 +156,7 @@ const Akun = () => {
 
             await updateUserProfile({ photo_url: base64 });
             triggerHaptic(25);
-            toast({ title: "Foto Profil Diperbarui", description: "Foto akun telah tersimpan dan tampil di seluruh aplikasi." });
+            toast({ title: "Foto Profil Diperbarui", description: "Foto profil telah tersimpan dan tampil di seluruh aplikasi." });
           }
           setUploadingPhoto(false);
         };
@@ -295,12 +295,12 @@ const Akun = () => {
 
   const faqItems = [
     {
-      q: "Bagaimana cara membuat invoice dan mencetak struk?",
-      a: "Buka tab Kasir (Cetak Invoice), pilih lokasi gudang, pilih produk kopi/sirup, masukkan jumlah, isi nama pelanggan, lalu klik Simpan Invoice. Setelah tersimpan, tekan tombol Cetak Struk / Invoice.",
+      q: "Bagaimana cara membuat dan mencetak invoice?",
+      a: "Buka tab Invoice, pilih lokasi gudang (Jogja / Lombok), pilih produk kopi atau bahan, masukkan jumlah, isi nama pelanggan, lalu klik Simpan Invoice. Setelah tersimpan, Anda dapat mencetak struk atau invoice formal.",
     },
     {
       q: "Bagaimana cara melakukan transfer stok antar gudang?",
-      a: "Buka tab Stok (Update Stok), klik tombol 'Transfer Stok (Jogja ⇄ Lombok)' di bawah tabel. Pilih produk, pilih arah pemindahan, masukkan jumlah unit, lalu konfirmasi transfer.",
+      a: "Buka tab Stok (Update Stok), klik tombol 'Transfer Stok (Jogja ⇄ Lombok)' di bawah tabel. Pilih produk, arah perpindahan, masukkan jumlah unit, lalu konfirmasi.",
     },
     {
       q: "Bagaimana cara menandai invoice yang sudah dibayar?",
@@ -309,14 +309,15 @@ const Akun = () => {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-lg overflow-x-hidden px-4 pb-32 pt-6 space-y-4">
-      {/* HEADER HERO PROFIL */}
-      <div className="rounded-2xl border border-border bg-card p-5 shadow-sm space-y-4">
-        <div className="flex items-center gap-4">
+    <div className="mx-auto w-full max-w-lg overflow-x-hidden px-4 pb-36 pt-6 space-y-4">
+      {/* 1. HERO PROFILE CARD ELEGAN */}
+      <div className="rounded-3xl border border-border bg-card p-6 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">
+          {/* Avatar besar dengan cincin aksen */}
           <div className="relative shrink-0">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary font-bold text-xl border border-primary/20 overflow-hidden shadow-inner">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-2xl ring-4 ring-primary/20 overflow-hidden shadow-sm">
               {uploadingPhoto ? (
-                <Loader2 size={24} className="animate-spin text-primary" />
+                <Loader2 size={28} className="animate-spin text-primary" />
               ) : userProfile?.photo_url ? (
                 <img
                   src={userProfile.photo_url}
@@ -328,7 +329,7 @@ const Akun = () => {
               )}
             </div>
             <label
-              className="absolute -bottom-1.5 -right-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md cursor-pointer hover:opacity-90 active:scale-95 transition-all"
+              className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md cursor-pointer hover:opacity-90 active:scale-95 transition-all"
               title="Ganti Foto Profil"
             >
               <Camera size={13} />
@@ -342,9 +343,9 @@ const Akun = () => {
             </label>
           </div>
 
-          <div className="min-w-0 flex-1 space-y-1">
-            <div className="flex items-center gap-2">
-              <h1 className="text-base font-bold text-foreground truncate">
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <div className="flex items-center justify-center sm:justify-start gap-2">
+              <h1 className="text-lg font-bold text-foreground truncate">
                 {userProfile?.name || currentUser?.displayName || "Pengguna Tanabrew"}
               </h1>
               <button
@@ -354,17 +355,17 @@ const Akun = () => {
                   setNameInput(userProfile?.name || currentUser?.displayName || "");
                   setShowEditNameModal(true);
                 }}
-                className="p-1 text-muted-foreground hover:text-primary rounded-md hover:bg-muted transition-colors"
+                className="p-1 text-muted-foreground hover:text-primary rounded-full hover:bg-muted transition-colors"
                 title="Edit Nama"
               >
                 <Pencil size={13} />
               </button>
             </div>
-            <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+            <p className="text-xs text-muted-foreground truncate flex items-center justify-center sm:justify-start gap-1">
               <Mail size={12} className="shrink-0" />
               {userProfile?.email || currentUser?.email}
             </p>
-            <div className="flex items-center gap-2 pt-0.5">
+            <div className="flex items-center justify-center sm:justify-start gap-2 pt-1">
               <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold border uppercase ${roleInfo.class}`}>
                 <Shield size={10} /> {roleInfo.label}
               </span>
@@ -382,7 +383,7 @@ const Akun = () => {
         </div>
 
         {/* Quick status bar */}
-        <div className="flex items-center justify-between rounded-xl bg-muted/40 p-3 text-xs border border-border/50">
+        <div className="flex items-center justify-between rounded-2xl bg-muted/40 p-3 text-xs border border-border/50">
           <div className="flex items-center gap-1.5">
             <Store size={14} className="text-primary" />
             <span className="font-semibold text-foreground">Tanabrew Coffee & Roastery</span>
@@ -394,18 +395,18 @@ const Akun = () => {
         </div>
       </div>
 
-      {/* KEAMANAN & KREDENSIAL */}
-      <div className="rounded-2xl border border-border bg-card p-4 space-y-3 shadow-sm">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-          <Lock size={13} /> Keamanan & Akun
+      {/* 2. GRUP AKUN & KEAMANAN (GROUPED INSET) */}
+      <div className="rounded-3xl border border-border bg-card p-4 space-y-3 shadow-sm">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 px-1">
+          <Lock size={13} /> Akun & Keamanan
         </h2>
 
         <div className="divide-y divide-border/60 text-xs">
           {/* Email Terdaftar */}
-          <div className="flex items-center justify-between py-2.5">
+          <div className="flex items-center justify-between py-3 px-1">
             <div>
               <p className="font-semibold text-foreground">Email Terdaftar</p>
-              <p className="text-muted-foreground">{currentUser?.email}</p>
+              <p className="text-muted-foreground text-[11px]">{currentUser?.email}</p>
             </div>
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
               <Check size={10} /> Terverifikasi
@@ -413,63 +414,63 @@ const Akun = () => {
           </div>
 
           {/* Ganti Kata Sandi */}
-          <div className="flex items-center justify-between py-2.5">
+          <div className="flex items-center justify-between py-3 px-1">
             <div>
               <p className="font-semibold text-foreground">Kata Sandi Akun</p>
-              <p className="text-muted-foreground">Perbarui sandi login berkala</p>
+              <p className="text-muted-foreground text-[11px]">Ubah kata sandi login Anda</p>
             </div>
             <button
               onClick={() => {
                 triggerHaptic(10);
                 setShowChangePasswordModal(true);
               }}
-              className="inline-flex items-center gap-1 rounded-lg border border-border bg-muted px-3 py-1.5 font-bold text-foreground hover:bg-muted/80"
+              className="inline-flex items-center gap-1 rounded-xl border border-border bg-muted/80 px-3 py-1.5 font-bold text-foreground hover:bg-muted transition-colors"
             >
               <KeyRound size={12} /> Ubah Sandi
             </button>
           </div>
 
           {/* Kirim Link Reset Password */}
-          <div className="flex items-center justify-between py-2.5">
+          <div className="flex items-center justify-between py-3 px-1">
             <div>
-              <p className="font-semibold text-foreground">Pemulihan Email</p>
-              <p className="text-muted-foreground">Kirim link reset ke kotak masuk email</p>
+              <p className="font-semibold text-foreground">Pemulihan Sandi</p>
+              <p className="text-muted-foreground text-[11px]">Kirim tautan reset ke email</p>
             </div>
             <button
               onClick={handleSendResetEmail}
               disabled={sendingResetEmail}
-              className="rounded-lg border border-border bg-muted px-3 py-1.5 font-bold text-foreground hover:bg-muted/80 disabled:opacity-50"
+              className="rounded-xl border border-border bg-muted/80 px-3 py-1.5 font-bold text-foreground hover:bg-muted transition-colors disabled:opacity-50"
             >
               {sendingResetEmail ? "Mengirim..." : "Kirim Link Reset"}
             </button>
           </div>
 
-          {/* Perangkat Sesi Saat Ini */}
-          <div className="flex items-center justify-between py-2.5">
+          {/* Perangkat Sesi */}
+          <div className="flex items-center justify-between py-3 px-1">
             <div className="flex items-center gap-2">
-              <Smartphone size={14} className="text-muted-foreground" />
+              <Smartphone size={15} className="text-muted-foreground" />
               <div>
-                <p className="font-semibold text-foreground">Perangkat Saat Ini</p>
+                <p className="font-semibold text-foreground">Perangkat Sesi Saat Ini</p>
                 <p className="text-muted-foreground font-mono text-[11px]">{getDevicePlatform()}</p>
               </div>
             </div>
-            <span className="text-[10px] text-muted-foreground">Sesi Aktif</span>
+            <span className="text-[10px] text-muted-foreground font-medium">Sesi Aktif</span>
           </div>
         </div>
       </div>
 
-      {/* PREFERENSI OPERASIONAL KASIR & APLIKASI */}
-      <div className="rounded-2xl border border-border bg-card p-4 space-y-3 shadow-sm">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+      {/* 3. GRUP PREFERENSI TOKO & INVOICE */}
+      <div className="rounded-3xl border border-border bg-card p-4 space-y-3 shadow-sm">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 px-1">
           <Store size={13} /> Preferensi Operasional
         </h2>
 
         <div className="space-y-3 text-xs">
-          {/* Default Lokasi Gudang Kasir */}
-          <div className="space-y-1.5">
+          {/* Default Lokasi Gudang */}
+          <div className="space-y-1.5 px-1">
             <div className="flex items-center justify-between">
-              <p className="font-semibold text-foreground">Gudang Utama Kasir</p>
-              <span className="text-[11px] text-muted-foreground">Default saat buka kasir</span>
+              <p className="font-semibold text-foreground">Gudang Utama Invoice</p>
+              <span className="text-[11px] text-muted-foreground">Default saat buka faktur</span>
             </div>
             <div className="grid grid-cols-2 gap-2">
               {(["Jogja", "Lombok"] as const).map((loc) => {
@@ -479,10 +480,10 @@ const Akun = () => {
                     key={loc}
                     type="button"
                     onClick={() => handleWarehouseChange(loc)}
-                    className={`rounded-xl border p-2.5 font-bold transition-all text-center ${
+                    className={`rounded-2xl border p-3 font-bold transition-all text-center ${
                       active
                         ? "border-primary bg-primary/10 text-primary shadow-sm"
-                        : "border-border bg-muted/40 text-muted-foreground hover:bg-muted"
+                        : "border-border bg-muted/30 text-muted-foreground hover:bg-muted"
                     }`}
                   >
                     Gudang {loc}
@@ -493,12 +494,12 @@ const Akun = () => {
           </div>
 
           {/* Respon Getaran (Haptic) */}
-          <div className="flex items-center justify-between pt-2 border-t border-border/60">
+          <div className="flex items-center justify-between pt-2.5 border-t border-border/60 px-1">
             <div className="flex items-center gap-2">
-              <Vibrate size={15} className="text-muted-foreground" />
+              <Vibrate size={16} className="text-muted-foreground" />
               <div>
                 <p className="font-semibold text-foreground">Respon Getaran Sentuhan (Haptic)</p>
-                <p className="text-[11px] text-muted-foreground">Getaran ringan saat tombol ditekan di HP</p>
+                <p className="text-[11px] text-muted-foreground">Getaran ringan tombol pada HP</p>
               </div>
             </div>
             <button
@@ -518,117 +519,90 @@ const Akun = () => {
         </div>
       </div>
 
-      {/* PEMBERITAHUAN & WEB PUSH */}
-      <div className="rounded-2xl border border-border bg-card p-4 space-y-3 shadow-sm">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-          <Bell size={13} /> Pemberitahuan & Web Push
+      {/* 4. GRUP KOMUNIKASI & BANTUAN */}
+      <div className="rounded-3xl border border-border bg-card p-4 space-y-3 shadow-sm">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 px-1">
+          <MessageSquare size={13} /> Komunikasi & Bantuan
         </h2>
-        <div className="flex items-center justify-between gap-3 text-xs">
-          <div>
-            <p className="font-semibold text-foreground">Status Izin Push Notifikasi</p>
-            <p className="text-[11px] text-muted-foreground capitalize font-mono">{notifState}</p>
-          </div>
-          <button
-            onClick={handleRequestNotification}
-            disabled={updatingNotif}
-            className="rounded-lg border border-border bg-muted px-3 py-1.5 font-bold text-foreground hover:bg-muted/80 disabled:opacity-50"
+
+        <div className="divide-y divide-border/60 text-xs">
+          {/* Shortcut Ruang Obrolan */}
+          <div
+            onClick={() => {
+              triggerHaptic(15);
+              navigate("/obrolan");
+            }}
+            className="flex items-center justify-between py-3 px-1 cursor-pointer hover:bg-muted/30 rounded-xl transition-colors"
           >
-            {updatingNotif ? "Memeriksa..." : "Uji / Perbarui Izin"}
-          </button>
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <MessageSquare size={15} />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground">Ruang Obrolan Tim</p>
+                <p className="text-muted-foreground text-[11px]">Buka grup percakapan staf Tanabrew</p>
+              </div>
+            </div>
+            <ChevronRight size={15} className="text-muted-foreground" />
+          </div>
+
+          {/* Izin Notifikasi Web Push */}
+          <div className="flex items-center justify-between py-3 px-1">
+            <div>
+              <p className="font-semibold text-foreground">Status Izin Push Notifikasi</p>
+              <p className="text-[11px] text-muted-foreground capitalize font-mono">{notifState}</p>
+            </div>
+            <button
+              onClick={handleRequestNotification}
+              disabled={updatingNotif}
+              className="rounded-xl border border-border bg-muted/80 px-3 py-1.5 font-bold text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+            >
+              {updatingNotif ? "Memeriksa..." : "Uji / Perbarui"}
+            </button>
+          </div>
+
+          {/* FAQ Accordion */}
+          <div className="py-2 space-y-2">
+            <p className="font-semibold text-foreground text-xs px-1 pt-1">Panduan Pengoperasian Cepat:</p>
+            {faqItems.map((item, idx) => {
+              const isOpen = expandedFaq === idx;
+              return (
+                <div key={idx} className="rounded-2xl border border-border/60 bg-muted/20 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      triggerHaptic(10);
+                      setExpandedFaq(isOpen ? null : idx);
+                    }}
+                    className="w-full flex items-center justify-between p-3 text-left font-semibold text-foreground hover:bg-muted/40 transition-colors"
+                  >
+                    <span>{item.q}</span>
+                    <ChevronDown
+                      size={14}
+                      className={`text-muted-foreground transition-transform duration-200 shrink-0 ml-2 ${
+                        isOpen ? "rotate-180 text-primary" : ""
+                      }`}
+                    />
+                  </button>
+                  {isOpen && (
+                    <div className="px-3 pb-3 text-muted-foreground leading-relaxed border-t border-border/40 pt-2 text-[11px]">
+                      {item.a}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      {/* RINGKASAN HAK AKSES PERAN */}
-      <div className="rounded-2xl border border-border bg-card p-4 space-y-3 shadow-sm">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-          <Shield size={13} /> Wewenang & Hak Akses
-        </h2>
-        <div className="space-y-2 text-xs">
-          {userProfile?.role === "owner" || userProfile?.role === "webdev" ? (
-            <>
-              <div className="flex items-start gap-2 text-muted-foreground">
-                <CheckCircle2 size={14} className="text-emerald-500 shrink-0 mt-0.5" />
-                <span>Kelola penuh stok produk, mutasi Jogja ⇄ Lombok, dan harga B2B.</span>
-              </div>
-              <div className="flex items-start gap-2 text-muted-foreground">
-                <CheckCircle2 size={14} className="text-emerald-500 shrink-0 mt-0.5" />
-                <span>Edit invoice tersimpan, hapus invoice dengan pengembalian stok.</span>
-              </div>
-              <div className="flex items-start gap-2 text-muted-foreground">
-                <CheckCircle2 size={14} className="text-emerald-500 shrink-0 mt-0.5" />
-                <span>Akses laporan keuangan, spreadsheet, dan kirim arahan push notification.</span>
-              </div>
-            </>
-          ) : userProfile?.role === "admin" ? (
-            <>
-              <div className="flex items-start gap-2 text-muted-foreground">
-                <CheckCircle2 size={14} className="text-emerald-500 shrink-0 mt-0.5" />
-                <span>Buat dan cetak invoice kasir, tandai status lunas.</span>
-              </div>
-              <div className="flex items-start gap-2 text-muted-foreground">
-                <CheckCircle2 size={14} className="text-emerald-500 shrink-0 mt-0.5" />
-                <span>Akses laporan riwayat transaksi dan ekspor data CSV.</span>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="flex items-start gap-2 text-muted-foreground">
-                <CheckCircle2 size={14} className="text-emerald-500 shrink-0 mt-0.5" />
-                <span>Buat dan cetak invoice kasir penjualan kopi.</span>
-              </div>
-              <div className="flex items-start gap-2 text-muted-foreground">
-                <CheckCircle2 size={14} className="text-emerald-500 shrink-0 mt-0.5" />
-                <span>Melihat ketersediaan stok Jogja dan Lombok (mode lihat).</span>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* PUSAT BANTUAN & PETUNJUK OPERASIONAL */}
-      <div className="rounded-2xl border border-border bg-card p-4 space-y-3 shadow-sm">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-          <HelpCircle size={13} /> Pusat Bantuan & Panduan Cepat
-        </h2>
-        <div className="space-y-2 text-xs">
-          {faqItems.map((item, idx) => {
-            const isOpen = expandedFaq === idx;
-            return (
-              <div key={idx} className="rounded-xl border border-border/60 bg-muted/20 overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => {
-                    triggerHaptic(10);
-                    setExpandedFaq(isOpen ? null : idx);
-                  }}
-                  className="w-full flex items-center justify-between p-3 text-left font-semibold text-foreground hover:bg-muted/40 transition-colors"
-                >
-                  <span>{item.q}</span>
-                  <ChevronDown
-                    size={14}
-                    className={`text-muted-foreground transition-transform duration-200 shrink-0 ml-2 ${
-                      isOpen ? "rotate-180 text-primary" : ""
-                    }`}
-                  />
-                </button>
-                {isOpen && (
-                  <div className="px-3 pb-3 text-muted-foreground leading-relaxed border-t border-border/40 pt-2 text-[11px]">
-                    {item.a}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* SHORTCUT DEVELOPER GOD MODE */}
+      {/* 5. SHORTCUT KHUSUS DEVELOPER CENTER */}
       {userProfile?.role === "webdev" && (
-        <div className="rounded-2xl border border-purple-500/30 bg-purple-500/5 p-4 space-y-2">
+        <div className="rounded-3xl border border-purple-500/30 bg-purple-500/5 p-4 space-y-2 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Terminal size={16} className="text-purple-600 dark:text-purple-400" />
-              <p className="text-xs font-bold text-foreground">Master Dev Center (God Mode)</p>
+              <p className="text-xs font-bold text-foreground">Developer Center (Dev Tools)</p>
             </div>
             <button
               onClick={() => {
@@ -640,26 +614,22 @@ const Akun = () => {
               Buka Panel <ChevronRight size={13} />
             </button>
           </div>
-          <p className="text-[11px] text-muted-foreground">Kendali database tingkat lanjut, auto-fix stok, dan pemulihan snapshot.</p>
+          <p className="text-[11px] text-muted-foreground">Kendali database tingkat lanjut, auto-fix stok, dan audit riwayat.</p>
         </div>
       )}
 
-      {/* INFORMASI SISTEM & APLIKASI */}
-      <div className="rounded-2xl border border-border bg-card p-4 space-y-2 text-xs shadow-sm">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-          <Info size={13} /> Tentang Sistem
+      {/* 6. INFO SISTEM & LOGOUT */}
+      <div className="rounded-3xl border border-border bg-card p-4 space-y-2 text-xs shadow-sm">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 px-1">
+          <Info size={13} /> Informasi Sistem
         </h2>
-        <div className="flex justify-between text-muted-foreground pt-1">
+        <div className="flex justify-between text-muted-foreground pt-1 px-1">
           <span>Versi Aplikasi</span>
           <span className="font-mono font-bold text-foreground">Tanabrew v2.4.0 (Stable)</span>
         </div>
-        <div className="flex justify-between text-muted-foreground">
-          <span>Database Engine</span>
+        <div className="flex justify-between text-muted-foreground px-1">
+          <span>Database Realtime</span>
           <span className="font-semibold text-emerald-600 dark:text-emerald-400">Firebase Firestore</span>
-        </div>
-        <div className="flex justify-between text-muted-foreground">
-          <span>Platform Push Notif</span>
-          <span className="font-semibold text-foreground">OneSignal Web SDK v16</span>
         </div>
         <div className="pt-2 text-center text-[10px] text-muted-foreground border-t border-border/40">
           Hak Cipta &copy; 2026 Tanabrew Trademark. Hak Cipta Dilindungi.
@@ -678,13 +648,26 @@ const Akun = () => {
         Keluar dari Akun (Logout)
       </button>
 
-      {/* MODAL EDIT NAMA LENGKAP */}
+      {/* MODAL EDIT NAMA (MODERN BOTTOM SHEET / GLASS) */}
       {showEditNameModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setShowEditNameModal(false)}>
-          <div className="bg-card w-full max-w-sm rounded-2xl p-5 border border-border shadow-xl space-y-4" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in"
+          onClick={() => setShowEditNameModal(false)}
+        >
+          <div
+            className="bg-card w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6 border border-border shadow-2xl space-y-4 animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200"
+            style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-center sm:hidden pb-1">
+              <div className="h-1.5 w-12 rounded-full bg-muted-foreground/30" />
+            </div>
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="text-sm font-bold text-foreground">Ubah Nama Profil</h3>
-              <button onClick={() => setShowEditNameModal(false)} className="p-1 rounded-full text-muted-foreground hover:bg-muted">
+              <button
+                onClick={() => setShowEditNameModal(false)}
+                className="p-1 rounded-full text-muted-foreground hover:bg-muted"
+              >
                 <X size={16} />
               </button>
             </div>
@@ -696,22 +679,22 @@ const Akun = () => {
                   value={nameInput}
                   onChange={(e) => setNameInput(e.target.value)}
                   placeholder="Masukkan nama lengkap"
-                  className="w-full rounded-xl border border-input bg-background p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full rounded-xl border border-input bg-background p-3 text-xs focus:outline-none focus:ring-2 focus:ring-ring shadow-xs"
                   required
                 />
               </div>
-              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border">
+              <div className="grid grid-cols-2 gap-2.5 pt-1 border-t border-border">
                 <button
                   type="button"
                   onClick={() => setShowEditNameModal(false)}
-                  className="rounded-xl bg-muted py-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted/80"
+                  className="rounded-xl bg-muted py-3 text-xs font-semibold text-muted-foreground hover:bg-muted/80"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={savingName || !nameInput.trim()}
-                  className="rounded-xl bg-primary py-2.5 text-xs font-bold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                  className="rounded-xl bg-primary py-3 text-xs font-bold text-primary-foreground hover:opacity-90 disabled:opacity-50 shadow-sm"
                 >
                   {savingName ? "Menyimpan..." : "Simpan Nama"}
                 </button>
@@ -721,16 +704,29 @@ const Akun = () => {
         </div>
       )}
 
-      {/* MODAL GANTI PASSWORD */}
+      {/* MODAL GANTI PASSWORD (MODERN BOTTOM SHEET / GLASS) */}
       {showChangePasswordModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setShowChangePasswordModal(false)}>
-          <div className="bg-card w-full max-w-sm rounded-2xl p-5 border border-border shadow-xl space-y-4" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in"
+          onClick={() => setShowChangePasswordModal(false)}
+        >
+          <div
+            className="bg-card w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6 border border-border shadow-2xl space-y-4 animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200"
+            style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-center sm:hidden pb-1">
+              <div className="h-1.5 w-12 rounded-full bg-muted-foreground/30" />
+            </div>
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2">
                 <KeyRound size={16} className="text-primary" />
                 <h3 className="text-sm font-bold text-foreground">Ubah Kata Sandi</h3>
               </div>
-              <button onClick={() => setShowChangePasswordModal(false)} className="p-1 rounded-full text-muted-foreground hover:bg-muted">
+              <button
+                onClick={() => setShowChangePasswordModal(false)}
+                className="p-1 rounded-full text-muted-foreground hover:bg-muted"
+              >
                 <X size={16} />
               </button>
             </div>
@@ -742,7 +738,7 @@ const Akun = () => {
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   placeholder="Masukkan kata sandi lama"
-                  className="w-full rounded-xl border border-input bg-background p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full rounded-xl border border-input bg-background p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring shadow-xs"
                   required
                 />
               </div>
@@ -753,7 +749,7 @@ const Akun = () => {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Masukkan kata sandi baru"
-                  className="w-full rounded-xl border border-input bg-background p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full rounded-xl border border-input bg-background p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring shadow-xs"
                   required
                 />
               </div>
@@ -764,22 +760,22 @@ const Akun = () => {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Ulangi kata sandi baru"
-                  className="w-full rounded-xl border border-input bg-background p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full rounded-xl border border-input bg-background p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring shadow-xs"
                   required
                 />
               </div>
-              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
+              <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-border">
                 <button
                   type="button"
                   onClick={() => setShowChangePasswordModal(false)}
-                  className="rounded-xl bg-muted py-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted/80"
+                  className="rounded-xl bg-muted py-3 text-xs font-semibold text-muted-foreground hover:bg-muted/80"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={savingPassword || !currentPassword || !newPassword}
-                  className="rounded-xl bg-primary py-2.5 text-xs font-bold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                  className="rounded-xl bg-primary py-3 text-xs font-bold text-primary-foreground hover:opacity-90 disabled:opacity-50 shadow-sm"
                 >
                   {savingPassword ? "Memproses..." : "Ganti Kata Sandi"}
                 </button>

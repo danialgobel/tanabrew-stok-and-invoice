@@ -12,7 +12,7 @@ const formatRole = (role?: string) => {
   const r = role.toLowerCase().trim();
   if (r === "owner") return "Owner";
   if (r === "admin") return "Admin";
-  if (r === "webdev" || r === "godmode") return "Developer (God Mode)";
+  if (r === "webdev" || r === "godmode") return "Developer";
   if (r === "staff") return "Staff";
   return role.charAt(0).toUpperCase() + role.slice(1);
 };

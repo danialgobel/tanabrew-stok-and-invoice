@@ -17,6 +17,7 @@ import Register from "@/pages/Register";
 import NotFound from "@/pages/NotFound";
 import Akun from "@/pages/Akun";
 import GodMode from "@/pages/GodMode";
+import Obrolan from "@/pages/Obrolan";
 import { logoutOneSignalUser, syncOneSignalUserIdentity } from "@/lib/onesignal";
 
 const queryClient = new QueryClient();
@@ -74,6 +75,7 @@ const AppRoutes = () => {
           <Route path="/update-stok" element={<ProtectedPage><UpdateStok /></ProtectedPage>} />
           <Route path="/cetak-invoice" element={<ProtectedPage><CetakInvoice /></ProtectedPage>} />
           <Route path="/riwayat" element={<ProtectedPage><Riwayat /></ProtectedPage>} />
+          <Route path="/obrolan" element={<ProtectedPage><Obrolan /></ProtectedPage>} />
           <Route path="/spreadsheet" element={<ProtectedPage><Spreadsheet /></ProtectedPage>} />
           <Route path="/akun" element={<ProtectedPage><Akun /></ProtectedPage>} />
           <Route path="/god-mode" element={<ProtectedPage><GodMode /></ProtectedPage>} />

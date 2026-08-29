@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Home, Package, FileText, History, Database, User } from "lucide-react";
+import { Home, Package, FileText, History, User, MessageSquare } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { triggerHaptic } from "@/lib/haptics";
@@ -30,20 +30,14 @@ const BottomNav = () => {
     return () => unsubscribe();
   }, []);
 
-  const isStaff = userProfile?.role === "staff";
-
   const tabs = [
     { path: "/", label: "Beranda", icon: Home },
     { path: "/update-stok", label: "Stok", icon: Package },
-    { path: "/cetak-invoice", label: "Kasir", icon: FileText },
+    { path: "/cetak-invoice", label: "Invoice", icon: FileText },
+    { path: "/obrolan", label: "Obrolan", icon: MessageSquare },
     { path: "/riwayat", label: "Riwayat", icon: History, badge: hasUnpaid },
+    { path: "/akun", label: "Akun", icon: User },
   ];
-
-  if (!isStaff) {
-    tabs.push({ path: "/spreadsheet", label: "Finansial", icon: Database, badge: false });
-  }
-
-  tabs.push({ path: "/akun", label: "Akun", icon: User, badge: false });
 
   return (
     <nav

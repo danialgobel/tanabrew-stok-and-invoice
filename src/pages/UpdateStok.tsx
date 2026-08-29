@@ -931,12 +931,18 @@ const UpdateStok = () => {
       />
 
       {showPricelistModal && (
-        <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-foreground/40" onClick={() => setShowPricelistModal(false)}>
+        <div
+          className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in"
+          onClick={() => setShowPricelistModal(false)}
+        >
           <div 
-            className="bg-card w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-5 pb-8 sm:pb-5 max-h-[85vh] overflow-y-auto tanabrew-card-enter flex flex-col" 
+            className="bg-card w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-6 pb-8 sm:pb-6 max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200 flex flex-col shadow-2xl border border-border" 
             style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
             onClick={(e) => e.stopPropagation()}
           >
+            <div className="flex justify-center sm:hidden pb-1 mb-2">
+              <div className="h-1.5 w-12 rounded-full bg-muted-foreground/30" />
+            </div>
             <div className="flex items-center justify-between mb-4 border-b border-border pb-2">
               <h3 className="text-lg font-bold text-primary flex items-center gap-2">
                 {pricelistStep === 2 && (
@@ -1156,16 +1162,26 @@ const UpdateStok = () => {
 
       {/* MODAL TRANSFER STOK ANTAR GUDANG */}
       {showTransferModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setShowTransferModal(false)}>
-          <div className="bg-card w-full max-w-md rounded-2xl p-5 border border-border shadow-xl space-y-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in"
+          onClick={() => setShowTransferModal(false)}
+        >
+          <div
+            className="bg-card w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 border border-border shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200"
+            style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-center sm:hidden pb-1">
+              <div className="h-1.5 w-12 rounded-full bg-muted-foreground/30" />
+            </div>
             <div className="flex items-center justify-between border-b border-border pb-3">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-primary/10 text-primary">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-primary/10 text-primary">
                   <ArrowRightLeft size={18} />
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-foreground">Transfer Stok Gudang</h3>
-                  <p className="text-xs text-muted-foreground">Pindahkan stok antara Jogja dan Lombok</p>
+                  <p className="text-[11px] text-muted-foreground">Pindahkan stok antara Jogja dan Lombok</p>
                 </div>
               </div>
               <button

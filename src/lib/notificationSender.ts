@@ -5,7 +5,8 @@ export type TanabrewNotificationType =
   | "PRINT_INVOICE" 
   | "UPDATE_PAYMENT_STATUS" 
   | "TEST_NOTIFICATION" 
-  | "OWNER_ANNOUNCEMENT";
+  | "OWNER_ANNOUNCEMENT"
+  | "TEAM_CHAT_MESSAGE";
 
 export type TanabrewNotificationRole = "owner" | "admin" | "staff" | "webdev";
 
