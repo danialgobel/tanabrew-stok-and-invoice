@@ -187,16 +187,23 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     if (action === "delete_user") {
       try {
         await db.collection("users").doc(userId).delete();
-        try {
-          const auth = await getAdminAuth();
-          await auth.deleteUser(userId);
-        } catch (authDeleteErr) {
-          console.warn("Delete auth user warning:", authDeleteErr);
-        }
-
         return res.status(200).json({ success: true, message: "User berhasil dihapus." });
       } catch (err: any) {
         return res.status(500).json({ success: false, error: err.message });
+      }
+    }
+
+    if (action === "switch_user" || action === "create_custom_token") {
+      try {
+        const auth = await getAdminAuth();
+        const customToken = await auth.createCustomToken(userId);
+        return res.status(200).json({
+          success: true,
+          customToken,
+          message: "Token otentikasi akun berhasil dibuat."
+        });
+      } catch (err: any) {
+        return res.status(500).json({ success: false, error: err.message || "Gagal membuat custom token." });
       }
     }
 

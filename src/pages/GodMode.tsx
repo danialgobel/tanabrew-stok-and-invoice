@@ -40,6 +40,9 @@ import {
   Search,
   Activity,
   HardDrive,
+  LogIn,
+  UserCheck,
+  Loader2,
 } from "lucide-react";
 
 type CollectionName = "invoices" | "products" | "activity_logs" | "stock_movements" | "users";
@@ -61,7 +64,7 @@ interface IntegrityIssue {
 }
 
 const GodMode = () => {
-  const { currentUser, userProfile } = useAuth();
+  const { currentUser, userProfile, switchUserAccount } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -76,6 +79,7 @@ const GodMode = () => {
   const [usersList, setUsersList] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [updatingUserRole, setUpdatingUserRole] = useState<string | null>(null);
+  const [switchingAccount, setSwitchingAccount] = useState<string | null>(null);
 
   // Edit / JSON Modal State
   const [editingRecord, setEditingRecord] = useState<any | null>(null);
@@ -232,6 +236,29 @@ const GodMode = () => {
       toast({ title: "Error", description: "Gagal memperbarui role", variant: "destructive" });
     } finally {
       setUpdatingUserRole(null);
+    }
+  };
+
+  const handleSwitchAccount = async (targetUser: any) => {
+    setSwitchingAccount(targetUser.id);
+    addLog(`Beralih login ke akun '${targetUser.name || targetUser.email}' (${targetUser.id})...`, "warn");
+    try {
+      await switchUserAccount(targetUser.id);
+      addLog(`Berhasil beralih ke akun '${targetUser.name || targetUser.email}'.`, "success");
+      toast({
+        title: "Beralih Akun Berhasil",
+        description: `Sekarang Anda masuk sebagai ${targetUser.name || targetUser.email}.`,
+      });
+      navigate("/");
+    } catch (err: any) {
+      addLog(`Gagal beralih akun: ${err.message}`, "error");
+      toast({
+        title: "Gagal Beralih Akun",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSwitchingAccount(null);
     }
   };
 
@@ -800,13 +827,30 @@ const GodMode = () => {
                         </button>
                       ))}
                     </div>
-                    <button
-                      onClick={() => setDeleteTarget({ id: user.id, display: user.email || user.name, collection: "users" })}
-                      className="p-1 rounded text-destructive hover:bg-destructive/10 shrink-0"
-                      title="Hapus User"
-                    >
-                      <Trash2 size={13} />
-                    </button>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={() => handleSwitchAccount(user)}
+                        disabled={switchingAccount === user.id || user.id === currentUser?.uid}
+                        className="inline-flex items-center gap-1 rounded-lg bg-purple-600/10 hover:bg-purple-600/20 text-purple-600 dark:text-purple-400 border border-purple-500/20 px-2 py-1 text-[10px] font-bold transition-all disabled:opacity-40"
+                        title="Beralih dan masuk sebagai akun ini"
+                      >
+                        {switchingAccount === user.id ? (
+                          <Loader2 size={11} className="animate-spin" />
+                        ) : (
+                          <LogIn size={11} />
+                        )}
+                        <span>{user.id === currentUser?.uid ? "Akun Saat Ini" : "Masuk sebagai Akun Ini"}</span>
+                      </button>
+
+                      <button
+                        onClick={() => setDeleteTarget({ id: user.id, display: user.email || user.name, collection: "users" })}
+                        className="p-1 rounded text-destructive hover:bg-destructive/10 shrink-0"
+                        title="Hapus User"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))

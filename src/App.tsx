@@ -22,6 +22,9 @@ import { logoutOneSignalUser, syncOneSignalUserIdentity } from "@/lib/onesignal"
 
 const queryClient = new QueryClient();
 
+import { ImpersonationBanner } from "@/components/ImpersonationBanner";
+import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+
 const ProtectedPage = ({ children }: { children: ReactNode }) => (
   <ProtectedRoute>{children}</ProtectedRoute>
 );
@@ -67,6 +70,7 @@ const AppRoutes = () => {
 
   return (
     <>
+      <ImpersonationBanner />
       <div key={location.pathname} className="tanabrew-route-enter">
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -83,6 +87,7 @@ const AppRoutes = () => {
         </Routes>
       </div>
       {showBottomNav && <BottomNav />}
+      <PWAInstallPrompt />
     </>
   );
 };

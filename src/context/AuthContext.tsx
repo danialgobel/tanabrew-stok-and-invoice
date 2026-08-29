@@ -5,6 +5,7 @@ import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
   signInWithEmailAndPassword,
+  signInWithCustomToken,
   signOut,
   updatePassword,
   updateProfile,
@@ -39,6 +40,7 @@ interface AuthContextValue {
   updateDisplayName: (newName: string) => Promise<void>;
   changeUserPassword: (currentPassword: string, newPassword: string) => Promise<void>;
   sendPasswordReset: (email?: string) => Promise<void>;
+  switchUserAccount: (targetUid: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -181,7 +183,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await sendPasswordResetEmail(auth, targetEmail);
   };
 
+  const switchUserAccount = async (targetUid: string) => {
+    if (!currentUser) throw new Error("Harus login terlebih dahulu");
+    const token = await currentUser.getIdToken();
+    const res = await fetch("/api/admin-users", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        action: "switch_user",
+        userId: targetUid,
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.success || !data.customToken) {
+      throw new Error(data.error || "Gagal membuat sesi login akun target");
+    }
+
+    if (userProfile?.role === "webdev" || userProfile?.role === "owner") {
+      localStorage.setItem("tanabrew_original_dev_uid", currentUser.uid);
+      localStorage.setItem("tanabrew_original_dev_name", userProfile.name || "Developer");
+    }
+
+    await signInWithCustomToken(auth, data.customToken);
+  };
+
   const logout = async () => {
+    localStorage.removeItem("tanabrew_original_dev_uid");
+    localStorage.removeItem("tanabrew_original_dev_name");
     await signOut(auth);
   };
 
@@ -197,6 +229,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         updateDisplayName,
         changeUserPassword,
         sendPasswordReset,
+        switchUserAccount,
         logout,
       }}
     >

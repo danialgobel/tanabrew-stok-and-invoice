@@ -69,10 +69,21 @@ const Obrolan = () => {
       if (data.success && data.users) {
         const roleOrder: Record<string, number> = { owner: 4, webdev: 3, admin: 2, staff: 1 };
         const sortedMembers = data.users.sort((a: TeamMember, b: TeamMember) => {
+          // 1. Akun sendiri selalu paling atas
           if (a.uid === currentUser.uid) return -1;
           if (b.uid === currentUser.uid) return 1;
+
+          // 2. Utamakan yang sudah memiliki foto profil
+          const hasPhotoA = Boolean(a.photo_url && a.photo_url.trim().length > 0);
+          const hasPhotoB = Boolean(b.photo_url && b.photo_url.trim().length > 0);
+          if (hasPhotoA && !hasPhotoB) return -1;
+          if (!hasPhotoA && hasPhotoB) return 1;
+
+          // 3. Utamakan yang sedang online
           if (a.is_online && !b.is_online) return -1;
           if (!a.is_online && b.is_online) return 1;
+
+          // 4. Urutkan berdasarkan hierarki role
           return (roleOrder[b.role] || 0) - (roleOrder[a.role] || 0);
         });
         setTeamMembers(sortedMembers);
@@ -299,7 +310,7 @@ const Obrolan = () => {
               className="inline-flex items-center gap-1 rounded-xl border border-border bg-muted/60 px-2 py-1 text-[10px] font-bold text-foreground hover:bg-muted transition-colors"
             >
               <Users size={11} />
-              Daftar Tim
+              Anggota Tim Tanabrew
             </button>
           </div>
         </div>
@@ -308,7 +319,7 @@ const Obrolan = () => {
         <div className="pt-2 border-t border-border/50">
           <div className="flex items-center justify-between mb-1.5">
             <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-              <Users size={10} /> Status Kehadiran Tim
+              <Users size={10} /> Anggota Tim Tanabrew
             </p>
             <span className="text-[9px] text-muted-foreground">Geser &rarr;</span>
           </div>
@@ -490,8 +501,8 @@ const Obrolan = () => {
               <div className="flex items-center gap-2">
                 <Users size={18} className="text-primary" />
                 <div>
-                  <h3 className="text-sm font-bold text-foreground">Daftar Anggota Tim</h3>
-                  <p className="text-[11px] text-muted-foreground">Status kehadiran seluruh staf Tanabrew</p>
+                  <h3 className="text-sm font-bold text-foreground">Anggota Tim Tanabrew</h3>
+                  <p className="text-[11px] text-muted-foreground">Daftar staf & status kehadiran Tanabrew</p>
                 </div>
               </div>
               <button
