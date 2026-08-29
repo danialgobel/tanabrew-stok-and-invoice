@@ -41,6 +41,7 @@ const UpdateStok = () => {
   const { products, loading } = useProducts();
   const { currentUser, userProfile } = useAuth();
   const { toast } = useToast();
+  const isOwner = userProfile?.role === "owner" || userProfile?.role === "webdev";
   const [form, setForm] = useState(emptyForm);
   const [editId, setEditId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -259,6 +260,11 @@ const UpdateStok = () => {
       return;
     }
 
+    if (!isOwner) {
+      toast({ title: "Akses Ditolak", description: "Hanya Owner yang berhak menambah atau mengedit stok produk.", variant: "destructive" });
+      return;
+    }
+
     setSaving(true);
     try {
       const data = {
@@ -366,6 +372,11 @@ const UpdateStok = () => {
   };
 
   const handleEdit = (p: Product) => {
+    if (!isOwner) {
+      toast({ title: "Akses Ditolak", description: "Hanya Owner yang berhak mengedit stok produk.", variant: "destructive" });
+      return;
+    }
+
     setForm({ nama_barang: p.nama_barang, stok_jogja: p.stok_jogja, stok_lombok: p.stok_lombok, harga: p.harga, harga_b2b: p.harga_b2b ?? 0 });
     setEditId(p.id!);
     setEditingProductName(p.nama_barang);
@@ -381,6 +392,11 @@ const UpdateStok = () => {
   const handleDelete = async (p: Product) => {
     if (!currentUser || !userProfile || !p.id) {
       toast({ title: "Error", description: "Data user belum siap, silakan coba lagi", variant: "destructive" });
+      return;
+    }
+
+    if (!isOwner) {
+      toast({ title: "Akses Ditolak", description: "Hanya Owner yang berhak menghapus produk.", variant: "destructive" });
       return;
     }
 
@@ -466,86 +482,94 @@ const UpdateStok = () => {
     <div className="px-4 pb-24 pt-6 max-w-lg mx-auto">
       <h1 className="text-lg font-bold text-primary mb-4">Update Stok</h1>
 
-      <form
-        ref={formRef}
-        onSubmit={handleSubmit}
-        className={`space-y-3 mb-6 bg-card rounded-xl border p-4 transition-colors ${
-          editId ? "tanabrew-edit-form-active border-primary/40 bg-primary/5" : "border-border"
-        } ${highlightEditForm ? "tanabrew-edit-form-highlight" : ""}`}
-      >
-        {editId && (
-          <p className="rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary">
-            Sedang mengedit: {editingProductName || form.nama_barang}
-          </p>
-        )}
-        <input
-          placeholder="Nama Barang"
-          value={form.nama_barang}
-          onChange={(e) => setForm({ ...form, nama_barang: e.target.value })}
-          className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          required
-        />
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Stok Jogja</label>
-            <input
-              type="number"
-              value={form.stok_jogja}
-              onChange={(e) => setForm({ ...form, stok_jogja: Number(e.target.value) })}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Stok Lombok</label>
-            <input
-              type="number"
-              value={form.stok_lombok}
-              onChange={(e) => setForm({ ...form, stok_lombok: Number(e.target.value) })}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Harga Normal</label>
-            <input
-              type="number"
-              value={form.harga}
-              onChange={(e) => setForm({ ...form, harga: Number(e.target.value) })}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Harga B2B</label>
-            <input
-              type="number"
-              value={form.harga_b2b}
-              onChange={(e) => setForm({ ...form, harga_b2b: Number(e.target.value) })}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-        </div>
-        <div className="text-center">
-          <p className="text-xs text-muted-foreground">Total Stok</p>
-          <p className="text-lg font-bold text-primary">{totalStok}</p>
-        </div>
-        <button
-          type="submit"
-          disabled={saving}
-          className="w-full bg-primary text-primary-foreground rounded-lg py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+      {isOwner ? (
+        <form
+          ref={formRef}
+          onSubmit={handleSubmit}
+          className={`space-y-3 mb-6 bg-card rounded-xl border p-4 transition-colors ${
+            editId ? "tanabrew-edit-form-active border-primary/40 bg-primary/5" : "border-border"
+          } ${highlightEditForm ? "tanabrew-edit-form-highlight" : ""}`}
         >
-          {saving ? (editId ? "Menyimpan Perubahan..." : "Menyimpan...") : editId ? "Simpan Perubahan" : "Simpan"}
-        </button>
-        {editId && (
+          {editId && (
+            <p className="rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary">
+              Sedang mengedit: {editingProductName || form.nama_barang}
+            </p>
+          )}
+          <input
+            placeholder="Nama Barang"
+            value={form.nama_barang}
+            onChange={(e) => setForm({ ...form, nama_barang: e.target.value })}
+            className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            required
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Stok Jogja</label>
+              <input
+                type="number"
+                value={form.stok_jogja}
+                onChange={(e) => setForm({ ...form, stok_jogja: Number(e.target.value) })}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Stok Lombok</label>
+              <input
+                type="number"
+                value={form.stok_lombok}
+                onChange={(e) => setForm({ ...form, stok_lombok: Number(e.target.value) })}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Harga Normal</label>
+              <input
+                type="number"
+                value={form.harga}
+                onChange={(e) => setForm({ ...form, harga: Number(e.target.value) })}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Harga B2B</label>
+              <input
+                type="number"
+                value={form.harga_b2b}
+                onChange={(e) => setForm({ ...form, harga_b2b: Number(e.target.value) })}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground">Total Stok</p>
+            <p className="text-lg font-bold text-primary">{totalStok}</p>
+          </div>
           <button
-            type="button"
-            onClick={() => { setForm(emptyForm); setEditId(null); setEditingProductName(""); setHighlightEditForm(false); }}
-            className="w-full bg-muted text-muted-foreground rounded-lg py-2.5 text-sm font-medium"
+            type="submit"
+            disabled={saving}
+            className="w-full bg-primary text-primary-foreground rounded-lg py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            Batal
+            {saving ? (editId ? "Menyimpan Perubahan..." : "Menyimpan...") : editId ? "Simpan Perubahan" : "Simpan"}
           </button>
-        )}
-      </form>
+          {editId && (
+            <button
+              type="button"
+              onClick={() => { setForm(emptyForm); setEditId(null); setEditingProductName(""); setHighlightEditForm(false); }}
+              className="w-full bg-muted text-muted-foreground rounded-lg py-2.5 text-sm font-medium"
+            >
+              Batal
+            </button>
+          )}
+        </form>
+      ) : (
+        <div className="mb-6 rounded-xl border border-border bg-card p-4 text-center">
+          <p className="text-xs font-semibold text-muted-foreground">
+            🔒 Mode Lihat Saja: Hanya akun Owner yang dapat menambah atau mengedit stok & harga produk.
+          </p>
+        </div>
+      )}
 
       <div className="mb-4 rounded-xl border border-border bg-card p-4 space-y-3">
         <div className="flex items-center gap-2 rounded-lg border border-input bg-background px-3 py-2.5">
@@ -661,25 +685,29 @@ const UpdateStok = () => {
                       )}
                     </td>
                     <td className="px-2 py-2 text-center align-middle">
-                      <div className="flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
-                        <button
-                          onClick={() => handleEdit(p)}
-                          className="inline-flex min-h-10 min-w-10 items-center justify-center gap-1 rounded-lg bg-primary/10 px-2.5 py-2 text-xs font-semibold text-primary hover:bg-primary/15 sm:min-h-9 sm:min-w-9 sm:px-2"
-                          aria-label="Edit produk"
-                        >
-                          <Pencil size={18} />
-                          <span className="sm:hidden">Edit</span>
-                        </button>
-                        <button
-                          onClick={() => setPendingDelete(p)}
-                          disabled={deletingId === p.id}
-                          className="inline-flex min-h-10 min-w-10 items-center justify-center gap-1 rounded-lg bg-destructive/10 px-2.5 py-2 text-xs font-semibold text-destructive hover:bg-destructive/15 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-9 sm:min-w-9 sm:px-2"
-                          aria-label={deletingId === p.id ? "Menghapus..." : "Hapus produk"}
-                        >
-                          <Trash2 size={18} />
-                          <span className="sm:hidden">{deletingId === p.id ? "Menghapus..." : "Hapus"}</span>
-                        </button>
-                      </div>
+                      {isOwner ? (
+                        <div className="flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
+                          <button
+                            onClick={() => handleEdit(p)}
+                            className="inline-flex min-h-10 min-w-10 items-center justify-center gap-1 rounded-lg bg-primary/10 px-2.5 py-2 text-xs font-semibold text-primary hover:bg-primary/15 sm:min-h-9 sm:min-w-9 sm:px-2"
+                            aria-label="Edit produk"
+                          >
+                            <Pencil size={18} />
+                            <span className="sm:hidden">Edit</span>
+                          </button>
+                          <button
+                            onClick={() => setPendingDelete(p)}
+                            disabled={deletingId === p.id}
+                            className="inline-flex min-h-10 min-w-10 items-center justify-center gap-1 rounded-lg bg-destructive/10 px-2.5 py-2 text-xs font-semibold text-destructive hover:bg-destructive/15 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-9 sm:min-w-9 sm:px-2"
+                            aria-label={deletingId === p.id ? "Menghapus..." : "Hapus produk"}
+                          >
+                            <Trash2 size={18} />
+                            <span className="sm:hidden">{deletingId === p.id ? "Menghapus..." : "Hapus"}</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground italic">Lihat Saja</span>
+                      )}
                     </td>
                   </tr>
                 ))
