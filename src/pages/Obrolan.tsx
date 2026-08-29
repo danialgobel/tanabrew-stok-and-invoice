@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { db } from "@/lib/firebase";
+import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { triggerHaptic } from "@/lib/haptics";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -48,8 +50,8 @@ const Obrolan = () => {
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Fetch team members and messages from API (Admin SDK powered - bypasses client permission limits)
-  const fetchChatData = useCallback(async (isSilent = false) => {
+  // 1. Fetch team members with active presence
+  const fetchTeamMembers = useCallback(async (isSilent = false) => {
     if (!currentUser) return;
     if (!isSilent) setRefreshing(true);
 
@@ -61,42 +63,72 @@ const Obrolan = () => {
         },
       });
 
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      if (data.success) {
-        // Sort users: current user first, then by role hierarchy
+
+      if (data.success && data.users) {
         const roleOrder: Record<string, number> = { owner: 4, webdev: 3, admin: 2, staff: 1 };
-        const sortedMembers = (data.users || []).sort((a: TeamMember, b: TeamMember) => {
+        const sortedMembers = data.users.sort((a: TeamMember, b: TeamMember) => {
           if (a.uid === currentUser.uid) return -1;
           if (b.uid === currentUser.uid) return 1;
           if (a.is_online && !b.is_online) return -1;
           if (!a.is_online && b.is_online) return 1;
           return (roleOrder[b.role] || 0) - (roleOrder[a.role] || 0);
         });
-
         setTeamMembers(sortedMembers);
-        setMessages(data.messages || []);
+        if (data.messages && data.messages.length > 0) {
+          setMessages(data.messages);
+        }
       }
     } catch (err) {
-      console.warn("Gagal memuat data chat tim:", err);
+      console.warn("Gagal memuat anggota tim:", err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, [currentUser]);
 
-  // Initial load and polling every 5 seconds for fresh messages & active status
+  // 2. Realtime listener for instant messages (0 lag) + presence sync
   useEffect(() => {
-    fetchChatData(false);
-    const interval = setInterval(() => {
-      fetchChatData(true);
-    }, 5000);
+    fetchTeamMembers(false);
 
-    return () => clearInterval(interval);
-  }, [fetchChatData]);
+    // Refresh presence every 25 seconds
+    const presenceInterval = setInterval(() => {
+      fetchTeamMembers(true);
+    }, 25000);
+
+    // Realtime Firestore listener for instant message delivery
+    let unsubSnapshot: (() => void) | null = null;
+    try {
+      const q = query(collection(db, "team_messages"), orderBy("created_at", "asc"), limit(100));
+      unsubSnapshot = onSnapshot(
+        q,
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const msgs: TeamMessage[] = [];
+            snapshot.forEach((doc) => {
+              msgs.push({ id: doc.id, ...doc.data() } as TeamMessage);
+            });
+            setMessages(msgs);
+            setLoading(false);
+            setTimeout(() => {
+              messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            }, 50);
+          }
+        },
+        (err) => {
+          console.warn("Snapshot fallback to API fetch:", err);
+        }
+      );
+    } catch (err) {
+      console.warn("Realtime listener init error:", err);
+    }
+
+    return () => {
+      clearInterval(presenceInterval);
+      if (unsubSnapshot) unsubSnapshot();
+    };
+  }, [fetchTeamMembers]);
 
   // Scroll to bottom on initial message load
   useEffect(() => {

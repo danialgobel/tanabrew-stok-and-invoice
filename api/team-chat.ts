@@ -213,6 +213,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           const proto = getHeader(req, "x-forwarded-proto") || "https";
           const origin = host ? `${proto}://${host}` : "";
 
+          const avatarUrl = (senderPhoto && senderPhoto.startsWith("https://"))
+            ? senderPhoto
+            : `https://ui-avatars.com/api/?name=${encodeURIComponent(senderName)}&background=2E7D32&color=fff&size=192&bold=true`;
+
           await fetch("https://api.onesignal.com/notifications", {
             method: "POST",
             headers: {
@@ -225,7 +229,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
               headings: { en: `[Pesan Tim] ${senderName} (${senderRole.toUpperCase()})` },
               contents: { en: messageText.length > 90 ? `${messageText.slice(0, 90)}...` : messageText },
               url: origin ? `${origin}/obrolan` : "/obrolan",
-              chrome_web_icon: origin ? `${origin}/tanabrew-logo.png` : "/tanabrew-logo.png",
+              chrome_web_icon: avatarUrl,
+              large_icon: avatarUrl,
               included_segments: ["Total Subscriptions"],
               data: { type: "TEAM_CHAT_MESSAGE" },
             }),
