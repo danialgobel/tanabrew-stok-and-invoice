@@ -261,19 +261,19 @@ const Obrolan = () => {
   const onlineCount = teamMembers.filter((m) => m.is_online).length;
 
   return (
-    <div className="mx-auto w-full max-w-lg overflow-x-hidden px-4 pb-36 pt-4 flex flex-col min-h-[calc(100vh-4rem)]">
-      {/* 1. HEADER OBROLAN TIM */}
-      <div className="rounded-3xl border border-border bg-card p-4 shadow-sm space-y-3 mb-3">
+    <div className="mx-auto w-full max-w-lg h-[calc(100dvh-4.25rem)] flex flex-col overflow-hidden px-3.5 pt-3 pb-20">
+      {/* 1. FIXED HEADER & STATUS KEHADIRAN TIM (TIDAK AKAN HILANG SAAT SCROLL) */}
+      <div className="shrink-0 rounded-3xl border border-border bg-card p-3.5 shadow-sm space-y-2.5 mb-2 z-10">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary font-bold border border-primary/20 shrink-0">
-              <MessageSquare size={20} />
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary/10 text-primary font-bold border border-primary/20 shrink-0">
+              <MessageSquare size={18} />
             </div>
             <div>
-              <h1 className="text-sm font-bold text-foreground">Obrolan Tim Tanabrew</h1>
-              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5">
+              <h1 className="text-xs font-bold text-foreground">Obrolan Tim Tanabrew</h1>
+              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
                 <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                   {onlineCount} Online
                 </span>
                 <span>•</span>
@@ -282,38 +282,38 @@ const Obrolan = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             <button
               onClick={() => fetchTeamMembers(false)}
               disabled={refreshing}
-              className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+              className="p-1.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
               title="Perbarui Pesan"
             >
-              <RefreshCw size={14} className={refreshing ? "animate-spin text-primary" : ""} />
+              <RefreshCw size={13} className={refreshing ? "animate-spin text-primary" : ""} />
             </button>
             <button
               onClick={() => {
                 triggerHaptic(10);
                 setShowAllMembersModal(true);
               }}
-              className="inline-flex items-center gap-1 rounded-xl border border-border bg-muted/60 px-2.5 py-1.5 text-[11px] font-bold text-foreground hover:bg-muted transition-colors"
+              className="inline-flex items-center gap-1 rounded-xl border border-border bg-muted/60 px-2 py-1 text-[10px] font-bold text-foreground hover:bg-muted transition-colors"
             >
-              <Users size={12} />
+              <Users size={11} />
               Daftar Tim
             </button>
           </div>
         </div>
 
         {/* 2. ANGGOTA TIM CAROUSEL (DENGAN INDIKATOR STATUS ONLINE/OFFLINE) */}
-        <div className="pt-2.5 border-t border-border/50">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-              <Users size={11} /> Status Kehadiran Tim
+        <div className="pt-2 border-t border-border/50">
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+              <Users size={10} /> Status Kehadiran Tim
             </p>
-            <span className="text-[10px] text-muted-foreground">Geser &rarr;</span>
+            <span className="text-[9px] text-muted-foreground">Geser &rarr;</span>
           </div>
 
-          <div className="flex items-center gap-3 overflow-x-auto pb-1.5 scrollbar-none">
+          <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-none">
             {teamMembers.map((member) => {
               const isMe = member.uid === currentUser?.uid;
               const roleBadge = getRoleBadge(member.role);
@@ -326,11 +326,11 @@ const Obrolan = () => {
                     triggerHaptic(10);
                     setShowAllMembersModal(true);
                   }}
-                  className="flex flex-col items-center gap-1 shrink-0 w-16 text-center cursor-pointer group"
+                  className="flex flex-col items-center gap-1 shrink-0 w-14 text-center cursor-pointer group"
                 >
                   <div className="relative">
                     <div
-                      className={`h-12 w-12 rounded-full overflow-hidden flex items-center justify-center font-bold text-xs shadow-sm transition-transform group-active:scale-95 ${
+                      className={`h-11 w-11 rounded-full overflow-hidden flex items-center justify-center font-bold text-xs shadow-xs transition-transform group-active:scale-95 ${
                         isOnline
                           ? "ring-2 ring-emerald-500 bg-emerald-500/10 text-emerald-600"
                           : "ring-1 ring-border bg-muted/60 text-muted-foreground opacity-75"
@@ -349,17 +349,17 @@ const Obrolan = () => {
 
                     {/* Badge Online / Offline */}
                     <span
-                      className={`absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-card ${
+                      className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-card ${
                         isOnline ? "bg-emerald-500 ring-1 ring-emerald-500/30 animate-pulse" : "bg-muted-foreground/40"
                       }`}
                       title={isOnline ? "Online" : "Offline"}
                     />
                   </div>
 
-                  <span className="text-[10px] font-bold text-foreground truncate w-full leading-tight">
+                  <span className="text-[9px] font-bold text-foreground truncate w-full leading-tight">
                     {isMe ? "Saya" : member.name.split(" ")[0]}
                   </span>
-                  <span className={`text-[8px] font-bold px-1.5 py-0.2 rounded-full border uppercase ${roleBadge.class}`}>
+                  <span className={`text-[7px] font-bold px-1 py-0.1 rounded-full border uppercase ${roleBadge.class}`}>
                     {roleBadge.label}
                   </span>
                 </div>
@@ -369,8 +369,8 @@ const Obrolan = () => {
         </div>
       </div>
 
-      {/* 3. AREA FEED PESAN GRUP (WHATSAPP / TELEGRAM STYLE) */}
-      <div className="flex-1 space-y-3 py-2">
+      {/* 3. AREA FEED PESAN GRUP (HANYA BAGIAN INI YANG SCROLL) */}
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden space-y-3 pr-1 py-2 scroll-smooth">
         {messages.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-border bg-card/60 p-8 text-center space-y-2 my-8 shadow-xs">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">

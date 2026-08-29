@@ -103,8 +103,8 @@ const verifyRequester = async (authorization: string) => {
   const userDoc = await db.collection("users").doc(uid).get();
   const userData = userDoc.exists ? userDoc.data() : null;
 
-  if (!userData || userData.role !== "webdev") {
-    throw new Error("Akses ditolak: Hanya role webdev (God Mode) yang diizinkan.");
+  if (!userData || (userData.role !== "webdev" && userData.role !== "owner")) {
+    throw new Error("Akses ditolak: Hanya role Developer atau Owner yang diizinkan.");
   }
 
   return { uid, userData };

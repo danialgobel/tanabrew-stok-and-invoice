@@ -331,30 +331,30 @@ const GodMode = () => {
     addLog(`Menghapus dokumen '${deleteTarget.id}' dari '${targetCol}'...`, "warn");
     try {
       if (targetCol === "users" && currentUser) {
-        try {
-          const token = await currentUser.getIdToken();
-          const res = await fetch("/api/admin-users", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              action: "delete_user",
-              userId: deleteTarget.id,
-            }),
-          });
-          if (res.ok) {
-            setUsersList((prev) => prev.filter((u) => u.id !== deleteTarget.id));
-            addLog(`User '${deleteTarget.display}' (${deleteTarget.id}) berhasil dihapus (Admin Root).`, "success");
-            toast({ title: "Berhasil", description: "User berhasil dihapus" });
-            setDeleting(false);
-            setDeleteTarget(null);
-            return;
-          }
-        } catch (apiErr) {
-          console.warn("Admin API delete_user fallback", apiErr);
+        const token = await currentUser.getIdToken();
+        const res = await fetch("/api/admin-users", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            action: "delete_user",
+            userId: deleteTarget.id,
+          }),
+        });
+        const resData = await res.json().catch(() => ({}));
+        if (!res.ok || !resData.success) {
+          throw new Error(resData.error || `Gagal menghapus akun: HTTP ${res.status}`);
         }
+
+        setUsersList((prev) => prev.filter((u) => u.id !== deleteTarget.id));
+        addLog(`User '${deleteTarget.display}' (${deleteTarget.id}) berhasil dihapus permanen dari Firebase Auth & Firestore.`, "success");
+        toast({ title: "Berhasil Dihapus", description: `Akun ${deleteTarget.display} telah dihapus permanen.` });
+        setDeleting(false);
+        setDeleteTarget(null);
+        void loadUsers();
+        return;
       }
 
       await deleteDoc(doc(db, targetCol, deleteTarget.id));
