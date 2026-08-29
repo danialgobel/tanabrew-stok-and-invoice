@@ -44,14 +44,14 @@ const Obrolan = () => {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [inputText, setInputText] = useState("");
   const [sending, setSending] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showAllMembersModal, setShowAllMembersModal] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  // 1. Fetch team members with active presence
-  const fetchTeamMembers = useCallback(async (isSilent = false) => {
+  // 1. Fetch team members with active presence (silent background fetch)
+  const fetchTeamMembers = useCallback(async (isSilent = true) => {
     if (!currentUser) return;
     if (!isSilent) setRefreshing(true);
 
@@ -76,26 +76,26 @@ const Obrolan = () => {
           return (roleOrder[b.role] || 0) - (roleOrder[a.role] || 0);
         });
         setTeamMembers(sortedMembers);
-        if (data.messages && data.messages.length > 0) {
+        if (data.messages && data.messages.length > 0 && messages.length === 0) {
           setMessages(data.messages);
         }
       }
     } catch (err) {
       console.warn("Gagal memuat anggota tim:", err);
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
-  }, [currentUser]);
+  }, [currentUser, messages.length]);
 
-  // 2. Realtime listener for instant messages (0 lag) + presence sync
+  // 2. Realtime listener for instant messages (0 lag, 0 delay) + presence sync
   useEffect(() => {
-    fetchTeamMembers(false);
+    // Initial fetch in background
+    fetchTeamMembers(true);
 
-    // Refresh presence every 25 seconds
+    // Refresh presence every 30 seconds
     const presenceInterval = setInterval(() => {
       fetchTeamMembers(true);
-    }, 25000);
+    }, 30000);
 
     // Realtime Firestore listener for instant message delivery
     let unsubSnapshot: (() => void) | null = null;
@@ -110,7 +110,6 @@ const Obrolan = () => {
               msgs.push({ id: doc.id, ...doc.data() } as TeamMessage);
             });
             setMessages(msgs);
-            setLoading(false);
             setTimeout(() => {
               messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
             }, 50);
@@ -132,10 +131,10 @@ const Obrolan = () => {
 
   // Scroll to bottom on initial message load
   useEffect(() => {
-    if (!loading && messages.length > 0) {
+    if (messages.length > 0) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [loading, messages.length]);
+  }, [messages.length]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,8 +178,8 @@ const Obrolan = () => {
       }
 
       triggerHaptic(25);
-      // Refresh to get server timestamps
-      fetchChatData(true);
+      // Refresh presence in background
+      fetchTeamMembers(true);
     } catch (err: any) {
       toast({
         title: "Gagal Mengirim Pesan",
@@ -285,7 +284,7 @@ const Obrolan = () => {
 
           <div className="flex items-center gap-1.5">
             <button
-              onClick={() => fetchChatData(false)}
+              onClick={() => fetchTeamMembers(false)}
               disabled={refreshing}
               className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
               title="Perbarui Pesan"
@@ -372,12 +371,7 @@ const Obrolan = () => {
 
       {/* 3. AREA FEED PESAN GRUP (WHATSAPP / TELEGRAM STYLE) */}
       <div className="flex-1 space-y-3 py-2">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-2">
-            <Loader2 size={26} className="animate-spin text-primary" />
-            <p className="text-xs font-semibold">Menghubungkan ke ruang obrolan tim...</p>
-          </div>
-        ) : messages.length === 0 ? (
+        {messages.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-border bg-card/60 p-8 text-center space-y-2 my-8 shadow-xs">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Sparkles size={22} />
@@ -389,7 +383,10 @@ const Obrolan = () => {
           </div>
         ) : (
           messages.map((msg, index) => {
-            const isMe = msg.sender_uid === currentUser?.uid;
+            const isMe =
+              msg.sender_uid === currentUser?.uid ||
+              (msg.sender_name && userProfile?.name && msg.sender_name === userProfile.name) ||
+              (currentUser?.email && msg.sender_name === currentUser.email.split("@")[0]);
             const roleBadge = getRoleBadge(msg.sender_role);
 
             return (
