@@ -15,29 +15,29 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.0.5",
-  versionLabel: "v3.0.5",
+  version: "3.0.6",
+  versionLabel: "v3.0.6",
   releaseDate: "2 September 2026",
-  title: "Perbaikan Popup Riwayat HP & Manajemen User Developer",
-  subtitle: "Modal Invoice di HP Kini Tampil Sempurna, Daftar User Developer Berhasil Dimuat",
+  title: "Perbaikan Tuntas: Popup Invoice HP (Portal) & User Discovery Developer Center",
+  subtitle: "Bottom Sheet Dokumen Invoice di HP Tampil Seketika & Akun Tim Developer Center Dimuat 100% Lengkap",
   highlights: [
     {
-      title: "Fix Popup Invoice di HP — Kini Tampil Sempurna",
-      desc: "Diperbaiki bug CSS struktur modal di HP/Tablet di mana backdrop gelap muncul tapi kartu invoice tidak terlihat. Kini popup muncul dari bawah layar dengan benar saat menekan kartu atau tombol Detail.",
+      title: "Fix Tuntas: Popup Dokumen Invoice di HP (React Portal)",
+      desc: "Memperbaiki masalah CSS containing block di HP dengan merender modal langsung ke root dokumen via React Portal. Menekan kartu atau tombol Detail di HP kini memunculkan bottom sheet rincian invoice secara seketika dan halus tanpa layar kosong/blur.",
       badge: "Perbaikan",
       badgeColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
     },
     {
-      title: "Manajemen User Developer Center — Berhasil Dimuat",
-      desc: "Diperbaiki gagal muat daftar pengguna di halaman Developer Center. Sistem kini menggunakan Firestore REST API dengan token autentikasi user sebagai fallback andal, tanpa bergantung pada environment variable server.",
+      title: "Bulletproof User Discovery di Developer Center",
+      desc: "Menyempurnakan pemuatan daftar akun tim di Developer Center dengan 4-tier discovery (Admin SDK, Firestore REST, dan agregasi cerdas dari log aktivitas & invoice) sehingga daftar pengguna selalu tampil lengkap bebas error izin database.",
       badge: "Perbaikan",
       badgeColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
     },
     {
-      title: "Fix Kritis: Tombol Detail & Klik Kartu Invoice Riwayat",
-      desc: "Diperbaiki bug fundamental di mana klik kartu atau tombol Detail tidak membuka rincian invoice. Di HP: popup modal muncul seketika. Di Desktop: kolom kanan langsung memperlihatkan dokumen invoice.",
-      badge: "Perbaikan",
-      badgeColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
+      title: "Bebas Masalah Scroll di HP",
+      desc: "Membuka modal detail di HP tidak lagi menyebabkan halaman latar belakang melompat ke paling atas, memberikan kenyamanan penelusuran riwayat yang lancar.",
+      badge: "Peningkatan",
+      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
 
     {

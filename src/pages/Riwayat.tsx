@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   collection,
@@ -310,17 +311,14 @@ const Riwayat = () => {
   const handleSelectInvoice = (invoice: Invoice) => {
     triggerHaptic(8);
     if (isDesktop()) {
-      // Desktop: tampilkan di kolom kanan, scroll ke atas
+      // Desktop: tampilkan di kolom kanan, scroll ke atas jika perlu
       setDesktopSelectedInvoice(invoice);
       if (typeof window !== "undefined") {
         window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
       }
     } else {
-      // Mobile/Tablet: buka popup modal
+      // Mobile/Tablet: buka popup modal bottom-sheet instan tanpa lompat scroll
       setMobileModalInvoice(invoice);
-      if (typeof window !== "undefined") {
-        window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
-      }
     }
   };
   const [paymentTarget, setPaymentTarget] = useState<Invoice | null>(null);
@@ -1532,24 +1530,21 @@ const Riwayat = () => {
         </div>
       )}
 
-      {/* Mobile Popup Modal (only on < 1024px, triggered by card click / Detail button) */}
-      {mobileModalInvoice && (
+      {/* Mobile Popup Modal Portal (rendered directly into document.body to bypass any parent transforms) */}
+      {mobileModalInvoice && typeof document !== "undefined" && createPortal(
         <div
-          className="lg:hidden fixed inset-0 z-[80] bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 overflow-y-auto animate-in fade-in duration-200"
           onClick={() => setMobileModalInvoice(null)}
         >
           <div
-            className="absolute bottom-0 left-0 right-0 flex justify-center"
+            className="relative bg-card w-full max-w-xl rounded-t-3xl sm:rounded-3xl p-5 pb-8 max-h-[88vh] overflow-y-auto shadow-2xl border-t sm:border border-border text-foreground animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200 select-text"
+            style={{ paddingBottom: "calc(3rem + env(safe-area-inset-bottom))" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div 
-              className="bg-card w-full max-w-xl rounded-t-3xl p-5 pb-8 max-h-[88vh] overflow-y-auto shadow-2xl border-t border-x border-border text-foreground"
-              style={{ paddingBottom: "calc(2.5rem + env(safe-area-inset-bottom))" }}
-            >
-              {renderInvoiceDocumentCard(mobileModalInvoice, true)}
-            </div>
+            {renderInvoiceDocumentCard(mobileModalInvoice, true)}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
 

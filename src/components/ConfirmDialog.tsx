@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { triggerHaptic } from "@/lib/haptics";
 import { AlertCircle, AlertTriangle, CheckCircle2 } from "lucide-react";
 
@@ -26,7 +27,7 @@ const ConfirmDialog = ({
 }: ConfirmDialogProps) => {
   if (!open) return null;
 
-  return (
+  const content = (
     <div
       className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4 transition-all duration-300 animate-in fade-in"
       onClick={() => {
@@ -93,6 +94,8 @@ const ConfirmDialog = ({
       </div>
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(content, document.body) : null;
 };
 
 export default ConfirmDialog;

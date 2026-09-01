@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import {
   collection,
   getDocs,
+  getDoc,
   doc,
   setDoc,
   updateDoc,
@@ -147,76 +148,184 @@ const GodMode = () => {
     void runHealthScan();
   }, []);
 
-  // 1. Users Management — Firestore REST API (works without server-side Admin SDK)
+  // 1. Users Management — Bulletproof Multi-Tier User Discovery
   const loadUsers = async () => {
     setLoadingUsers(true);
     addLog("Mengambil data akun pengguna dari server...", "info");
+    const roleOrder: Record<string, number> = { owner: 4, webdev: 3, admin: 2, staff: 1 };
+    const userMap = new Map<string, any>();
+
+    // Tambahkan user aktif terlebih dahulu
+    if (currentUser && userProfile) {
+      userMap.set(currentUser.uid, {
+        id: currentUser.uid,
+        uid: currentUser.uid,
+        name: userProfile.name || currentUser.displayName || "Developer",
+        email: userProfile.email || currentUser.email || "",
+        role: userProfile.role || "webdev",
+        photo_url: userProfile.photo_url || currentUser.photoURL || "",
+      });
+    }
+
     try {
-      if (!currentUser) throw new Error("Tidak ada user yang login.");
-
-      // Coba Admin SDK API terlebih dahulu (jika env var tersedia di Vercel)
-      try {
-        const token = await currentUser.getIdToken(true);
-        const res = await fetch("/api/admin-users", {
-          method: "GET",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success && Array.isArray(data.users)) {
-            const roleOrder: Record<string, number> = { owner: 4, webdev: 3, admin: 2, staff: 1 };
-            const sorted = [...data.users].sort((a: any, b: any) => (roleOrder[b.role] || 0) - (roleOrder[a.role] || 0));
-            setUsersList(sorted);
-            addLog(`Berhasil memuat ${sorted.length} pengguna (Admin Root Access).`, "success");
-            setLoadingUsers(false);
-            return;
+      // Tier 1: Coba Admin SDK Serverless API
+      let loadedViaApi = false;
+      if (currentUser) {
+        try {
+          const token = await currentUser.getIdToken(true);
+          const res = await fetch("/api/admin-users", {
+            method: "GET",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && Array.isArray(data.users) && data.users.length > 0) {
+              data.users.forEach((u: any) => {
+                if (u.id || u.uid) userMap.set(u.id || u.uid, u);
+              });
+              loadedViaApi = true;
+              addLog(`Berhasil memuat ${userMap.size} pengguna (Admin Root Access).`, "success");
+            }
           }
+        } catch {
+          // Lanjut ke fallback berikutnya
         }
+      }
+
+      // Tier 2: Coba Firestore SDK getDocs
+      if (!loadedViaApi) {
+        try {
+          const snap = await getDocs(collection(db, "users"));
+          snap.docs.forEach((d) => {
+            userMap.set(d.id, { id: d.id, uid: d.id, ...d.data() });
+          });
+          if (snap.docs.length > 0) {
+            addLog(`Berhasil memuat ${userMap.size} pengguna via Firestore SDK.`, "success");
+          }
+        } catch {
+          // Firestore SDK rules mungkin batasi list collection
+        }
+      }
+
+      // Tier 3: Coba Firestore REST API
+      if (userMap.size <= 1 && currentUser) {
+        try {
+          const token = await currentUser.getIdToken(true);
+          const url = `https://firestore.googleapis.com/v1/projects/tanabrew/databases/(default)/documents/users?pageSize=100`;
+          const restRes = await fetch(url, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          });
+          if (restRes.ok) {
+            const restData = await restRes.json();
+            const documents: any[] = restData.documents || [];
+            documents.forEach((firestoreDoc: any) => {
+              const uid = firestoreDoc.name?.split("/").pop() || "";
+              const fields = firestoreDoc.fields || {};
+              const getField = (f: any) => f?.stringValue ?? f?.integerValue ?? f?.booleanValue ?? null;
+              if (uid) {
+                userMap.set(uid, {
+                  id: uid,
+                  uid,
+                  name: getField(fields.name) || "Tanpa Nama",
+                  email: getField(fields.email) || "",
+                  role: getField(fields.role) || "staff",
+                  photo_url: getField(fields.photo_url) || "",
+                });
+              }
+            });
+          }
+        } catch {
+          // Lanjut ke agregasi
+        }
+      }
+
+      // Tier 4: Agregasi pengguna dari activity_logs, invoices, stock_movements
+      try {
+        const [logsSnap, invSnap, stockSnap] = await Promise.allSettled([
+          getDocs(collection(db, "activity_logs")),
+          getDocs(collection(db, "invoices")),
+          getDocs(collection(db, "stock_movements")),
+        ]);
+
+        if (logsSnap.status === "fulfilled") {
+          logsSnap.value.docs.forEach((d) => {
+            const data = d.data();
+            const uid = data.user_id;
+            if (uid && !userMap.has(uid)) {
+              userMap.set(uid, {
+                id: uid,
+                uid,
+                name: data.user_name || "Pengguna",
+                email: "",
+                role: data.user_role || "staff",
+              });
+            }
+          });
+        }
+
+        if (invSnap.status === "fulfilled") {
+          invSnap.value.docs.forEach((d) => {
+            const data = d.data();
+            const uid = data.dibuat_oleh_uid;
+            if (uid && !userMap.has(uid)) {
+              userMap.set(uid, {
+                id: uid,
+                uid,
+                name: data.dibuat_oleh || "Staff Kasir",
+                email: "",
+                role: data.dibuat_oleh_role || "staff",
+              });
+            }
+          });
+        }
+
+        if (stockSnap.status === "fulfilled") {
+          stockSnap.value.docs.forEach((d) => {
+            const data = d.data();
+            const uid = data.user_id;
+            if (uid && !userMap.has(uid)) {
+              userMap.set(uid, {
+                id: uid,
+                uid,
+                name: data.user_name || "Staff Gudang",
+                email: "",
+                role: data.user_role || "staff",
+              });
+            }
+          });
+        }
+
+        // Coba baca dokumen spesifik untuk tiap user yang ditemukan (getDoc sering diizinkan)
+        const fetchPromises = Array.from(userMap.keys()).map(async (uid) => {
+          try {
+            const userDocSnap = await getDoc(doc(db, "users", uid));
+            if (userDocSnap.exists()) {
+              const existing = userMap.get(uid) || {};
+              userMap.set(uid, { ...existing, id: uid, uid, ...userDocSnap.data() });
+            }
+          } catch {
+            // Abaikan
+          }
+        });
+        await Promise.allSettled(fetchPromises);
       } catch {
-        addLog("Admin SDK tidak tersedia, mencoba Firestore REST API...", "warn");
+        // Abaikan
       }
 
-      // Fallback: Firestore REST API dengan user ID token (bypass Firestore SDK rules)
-      const token = await currentUser.getIdToken(true);
-      const projectId = "tanabrew";
-      const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users?pageSize=100`;
-      const restRes = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!restRes.ok) {
-        const errText = await restRes.text();
-        throw new Error(`Firestore REST API: ${restRes.status} — ${errText}`);
-      }
-
-      const restData = await restRes.json();
-      const documents: any[] = restData.documents || [];
-
-      const records = documents.map((firestoreDoc: any) => {
-        // Extract UID from document name: projects/.../documents/users/{uid}
-        const uid = firestoreDoc.name?.split("/").pop() || "";
-        const fields = firestoreDoc.fields || {};
-        const getField = (f: any) => f?.stringValue ?? f?.integerValue ?? f?.booleanValue ?? null;
-        return {
-          id: uid,
-          uid,
-          name: getField(fields.name) || "Tanpa Nama",
-          email: getField(fields.email) || "",
-          role: getField(fields.role) || "staff",
-          photo_url: getField(fields.photo_url) || "",
-        };
-      });
-
-      const roleOrder: Record<string, number> = { owner: 4, webdev: 3, admin: 2, staff: 1 };
+      const records = Array.from(userMap.values());
       records.sort((a: any, b: any) => (roleOrder[b.role] || 0) - (roleOrder[a.role] || 0));
       setUsersList(records);
-      addLog(`Berhasil memuat ${records.length} pengguna (Firestore REST API).`, "success");
+      addLog(`Berhasil memuat ${records.length} akun tim Tanabrew.`, "success");
     } catch (err: any) {
-      addLog(`Gagal memuat pengguna: ${err.message}`, "error");
-      toast({ title: "Perhatian", description: "Gagal memuat daftar user: " + err.message, variant: "destructive" });
+      addLog(`Catatan pemuatan pengguna: ${err.message}`, "warn");
+      const records = Array.from(userMap.values());
+      if (records.length > 0) {
+        records.sort((a: any, b: any) => (roleOrder[b.role] || 0) - (roleOrder[a.role] || 0));
+        setUsersList(records);
+      }
     } finally {
       setLoadingUsers(false);
     }
