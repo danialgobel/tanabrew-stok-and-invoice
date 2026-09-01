@@ -1512,11 +1512,14 @@ const Riwayat = () => {
         </div>
       )}
 
-      {/* Mobile Pop-up Modal (Hidden on Desktop) */}
+      {/* Detail Pop-up Modal (Mobile & Desktop) */}
       {selectedInvoice && (
-        <div className="lg:hidden fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-foreground/40" onClick={() => setSelectedInvoice(null)}>
+        <div
+          className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 overflow-y-auto animate-in fade-in"
+          onClick={() => setSelectedInvoice(null)}
+        >
           <div 
-            className="bg-card w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-5 pb-12 sm:pb-5 max-h-[85vh] overflow-y-auto tanabrew-card-enter" 
+            className="bg-card w-full max-w-xl rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 pb-12 sm:pb-6 max-h-[88vh] overflow-y-auto shadow-2xl border border-border animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200 text-foreground" 
             style={{ paddingBottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}
             onClick={(e) => e.stopPropagation()}
           >

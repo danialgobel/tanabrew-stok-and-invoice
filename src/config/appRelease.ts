@@ -15,27 +15,27 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.0.2",
-  versionLabel: "v3.0.2",
+  version: "3.0.3",
+  versionLabel: "v3.0.3",
   releaseDate: "2 September 2026",
-  title: "Akses Penuh Role Developer, Auto-Scroll Detail Riwayat & Manajemen User",
-  subtitle: "Pemulihan Hak Cetak Developer, Klik Kartu & Detail Otomatis Scroll ke Atas, dan Pengelolaan User God Mode",
+  title: "Penyempurnaan Modal Detail Invoice, Manajemen Developer & Branding Desktop",
+  subtitle: "Pop-up Detail Universal Semua Device, Manajemen Akun Root, Pembersihan POS/Specialty & 5-Tap Logo Trigger",
   highlights: [
     {
-      title: "Hak Cetak Penuh untuk Role Developer",
-      desc: "Role Developer (webdev) kini memiliki hak akses penuh untuk mencetak invoice di halaman Cetak Invoice maupun cetak ulang di Riwayat.",
-      badge: "Perbaikan",
-      badgeColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
-    },
-    {
-      title: "Klik Kartu Invoice & Detail Auto-Scroll",
-      desc: "Menekan kartu invoice atau tombol Detail pada Riwayat kini secara instan memilih invoice dan menggulir (scroll) layar ke atas untuk menampilkan rincian dokumen lengkap.",
+      title: "Modal Detail Invoice Universal (Desktop & HP)",
+      desc: "Menekan tombol Detail atau kartu invoice pada Riwayat kini secara instan membuka pop-up dokumen resmi lengkap di Desktop maupun HP serta otomatis scroll ke atas.",
       badge: "Peningkatan",
       badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
     {
-      title: "Stabilitas Manajemen Pengguna God Mode",
-      desc: "Memuat daftar user dan mengubah role pengguna (Staff, Admin, Owner, Dev) terhubung langsung ke database utama dengan cepat dan aman.",
+      title: "Manajemen Akun Developer Root Access",
+      desc: "Memuat daftar user dan mengubah role pengguna (Staff, Admin, Owner, Dev) menggunakan Admin SDK Serverless sehingga bebas dari kendala izin database.",
+      badge: "Perbaikan",
+      badgeColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
+    },
+    {
+      title: "Pembersihan Branding Desktop & Logo 5x Tap",
+      desc: "Menghapus kata POS dan kata Specialty di sidebar desktop, mengubah nama menu menjadi Developer, serta mengaktifkan fitur rahasia 5x ketuk logo di Desktop.",
       badge: "Peningkatan",
       badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },

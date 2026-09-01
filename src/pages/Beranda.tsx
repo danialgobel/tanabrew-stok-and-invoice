@@ -131,6 +131,14 @@ const Beranda = () => {
       return next;
     });
   };
+
+  useEffect(() => {
+    const handleOpenPricelist = () => {
+      setShowPriceListModal(true);
+    };
+    window.addEventListener("tanabrew:open-pricelist-modal", handleOpenPricelist);
+    return () => window.removeEventListener("tanabrew:open-pricelist-modal", handleOpenPricelist);
+  }, []);
   const profileDismissedActivityIds = useMemo(
     () => (Array.isArray(userProfile?.dismissed_activity_ids) ? userProfile.dismissed_activity_ids : []),
     [userProfile?.dismissed_activity_ids],

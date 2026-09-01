@@ -150,8 +150,33 @@ const GodMode = () => {
   // 1. Users Management
   const loadUsers = async () => {
     setLoadingUsers(true);
-    addLog("Mengambil data akun pengguna dari database...", "info");
+    addLog("Mengambil data akun pengguna dari server...", "info");
     try {
+      if (currentUser) {
+        try {
+          const token = await currentUser.getIdToken();
+          const res = await fetch("/api/admin-users", {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && Array.isArray(data.users)) {
+              const roleOrder: Record<string, number> = { owner: 4, webdev: 3, admin: 2, staff: 1 };
+              const sorted = [...data.users].sort((a: any, b: any) => (roleOrder[b.role] || 0) - (roleOrder[a.role] || 0));
+              setUsersList(sorted);
+              addLog(`Berhasil memuat ${sorted.length} pengguna (Admin Root Access).`, "success");
+              setLoadingUsers(false);
+              return;
+            }
+          }
+        } catch (apiErr) {
+          console.warn("Admin API fallback to client Firestore", apiErr);
+        }
+      }
+
       const snap = await getDocs(collection(db, "users"));
       const records = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       const roleOrder: Record<string, number> = { owner: 4, webdev: 3, admin: 2, staff: 1 };
@@ -160,7 +185,7 @@ const GodMode = () => {
       addLog(`Berhasil memuat ${records.length} pengguna terdaftar.`, "success");
     } catch (err: any) {
       addLog(`Gagal memuat pengguna: ${err.message}`, "error");
-      toast({ title: "Error", description: "Gagal memuat daftar user: " + err.message, variant: "destructive" });
+      toast({ title: "Perhatian", description: "Gagal memuat daftar user: " + err.message, variant: "destructive" });
     } finally {
       setLoadingUsers(false);
     }
@@ -170,19 +195,11 @@ const GodMode = () => {
     setUpdatingUserRole(userId);
     addLog(`Mengubah role user '${userName}' (${userId}) menjadi '${newRole}'...`, "warn");
     try {
-      await updateDoc(doc(db, "users", userId), {
-        role: newRole,
-        updated_at: serverTimestamp(),
-      });
-      setUsersList((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
-      );
-      addLog(`Role '${userName}' berhasil diubah ke '${newRole}'.`, "success");
-      toast({ title: "Berhasil", description: `Role ${userName} diubah ke ${newRole.toUpperCase()}` });
-
+      let apiSuccess = false;
       if (currentUser) {
-        void currentUser.getIdToken().then((token) => {
-          fetch("/api/admin-users", {
+        try {
+          const token = await currentUser.getIdToken();
+          const res = await fetch("/api/admin-users", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -193,9 +210,30 @@ const GodMode = () => {
               userId,
               newRole,
             }),
-          }).catch(() => {});
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success) {
+              apiSuccess = true;
+            }
+          }
+        } catch (apiErr) {
+          console.warn("API update_role error, falling back to client write", apiErr);
+        }
+      }
+
+      if (!apiSuccess) {
+        await updateDoc(doc(db, "users", userId), {
+          role: newRole,
+          updated_at: serverTimestamp(),
         });
       }
+
+      setUsersList((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
+      );
+      addLog(`Role '${userName}' berhasil diubah ke '${newRole}'.`, "success");
+      toast({ title: "Berhasil", description: `Role ${userName} diubah ke ${newRole.toUpperCase()}` });
     } catch (err: any) {
       addLog(`Gagal mengubah role: ${err.message}`, "error");
       toast({ title: "Error", description: "Gagal memperbarui role: " + err.message, variant: "destructive" });
@@ -658,7 +696,7 @@ const GodMode = () => {
         </div>
         <h2 className="text-lg font-bold text-foreground">Akses Terbatas</h2>
         <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-          Halaman God Mode khusus ditujukan bagi Owner dan Developer Tanabrew.
+          Halaman Developer khusus ditujukan bagi Owner dan Developer Tanabrew.
         </p>
         <button
           type="button"
@@ -682,7 +720,7 @@ const GodMode = () => {
             </div>
             <div>
               <h1 className="text-base font-bold text-primary">
-                God Mode (Dev Center)
+                Developer Center
               </h1>
               <p className="text-xs text-muted-foreground">
                 Pusat Kendali & Pemeliharaan Tanabrew

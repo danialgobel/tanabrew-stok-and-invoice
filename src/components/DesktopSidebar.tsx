@@ -113,7 +113,7 @@ export const DesktopSidebar = ({ onSecretLogoClick }: DesktopSidebarProps) => {
     { path: "/obrolan", label: "Obrolan Tim", icon: MessageSquare, desc: "Pesan & Koordinasi" },
     { path: "/akun", label: "Akun Saya", icon: User, desc: "Profil & Pengaturan" },
     ...(isOwnerOrDev
-      ? [{ path: "/god-mode", label: "God Mode", icon: ShieldAlert, desc: "Akses Super Admin" }]
+      ? [{ path: "/god-mode", label: "Developer", icon: ShieldAlert, desc: "Akses Developer" }]
       : []),
   ];
 
@@ -165,11 +165,8 @@ export const DesktopSidebar = ({ onSecretLogoClick }: DesktopSidebarProps) => {
                 >
                   Tanabrew
                 </h1>
-                <span className="rounded-md bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold text-primary">
-                  POS
-                </span>
               </div>
-              <p className="text-[11px] font-medium text-muted-foreground truncate">Trademark Specialty</p>
+              <p className="text-[11px] font-medium text-muted-foreground truncate">Trademark</p>
             </div>
           )}
         </div>
