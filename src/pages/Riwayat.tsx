@@ -1532,21 +1532,26 @@ const Riwayat = () => {
         </div>
       )}
 
-      {/* Mobile Popup Modal (hidden on lg: screens, triggered on card click / Detail button) */}
+      {/* Mobile Popup Modal (only on < 1024px, triggered by card click / Detail button) */}
       {mobileModalInvoice && (
         <div
-          className="lg:hidden fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 overflow-y-auto animate-in fade-in duration-200"
+          className="lg:hidden fixed inset-0 z-[80] bg-black/60 backdrop-blur-sm"
           onClick={() => setMobileModalInvoice(null)}
         >
-          <div 
-            className="bg-card w-full max-w-xl rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 pb-12 sm:pb-6 max-h-[88vh] overflow-y-auto shadow-2xl border border-border animate-in slide-in-from-bottom-6 duration-200 text-foreground" 
-            style={{ paddingBottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}
+          <div
+            className="absolute bottom-0 left-0 right-0 flex justify-center"
             onClick={(e) => e.stopPropagation()}
           >
-            {renderInvoiceDocumentCard(mobileModalInvoice, true)}
+            <div 
+              className="bg-card w-full max-w-xl rounded-t-3xl p-5 pb-8 max-h-[88vh] overflow-y-auto shadow-2xl border-t border-x border-border text-foreground"
+              style={{ paddingBottom: "calc(2.5rem + env(safe-area-inset-bottom))" }}
+            >
+              {renderInvoiceDocumentCard(mobileModalInvoice, true)}
+            </div>
           </div>
         </div>
       )}
+
 
       {activeTab === "stok" && (
         <div key="stok" className="tanabrew-tab-panel space-y-3">

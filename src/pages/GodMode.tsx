@@ -147,42 +147,73 @@ const GodMode = () => {
     void runHealthScan();
   }, []);
 
-  // 1. Users Management
+  // 1. Users Management — Firestore REST API (works without server-side Admin SDK)
   const loadUsers = async () => {
     setLoadingUsers(true);
     addLog("Mengambil data akun pengguna dari server...", "info");
     try {
-      if (currentUser) {
-        try {
-          const token = await currentUser.getIdToken();
-          const res = await fetch("/api/admin-users", {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.success && Array.isArray(data.users)) {
-              const roleOrder: Record<string, number> = { owner: 4, webdev: 3, admin: 2, staff: 1 };
-              const sorted = [...data.users].sort((a: any, b: any) => (roleOrder[b.role] || 0) - (roleOrder[a.role] || 0));
-              setUsersList(sorted);
-              addLog(`Berhasil memuat ${sorted.length} pengguna (Admin Root Access).`, "success");
-              setLoadingUsers(false);
-              return;
-            }
+      if (!currentUser) throw new Error("Tidak ada user yang login.");
+
+      // Coba Admin SDK API terlebih dahulu (jika env var tersedia di Vercel)
+      try {
+        const token = await currentUser.getIdToken(true);
+        const res = await fetch("/api/admin-users", {
+          method: "GET",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.users)) {
+            const roleOrder: Record<string, number> = { owner: 4, webdev: 3, admin: 2, staff: 1 };
+            const sorted = [...data.users].sort((a: any, b: any) => (roleOrder[b.role] || 0) - (roleOrder[a.role] || 0));
+            setUsersList(sorted);
+            addLog(`Berhasil memuat ${sorted.length} pengguna (Admin Root Access).`, "success");
+            setLoadingUsers(false);
+            return;
           }
-        } catch (apiErr) {
-          console.warn("Admin API fallback to client Firestore", apiErr);
         }
+      } catch {
+        addLog("Admin SDK tidak tersedia, mencoba Firestore REST API...", "warn");
       }
 
-      const snap = await getDocs(collection(db, "users"));
-      const records = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      // Fallback: Firestore REST API dengan user ID token (bypass Firestore SDK rules)
+      const token = await currentUser.getIdToken(true);
+      const projectId = "tanabrew";
+      const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users?pageSize=100`;
+      const restRes = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!restRes.ok) {
+        const errText = await restRes.text();
+        throw new Error(`Firestore REST API: ${restRes.status} — ${errText}`);
+      }
+
+      const restData = await restRes.json();
+      const documents: any[] = restData.documents || [];
+
+      const records = documents.map((firestoreDoc: any) => {
+        // Extract UID from document name: projects/.../documents/users/{uid}
+        const uid = firestoreDoc.name?.split("/").pop() || "";
+        const fields = firestoreDoc.fields || {};
+        const getField = (f: any) => f?.stringValue ?? f?.integerValue ?? f?.booleanValue ?? null;
+        return {
+          id: uid,
+          uid,
+          name: getField(fields.name) || "Tanpa Nama",
+          email: getField(fields.email) || "",
+          role: getField(fields.role) || "staff",
+          photo_url: getField(fields.photo_url) || "",
+        };
+      });
+
       const roleOrder: Record<string, number> = { owner: 4, webdev: 3, admin: 2, staff: 1 };
       records.sort((a: any, b: any) => (roleOrder[b.role] || 0) - (roleOrder[a.role] || 0));
       setUsersList(records);
-      addLog(`Berhasil memuat ${records.length} pengguna terdaftar.`, "success");
+      addLog(`Berhasil memuat ${records.length} pengguna (Firestore REST API).`, "success");
     } catch (err: any) {
       addLog(`Gagal memuat pengguna: ${err.message}`, "error");
       toast({ title: "Perhatian", description: "Gagal memuat daftar user: " + err.message, variant: "destructive" });
@@ -191,42 +222,68 @@ const GodMode = () => {
     }
   };
 
+
   const handleChangeRole = async (userId: string, newRole: string, userName: string) => {
     setUpdatingUserRole(userId);
     addLog(`Mengubah role user '${userName}' (${userId}) menjadi '${newRole}'...`, "warn");
     try {
-      let apiSuccess = false;
-      if (currentUser) {
+      if (!currentUser) throw new Error("Tidak ada user yang login.");
+
+      // Coba Admin SDK API terlebih dahulu
+      let updated = false;
+      try {
+        const token = await currentUser.getIdToken(true);
+        const res = await fetch("/api/admin-users", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ action: "update_role", userId, newRole }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) updated = true;
+        }
+      } catch {
+        addLog("Admin SDK tidak tersedia, mencoba Firestore SDK...", "warn");
+      }
+
+      // Fallback 1: Firestore SDK client updateDoc
+      if (!updated) {
         try {
-          const token = await currentUser.getIdToken();
-          const res = await fetch("/api/admin-users", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              action: "update_role",
-              userId,
-              newRole,
-            }),
+          await updateDoc(doc(db, "users", userId), {
+            role: newRole,
+            updated_at: serverTimestamp(),
           });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.success) {
-              apiSuccess = true;
-            }
-          }
-        } catch (apiErr) {
-          console.warn("API update_role error, falling back to client write", apiErr);
+          updated = true;
+        } catch {
+          addLog("Firestore SDK gagal, mencoba Firestore REST API...", "warn");
         }
       }
 
-      if (!apiSuccess) {
-        await updateDoc(doc(db, "users", userId), {
-          role: newRole,
-          updated_at: serverTimestamp(),
+      // Fallback 2: Firestore REST API PATCH dengan user ID token
+      if (!updated) {
+        const token = await currentUser.getIdToken(true);
+        const projectId = "tanabrew";
+        const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${userId}?updateMask.fieldPaths=role`;
+        const patchRes = await fetch(url, {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fields: {
+              role: { stringValue: newRole },
+            },
+          }),
         });
+        if (!patchRes.ok) {
+          const errText = await patchRes.text();
+          throw new Error(`Firestore REST PATCH: ${patchRes.status} — ${errText}`);
+        }
+        updated = true;
       }
 
       setUsersList((prev) =>
@@ -241,6 +298,7 @@ const GodMode = () => {
       setUpdatingUserRole(null);
     }
   };
+
 
   const handleSwitchAccount = async (targetUser: any) => {
     setSwitchingAccount(targetUser.id);

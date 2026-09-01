@@ -15,29 +15,29 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.0.4",
-  versionLabel: "v3.0.4",
+  version: "3.0.5",
+  versionLabel: "v3.0.5",
   releaseDate: "2 September 2026",
-  title: "Perbaikan Fundamental Riwayat, 5-Tap Logo Global & Optimasi Performa",
-  subtitle: "Tombol Detail & Klik Kartu Invoice Kini Berfungsi, 5x Ketuk Logo di Semua Halaman, Transisi Tab Instan Tanpa Lag",
+  title: "Perbaikan Popup Riwayat HP & Manajemen User Developer",
+  subtitle: "Modal Invoice di HP Kini Tampil Sempurna, Daftar User Developer Berhasil Dimuat",
   highlights: [
     {
+      title: "Fix Popup Invoice di HP — Kini Tampil Sempurna",
+      desc: "Diperbaiki bug CSS struktur modal di HP/Tablet di mana backdrop gelap muncul tapi kartu invoice tidak terlihat. Kini popup muncul dari bawah layar dengan benar saat menekan kartu atau tombol Detail.",
+      badge: "Perbaikan",
+      badgeColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
+    },
+    {
+      title: "Manajemen User Developer Center — Berhasil Dimuat",
+      desc: "Diperbaiki gagal muat daftar pengguna di halaman Developer Center. Sistem kini menggunakan Firestore REST API dengan token autentikasi user sebagai fallback andal, tanpa bergantung pada environment variable server.",
+      badge: "Perbaikan",
+      badgeColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
+    },
+    {
       title: "Fix Kritis: Tombol Detail & Klik Kartu Invoice Riwayat",
-      desc: "Diperbaiki bug fundamental di mana klik kartu atau tombol Detail tidak membuka rincian invoice. Di HP: popup modal muncul seketika. Di Desktop: kolom kanan langsung memperlihatkan dokumen invoice yang dipilih.",
+      desc: "Diperbaiki bug fundamental di mana klik kartu atau tombol Detail tidak membuka rincian invoice. Di HP: popup modal muncul seketika. Di Desktop: kolom kanan langsung memperlihatkan dokumen invoice.",
       badge: "Perbaikan",
       badgeColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
-    },
-    {
-      title: "5x Ketuk Logo Kini Bekerja di Semua Halaman",
-      desc: "Fitur rahasia Price List Manager yang dipicu dengan 5 ketukan logo Tanabrew kini aktif secara global — dapat diakses dari halaman manapun (Beranda, Riwayat, Akun, dll) baik di HP maupun Desktop.",
-      badge: "Perbaikan",
-      badgeColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
-    },
-    {
-      title: "Transisi Antar Tab Instan & Tanpa Lag",
-      desc: "Menghilangkan efek blur GPU-intensif dari animasi perpindahan halaman/tab yang menjadi penyebab utama stuttering/lag. Kini transisi terasa instan dan halus dengan durasi dipercepat 2x.",
-      badge: "Peningkatan",
-      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
 
     {
