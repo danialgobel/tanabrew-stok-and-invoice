@@ -18,6 +18,7 @@ import {
 import { Activity, Download, Edit, Eye, FileText, Package, Printer, RotateCcw, Search, Trash2, X, Smartphone, Receipt } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { addActivityLog } from "@/lib/activityLog";
+import { triggerHaptic } from "@/lib/haptics";
 import AnimatedNotification from "@/components/AnimatedNotification";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import PullToRefresh from "@/components/PullToRefresh";
@@ -294,6 +295,7 @@ const Riwayat = () => {
   const [hasMoreInvoices, setHasMoreInvoices] = useState(false);
   const [invoiceCursor, setInvoiceCursor] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [loadingLogs, setLoadingLogs] = useState(true);
+  const [loadingStockMovements, setLoadingStockMovements] = useState(true);
   // Desktop: klik kartu → update kolom kanan (tidak buka modal)
   const [desktopSelectedInvoice, setDesktopSelectedInvoice] = useState<Invoice | null>(null);
   // Mobile: klik kartu/Detail → buka popup modal
