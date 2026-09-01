@@ -15,7 +15,7 @@ import {
   type DocumentData,
   type QueryDocumentSnapshot,
 } from "firebase/firestore";
-import { Activity, Download, Edit, Eye, FileText, Package, Printer, RotateCcw, Search, Trash2, X, Smartphone } from "lucide-react";
+import { Activity, Download, Edit, Eye, FileText, Package, Printer, RotateCcw, Search, Trash2, X, Smartphone, Receipt } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { addActivityLog } from "@/lib/activityLog";
 import AnimatedNotification from "@/components/AnimatedNotification";
@@ -956,11 +956,158 @@ const Riwayat = () => {
       </tr>
     ));
 
+  const activeSelectedInvoice = selectedInvoice || (filteredInvoices.length > 0 ? filteredInvoices[0] : null);
+
+  const renderInvoiceDocumentCard = (invoice: Invoice, showClose = false) => (
+    <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-sm space-y-4">
+      <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="flex items-center gap-2">
+          <Receipt size={18} className="text-primary" />
+          <h2 className="text-sm font-bold text-foreground">Detail Dokumen Faktur</h2>
+        </div>
+        {showClose && (
+          <button 
+            type="button"
+            onClick={() => setSelectedInvoice(null)} 
+            className="p-1 rounded-full hover:bg-muted text-muted-foreground transition-colors cursor-pointer"
+          >
+            <X size={18} />
+          </button>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-border/80 p-4 bg-background/60">
+        <div className="flex justify-between items-start gap-3 mb-4">
+          <img
+            src="https://i.ibb.co.com/Q7dCXq9q/logo-tanabrew-hijau.png"
+            alt="Tanabrew"
+            style={{ width: 120, height: "auto" }}
+          />
+          <div className="text-right space-y-1 text-xs">
+            <p><span className="text-muted-foreground">No Invoice:</span> <span className="font-mono font-bold text-primary">{invoice.no_invoice}</span></p>
+            <p><span className="text-muted-foreground">Tanggal:</span> {formatInvoiceDate(invoice)}</p>
+            <p><span className="text-muted-foreground">Customer:</span> <span className="font-semibold text-foreground">{invoice.customer}</span></p>
+            <p><span className="text-muted-foreground">Gudang:</span> <span className="font-semibold">{invoice.stock_location || "Jogja"}</span></p>
+          </div>
+        </div>
+
+        <h3 className="text-center text-sm font-black text-primary mb-3 uppercase tracking-wider">FAKTUR / INVOICE</h3>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs mb-3">
+            <thead>
+              <tr className="bg-primary/15 text-primary">
+                <th className="px-2.5 py-2 text-left font-bold rounded-l-lg">Nama Barang</th>
+                <th className="px-2.5 py-2 text-right font-bold">Harga</th>
+                <th className="px-2.5 py-2 text-center font-bold">Qty</th>
+                <th className="px-2.5 py-2 text-right font-bold rounded-r-lg">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>{renderItemRows(invoice.items || [])}</tbody>
+          </table>
+        </div>
+
+        <div className="space-y-1.5 text-xs border-t border-border pt-3 mb-3">
+          <div className="flex justify-between"><span>Subtotal</span><span>{formatCurrency(invoice.subtotal)}</span></div>
+          {(invoice.diskon || 0) > 0 && (
+            <div className="flex justify-between text-destructive"><span>Diskon</span><span>- {formatCurrency(invoice.diskon)}</span></div>
+          )}
+          <div className="flex justify-between font-bold text-sm text-foreground pt-1 border-t border-border/60">
+            <span>Total Tagihan</span>
+            <span className="text-primary font-black text-base">{formatCurrency(invoice.total)}</span>
+          </div>
+          <div className="flex justify-between"><span>Jumlah Dibayar</span><span>{formatCurrency(invoice.jumlah_dibayar)}</span></div>
+          <div className="flex justify-between">
+            <span>{invoice.sisa <= 0 ? "Kembalian" : "Sisa Piutang"}</span>
+            <span className={`font-bold ${invoice.sisa <= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}>
+              {formatCurrency(Math.abs(invoice.sisa))}
+            </span>
+          </div>
+          <div className="flex justify-between font-bold pt-1">
+            <span>Status</span>
+            <span className={`rounded-md px-2 py-0.5 text-[11px] ${statusClass(invoice.status)}`}>{invoice.status}</span>
+          </div>
+        </div>
+
+        <div className="rounded-lg bg-muted/60 p-2.5 text-[11px] space-y-1">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Dibuat Oleh</span>
+            <span className="font-semibold text-foreground">{invoice.dibuat_oleh || "Tidak diketahui"} ({formatRole(invoice.dibuat_oleh_role)})</span>
+          </div>
+          {invoice.is_printed && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Dicetak Oleh</span>
+              <span className="font-semibold text-primary">{invoice.printed_by || "Ya"} ({formatDate(invoice.printed_at)})</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="space-y-2 pt-1">
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => handlePrintInvoice(invoice)}
+            disabled={!isAdmin}
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2.5 text-xs font-bold text-primary-foreground shadow-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            <Printer size={15} /> Cetak Ulang PDF
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSendWhatsAppInvoice(invoice, true)}
+            disabled={!isAdmin || sendingWaInvoiceId === invoice.id}
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            <Smartphone size={15} /> {sendingWaInvoiceId === invoice.id ? "Mengirim..." : "Kirim WhatsApp"}
+          </button>
+        </div>
+
+        {isAdmin && invoice.status === "BELUM LUNAS" && (
+          <button
+            type="button"
+            onClick={() => setPaymentTarget(invoice)}
+            disabled={payingInvoiceId === invoice.id}
+            className="w-full rounded-xl bg-emerald-500/10 border border-emerald-500/30 px-3 py-2.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+          >
+            {payingInvoiceId === invoice.id ? "Memproses..." : "✓ Tandai Invoice Sebagai Lunas"}
+          </button>
+        )}
+
+        {(isOwner || (!invoice.is_printed && invoice.status !== "LUNAS")) && (
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => navigate(`/cetak-invoice?edit=${invoice.id}`)}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-primary/40 bg-primary/5 px-3 py-2 text-xs font-bold text-primary hover:bg-primary/10 cursor-pointer"
+            >
+              <Edit size={14} /> Edit Invoice
+            </button>
+            {isOwner && (
+              <button
+                type="button"
+                onClick={() => {
+                  const target = invoice;
+                  setSelectedInvoice(null);
+                  setDeleteTarget(target);
+                }}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs font-bold text-destructive hover:bg-destructive/10 cursor-pointer"
+              >
+                <Trash2 size={14} /> Hapus Invoice
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <>
     <PullToRefresh onRefresh={handleSafeRefresh} disabled={Boolean(selectedInvoice || paymentTarget)} />
 
-    <div className="px-4 pb-28 sm:pb-32 pt-6 max-w-lg mx-auto">
+    <div className="px-4 sm:px-6 lg:px-8 pb-28 sm:pb-32 pt-4 lg:pt-8 max-w-lg lg:max-w-7xl mx-auto">
       {actionNotice && (
         <AnimatedNotification
           key={actionNotice.id}
@@ -969,7 +1116,14 @@ const Riwayat = () => {
         />
       )}
 
-      <h1 className="text-lg font-bold text-primary mb-4">Riwayat</h1>
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div>
+          <h1 className="text-xl font-bold text-primary">Riwayat Transaksi & Mutasi</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Laporan lengkap penjualan invoice, mutasi stok antar cabang, dan log audit aktivitas tim.
+          </p>
+        </div>
+      </div>
 
       <div className="grid grid-cols-3 gap-2 mb-4">
         {tabs.map((tab) => {
@@ -992,348 +1146,333 @@ const Riwayat = () => {
       </div>
 
       {activeTab === "invoice" && (
-        <div key="invoice" className="tanabrew-tab-panel space-y-3">
-          <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-            <div>
-              <h2 className="text-sm font-bold text-primary">Cetak / Export Laporan</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Filter periode di bawah ini berlaku untuk Cetak PDF maupun Export CSV.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground">Periode Laporan</label>
-              <select
-                value={reportPeriod}
-                onChange={(e) => setReportPeriod(e.target.value as DateFilter)}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="bulan_ini">Bulan Ini</option>
-                <option value="hari_ini">Hari Ini</option>
-                <option value="custom">Pilih Rentang Tanggal (Custom)</option>
-                <option value="semua">Semua Tanggal</option>
-              </select>
-            </div>
-            {reportPeriod === "custom" && (
-              <div className="grid grid-cols-2 gap-2">
+        <div key="invoice" className="tanabrew-tab-panel">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Left Master List Column (Desktop 5 Cols) */}
+            <div className="lg:col-span-5 space-y-4">
+              <div className="rounded-xl border border-border bg-card p-4 space-y-3">
                 <div>
-                  <label className="text-[11px] text-muted-foreground mb-1 block">Dari Tanggal</label>
-                  <input
-                    type="date"
-                    value={reportStartDate}
-                    onChange={(e) => setReportStartDate(e.target.value)}
-                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
+                  <h2 className="text-sm font-bold text-primary">Cetak / Export Laporan</h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Filter periode di bawah ini berlaku untuk Cetak PDF maupun Export CSV.
+                  </p>
                 </div>
-                <div>
-                  <label className="text-[11px] text-muted-foreground mb-1 block">Sampai Tanggal</label>
-                  <input
-                    type="date"
-                    value={reportEndDate}
-                    onChange={(e) => setReportEndDate(e.target.value)}
-                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">Periode Laporan</label>
+                  <select
+                    value={reportPeriod}
+                    onChange={(e) => setReportPeriod(e.target.value as DateFilter)}
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="bulan_ini">Bulan Ini</option>
+                    <option value="hari_ini">Hari Ini</option>
+                    <option value="custom">Pilih Rentang Tanggal (Custom)</option>
+                    <option value="semua">Semua Tanggal</option>
+                  </select>
                 </div>
-              </div>
-            )}
-            <div className="space-y-2 pt-1">
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={handlePrintInvoiceReport}
-                  disabled={loadingReport !== null}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2.5 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  <Printer size={15} />
-                  {loadingReport === "invoice" ? "Menyiapkan..." : "Cetak Invoice"}
-                </button>
-                <button
-                  onClick={handleExportInvoiceCsv}
-                  disabled={loadingReport !== null}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2.5 text-xs font-semibold text-primary hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  <Download size={15} />
-                  Export CSV Invoice
-                </button>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={handlePrintStockReport}
-                  disabled={loadingReport !== null}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2.5 text-xs font-semibold text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  <Printer size={15} />
-                  {loadingReport === "stok" ? "Menyiapkan..." : "Cetak Stok"}
-                </button>
-                <button
-                  onClick={handleExportStockCsv}
-                  disabled={loadingReport !== null}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  <Download size={15} />
-                  Export CSV Stok
-                </button>
-              </div>
-              <button
-                onClick={handlePrintCombinedReport}
-                disabled={loadingReport !== null}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-700 px-3 py-2.5 text-xs font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                <Printer size={15} />
-                {loadingReport === "gabungan" ? "Menyiapkan Laporan..." : "Cetak Laporan Gabungan"}
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-xs pt-1">
-              <div className="rounded-lg bg-primary/5 px-3 py-2">
-                <p className="text-muted-foreground">Total Invoice ({reportPeriod === "bulan_ini" ? "Bulan Ini" : reportPeriod === "hari_ini" ? "Hari Ini" : "Sesuai Filter"})</p>
-                <p className="font-bold text-primary">{reportSummary.totalInvoice}</p>
-              </div>
-              <div className="rounded-lg bg-primary/5 px-3 py-2">
-                <p className="text-muted-foreground">Total Pemasukan</p>
-                <p className="font-bold text-primary">{formatCurrency(reportSummary.totalPemasukan)}</p>
-              </div>
-              <div className="rounded-lg bg-primary/5 px-3 py-2">
-                <p className="text-muted-foreground">Belum Lunas</p>
-                <p className="font-bold text-destructive">{reportSummary.invoiceBelumLunas}</p>
-              </div>
-              <div className="rounded-lg bg-primary/5 px-3 py-2">
-                <p className="text-muted-foreground">Stok Bermasalah</p>
-                <p className="font-bold text-primary">{reportSummary.stokHabis + reportSummary.stokMenipis}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-            <div className="flex items-center gap-2 rounded-lg border border-input bg-background px-3 py-2.5">
-              <Search size={16} className="text-muted-foreground" />
-              <input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Cari no invoice atau customer"
-                className="min-w-0 flex-1 bg-transparent text-sm outline-none"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <select
-                value={payStatusFilter}
-                onChange={(e) => setPayStatusFilter(e.target.value as PayStatusFilter)}
-                className="rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="semua">Semua Bayar</option>
-                <option value="LUNAS">Lunas</option>
-                <option value="BELUM LUNAS">Belum Lunas</option>
-              </select>
-              <select
-                value={printStatusFilter}
-                onChange={(e) => setPrintStatusFilter(e.target.value as PrintStatusFilter)}
-                className="rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="semua">Semua Cetak</option>
-                <option value="belum">Belum Dicetak</option>
-                <option value="sudah">Sudah Dicetak</option>
-              </select>
-            </div>
-            <select
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value as DateFilter)}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <option value="semua">Semua Tanggal</option>
-              <option value="hari_ini">Hari Ini</option>
-              <option value="bulan_ini">Bulan Ini</option>
-              <option value="custom">Custom</option>
-            </select>
-            {dateFilter === "custom" && (
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={resetInvoiceFilters}
-                className="col-span-2 inline-flex items-center justify-center gap-2 rounded-lg bg-muted px-3 py-2.5 text-sm font-semibold text-muted-foreground"
-              >
-                <RotateCcw size={15} />
-                Reset Filter
-              </button>
-            </div>
-          </div>
-
-          {loadingInvoices ? (
-            <>
-              <CardSkeleton lines={4} />
-              <CardSkeleton lines={4} />
-              <CardSkeleton lines={4} />
-            </>
-          ) : invoiceError ? (
-            <p className="rounded-xl border border-border bg-card px-4 py-5 text-center text-sm text-destructive">Gagal memuat riwayat invoice.</p>
-          ) : filteredInvoices.length === 0 ? (
-            <p className="rounded-xl border border-border bg-card px-4 py-5 text-center text-sm text-muted-foreground">Tidak ada invoice sesuai filter.</p>
-          ) : (
-            filteredInvoices.map((invoice) => (
-              <div key={invoice.id} className="tanabrew-card-enter rounded-xl border border-border bg-card p-4 space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-primary truncate">{invoice.no_invoice || "-"}</p>
-                    <p className="text-xs text-muted-foreground truncate">Customer: {invoice.customer || "-"}</p>
-                  </div>
-                  <span className={`text-xs font-bold ${statusClass(invoice.status)}`}>{invoice.status || "-"}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <p className="text-muted-foreground">Total</p>
-                    <p className="font-semibold text-foreground">{formatCurrency(invoice.total)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Tanggal</p>
-                    <p className="font-semibold text-foreground">{formatInvoiceDate(invoice)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Dibuat Oleh</p>
-                    <p className="font-semibold text-foreground truncate">{invoice.dibuat_oleh || "Tidak diketahui"}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Role Pembuat</p>
-                    <p className="font-semibold text-foreground">{formatRole(invoice.dibuat_oleh_role)}</p>
-                  </div>
-                </div>
-                <div className="rounded-lg bg-muted px-3 py-2 text-xs">
-                  <div className="flex justify-between gap-3">
-                    <span className="text-muted-foreground">Status Cetak</span>
-                    <span className={`font-semibold ${invoice.is_printed ? "text-primary" : "text-destructive"}`}>
-                      {invoice.is_printed ? "Sudah Dicetak" : "Belum Dicetak"}
-                    </span>
-                  </div>
-                  {invoice.is_printed && (
-                    <div className="mt-2 space-y-1">
-                      <div className="flex justify-between gap-3">
-                        <span className="text-muted-foreground">Dicetak Oleh</span>
-                        <span className="font-semibold text-foreground truncate">{invoice.printed_by || "Tidak diketahui"}</span>
-                      </div>
-                      <div className="flex justify-between gap-3">
-                        <span className="text-muted-foreground">Waktu Cetak</span>
-                        <span className="font-semibold text-foreground">{formatDate(invoice.printed_at)}</span>
-                      </div>
-                      <div className="flex justify-between gap-3">
-                        <span className="text-muted-foreground">Jumlah Cetak</span>
-                        <span className="font-semibold text-foreground">{invoice.print_count || 0}x</span>
-                      </div>
+                {reportPeriod === "custom" && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[11px] text-muted-foreground mb-1 block">Dari Tanggal</label>
+                      <input
+                        type="date"
+                        value={reportStartDate}
+                        onChange={(e) => setReportStartDate(e.target.value)}
+                        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
                     </div>
-                  )}
-
-                  {/* WhatsApp Status Badge */}
-                  <div className="mt-2 pt-2 border-t border-border/60 flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground flex items-center gap-1">
-                      <Smartphone size={11} className="text-emerald-600" />
-                      Status WhatsApp
-                    </span>
-                    <span className={`font-bold ${
-                      (invoice as any).whatsapp_status?.status === "SENT"
-                        ? "text-emerald-600 dark:text-emerald-400"
-                        : (invoice as any).whatsapp_status?.status === "FAILED"
-                        ? "text-destructive"
-                        : (invoice as any).whatsapp_status?.status === "SENDING"
-                        ? "text-amber-500"
-                        : "text-muted-foreground"
-                    }`}>
-                      {(invoice as any).whatsapp_status?.status === "SENT"
-                        ? `✓ Terkirim (${(invoice as any).whatsapp_status.group_name || "Grup"})`
-                        : (invoice as any).whatsapp_status?.status === "FAILED"
-                        ? "Gagal Kirim"
-                        : (invoice as any).whatsapp_status?.status === "SENDING"
-                        ? "Sedang Mengirim..."
-                        : "Belum Terkirim"}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Primary Action Buttons */}
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    onClick={() => setSelectedInvoice(invoice)}
-                    className="inline-flex items-center justify-center gap-1 rounded-lg bg-muted px-2 py-2 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                  >
-                    <Eye size={13} />
-                    Detail
-                  </button>
-                  <button
-                    onClick={() => handlePrintInvoice(invoice)}
-                    disabled={!isAdmin}
-                    className="inline-flex items-center justify-center gap-1 rounded-lg bg-primary px-2 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Printer size={13} />
-                    Cetak
-                  </button>
-                  <button
-                    onClick={() => handleSendWhatsAppInvoice(invoice, true)}
-                    disabled={!isAdmin || sendingWaInvoiceId === invoice.id}
-                    className="inline-flex items-center justify-center gap-1 rounded-lg bg-emerald-600 px-2 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Smartphone size={13} />
-                    {sendingWaInvoiceId === invoice.id ? "Kirim..." : "Kirim WA"}
-                  </button>
-                </div>
-
-                {/* Tandai Lunas if not paid */}
-                {isAdmin && invoice.status === "BELUM LUNAS" && (
-                  <button
-                    onClick={() => setPaymentTarget(invoice)}
-                    disabled={payingInvoiceId === invoice.id}
-                    className="w-full rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {payingInvoiceId === invoice.id ? "Memproses..." : "✓ Tandai Lunas"}
-                  </button>
-                )}
-
-                {/* Owner Specific Controls (Edit & Hapus) */}
-                {isOwner && (
-                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border">
-                    <button
-                      onClick={() => navigate(`/cetak-invoice?edit=${invoice.id}`)}
-                      className="inline-flex items-center justify-center gap-1 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/10"
-                    >
-                      <Edit size={13} />
-                      Edit Invoice
-                    </button>
-                    <button
-                      onClick={() => setDeleteTarget(invoice)}
-                      disabled={deletingInvoiceId === invoice.id}
-                      className="inline-flex items-center justify-center gap-1 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10 disabled:opacity-50"
-                    >
-                      <Trash2 size={13} />
-                      {deletingInvoiceId === invoice.id ? "Menghapus..." : "Hapus Invoice"}
-                    </button>
+                    <div>
+                      <label className="text-[11px] text-muted-foreground mb-1 block">Sampai Tanggal</label>
+                      <input
+                        type="date"
+                        value={reportEndDate}
+                        onChange={(e) => setReportEndDate(e.target.value)}
+                        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
                   </div>
                 )}
-
-                {!isAdmin && (
-                  <p className="mt-1 text-center text-xs text-muted-foreground">Hanya admin/owner yang dapat mencetak ulang & mengelola invoice.</p>
-                )}
+                <div className="space-y-2 pt-1">
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={handlePrintInvoiceReport}
+                      disabled={loadingReport !== null}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2.5 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      <Printer size={15} />
+                      {loadingReport === "invoice" ? "Menyiapkan..." : "Cetak Invoice"}
+                    </button>
+                    <button
+                      onClick={handleExportInvoiceCsv}
+                      disabled={loadingReport !== null}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2.5 text-xs font-semibold text-primary hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      <Download size={15} />
+                      Export CSV Invoice
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={handlePrintStockReport}
+                      disabled={loadingReport !== null}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2.5 text-xs font-semibold text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      <Printer size={15} />
+                      {loadingReport === "stok" ? "Menyiapkan..." : "Cetak Stok"}
+                    </button>
+                    <button
+                      onClick={handleExportStockCsv}
+                      disabled={loadingReport !== null}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      <Download size={15} />
+                      Export CSV Stok
+                    </button>
+                  </div>
+                  <button
+                    onClick={handlePrintCombinedReport}
+                    disabled={loadingReport !== null}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-700 px-3 py-2.5 text-xs font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    <Printer size={15} />
+                    {loadingReport === "gabungan" ? "Menyiapkan Laporan..." : "Cetak Laporan Gabungan"}
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                  <div className="rounded-lg bg-primary/5 px-3 py-2">
+                    <p className="text-muted-foreground">Total Invoice ({reportPeriod === "bulan_ini" ? "Bulan Ini" : reportPeriod === "hari_ini" ? "Hari Ini" : "Sesuai Filter"})</p>
+                    <p className="font-bold text-primary">{reportSummary.totalInvoice}</p>
+                  </div>
+                  <div className="rounded-lg bg-primary/5 px-3 py-2">
+                    <p className="text-muted-foreground">Total Pemasukan</p>
+                    <p className="font-bold text-primary">{formatCurrency(reportSummary.totalPemasukan)}</p>
+                  </div>
+                  <div className="rounded-lg bg-primary/5 px-3 py-2">
+                    <p className="text-muted-foreground">Belum Lunas</p>
+                    <p className="font-bold text-destructive">{reportSummary.invoiceBelumLunas}</p>
+                  </div>
+                  <div className="rounded-lg bg-primary/5 px-3 py-2">
+                    <p className="text-muted-foreground">Stok Bermasalah</p>
+                    <p className="font-bold text-primary">{reportSummary.stokHabis + reportSummary.stokMenipis}</p>
+                  </div>
+                </div>
               </div>
-            ))
-          )}
 
-          {!loadingInvoices && hasMoreInvoices && (
-            <button
-              onClick={() => loadInvoices(false)}
-              disabled={loadingMoreInvoices}
-              className="w-full rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5 text-sm font-semibold text-primary disabled:opacity-50"
-            >
-              {loadingMoreInvoices ? "Memuat..." : "Muat Lagi"}
-            </button>
-          )}
-          {!loadingInvoices && !hasMoreInvoices && invoices.length > 0 && (
-            <p className="text-center text-xs text-muted-foreground">Semua data sudah ditampilkan.</p>
-          )}
+              <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+                <div className="flex items-center gap-2 rounded-lg border border-input bg-background px-3 py-2.5">
+                  <Search size={16} className="text-muted-foreground" />
+                  <input
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Cari no invoice atau customer"
+                    className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    value={payStatusFilter}
+                    onChange={(e) => setPayStatusFilter(e.target.value as PayStatusFilter)}
+                    className="rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="semua">Semua Bayar</option>
+                    <option value="LUNAS">Lunas</option>
+                    <option value="BELUM LUNAS">Belum Lunas</option>
+                  </select>
+                  <select
+                    value={printStatusFilter}
+                    onChange={(e) => setPrintStatusFilter(e.target.value as PrintStatusFilter)}
+                    className="rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="semua">Semua Cetak</option>
+                    <option value="belum">Belum Dicetak</option>
+                    <option value="sudah">Sudah Dicetak</option>
+                  </select>
+                </div>
+                <select
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value as DateFilter)}
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="semua">Semua Tanggal</option>
+                  <option value="hari_ini">Hari Ini</option>
+                  <option value="bulan_ini">Bulan Ini</option>
+                  <option value="custom">Custom</option>
+                </select>
+                {dateFilter === "custom" && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={resetInvoiceFilters}
+                    className="col-span-2 inline-flex items-center justify-center gap-2 rounded-lg bg-muted px-3 py-2.5 text-sm font-semibold text-muted-foreground"
+                  >
+                    <RotateCcw size={15} />
+                    Reset Filter
+                  </button>
+                </div>
+              </div>
+
+              {loadingInvoices ? (
+                <>
+                  <CardSkeleton lines={4} />
+                  <CardSkeleton lines={4} />
+                  <CardSkeleton lines={4} />
+                </>
+              ) : invoiceError ? (
+                <p className="rounded-xl border border-border bg-card px-4 py-5 text-center text-sm text-destructive">Gagal memuat riwayat invoice.</p>
+              ) : filteredInvoices.length === 0 ? (
+                <p className="rounded-xl border border-border bg-card px-4 py-5 text-center text-sm text-muted-foreground">Tidak ada invoice sesuai filter.</p>
+              ) : (
+                <div className="space-y-3">
+                  {filteredInvoices.map((invoice) => {
+                    const isSelected = activeSelectedInvoice?.id === invoice.id;
+                    return (
+                      <div 
+                        key={invoice.id} 
+                        onClick={() => {
+                          triggerHaptic(8);
+                          setSelectedInvoice(invoice);
+                        }}
+                        className={`tanabrew-card-enter rounded-xl border p-4 space-y-3 transition-all cursor-pointer ${
+                          isSelected
+                            ? "border-primary bg-primary/5 ring-1 ring-primary/40 shadow-sm"
+                            : "border-border bg-card hover:border-primary/40 hover:bg-muted/30"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-primary truncate">{invoice.no_invoice || "-"}</p>
+                            <p className="text-xs text-muted-foreground truncate">Customer: {invoice.customer || "-"}</p>
+                          </div>
+                          <span className={`text-xs font-bold ${statusClass(invoice.status)}`}>{invoice.status || "-"}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <p className="text-muted-foreground">Total</p>
+                            <p className="font-semibold text-foreground">{formatCurrency(invoice.total)}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Tanggal</p>
+                            <p className="font-semibold text-foreground">{formatInvoiceDate(invoice)}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Dibuat Oleh</p>
+                            <p className="font-semibold text-foreground truncate">{invoice.dibuat_oleh || "Tidak diketahui"}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Role Pembuat</p>
+                            <p className="font-semibold text-foreground">{formatRole(invoice.dibuat_oleh_role)}</p>
+                          </div>
+                        </div>
+
+                        {/* WhatsApp Status Badge */}
+                        <div className="rounded-lg bg-muted/60 px-3 py-1.5 text-xs flex justify-between items-center">
+                          <span className="text-muted-foreground flex items-center gap-1">
+                            <Smartphone size={11} className="text-emerald-600" /> WhatsApp
+                          </span>
+                          <span className={`font-semibold ${
+                            (invoice as any).whatsapp_status?.status === "SENT"
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : (invoice as any).whatsapp_status?.status === "FAILED"
+                              ? "text-destructive"
+                              : "text-muted-foreground"
+                          }`}>
+                            {(invoice as any).whatsapp_status?.status === "SENT"
+                              ? "✓ Terkirim"
+                              : (invoice as any).whatsapp_status?.status === "FAILED"
+                              ? "Gagal"
+                              : "Belum"}
+                          </span>
+                        </div>
+
+                        {/* Quick action buttons for mobile/tablet */}
+                        <div className="grid grid-cols-3 gap-2 pt-1 lg:hidden">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedInvoice(invoice);
+                            }}
+                            className="inline-flex items-center justify-center gap-1 rounded-lg bg-muted px-2 py-1.5 text-xs font-semibold text-muted-foreground"
+                          >
+                            <Eye size={13} /> Detail
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePrintInvoice(invoice);
+                            }}
+                            disabled={!isAdmin}
+                            className="inline-flex items-center justify-center gap-1 rounded-lg bg-primary px-2 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+                          >
+                            <Printer size={13} /> Cetak
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSendWhatsAppInvoice(invoice, true);
+                            }}
+                            disabled={!isAdmin || sendingWaInvoiceId === invoice.id}
+                            className="inline-flex items-center justify-center gap-1 rounded-lg bg-emerald-600 px-2 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                          >
+                            <Smartphone size={13} /> WA
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {!loadingInvoices && hasMoreInvoices && (
+                <button
+                  onClick={() => loadInvoices(false)}
+                  disabled={loadingMoreInvoices}
+                  className="w-full rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5 text-sm font-semibold text-primary disabled:opacity-50"
+                >
+                  {loadingMoreInvoices ? "Memuat..." : "Muat Lagi"}
+                </button>
+              )}
+            </div>
+
+            {/* Right Document Preview Column (Desktop 7 Cols Sticky) */}
+            <div className="hidden lg:block lg:col-span-7 lg:sticky lg:top-6 space-y-4">
+              {activeSelectedInvoice ? (
+                renderInvoiceDocumentCard(activeSelectedInvoice, false)
+              ) : (
+                <div className="rounded-2xl border border-dashed border-border bg-card/50 p-12 text-center text-muted-foreground">
+                  <Receipt size={36} className="mx-auto mb-2 text-muted-foreground/50" />
+                  <p className="font-semibold text-sm">Pilih invoice di sebelah kiri</p>
+                  <p className="text-xs text-muted-foreground mt-1">Rincian faktur & aksi dokumen akan langsung tampil di sini.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Pop-up Modal (Hidden on Desktop) */}
+      {selectedInvoice && (
+        <div className="lg:hidden fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-foreground/40" onClick={() => setSelectedInvoice(null)}>
+          <div 
+            className="bg-card w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-5 pb-12 sm:pb-5 max-h-[85vh] overflow-y-auto tanabrew-card-enter" 
+            style={{ paddingBottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {renderInvoiceDocumentCard(selectedInvoice, true)}
+          </div>
         </div>
       )}
 
@@ -1411,153 +1550,6 @@ const Riwayat = () => {
               </div>
             ))
           )}
-        </div>
-      )}
-
-      {selectedInvoice && (
-        <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-foreground/40" onClick={() => setSelectedInvoice(null)}>
-          <div 
-            className="bg-card w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-5 pb-12 sm:pb-5 max-h-[85vh] overflow-y-auto tanabrew-card-enter" 
-            style={{ paddingBottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-primary">Detail Invoice</h2>
-              <button onClick={() => setSelectedInvoice(null)} className="p-1 rounded-full hover:bg-muted">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="rounded-xl border border-border p-4">
-              <div className="flex justify-between items-start gap-3 mb-4">
-                <img
-                  src="https://i.ibb.co.com/Q7dCXq9q/logo-tanabrew-hijau.png"
-                  alt="Tanabrew"
-                  style={{ width: 120, height: "auto" }}
-                />
-                <div className="text-right space-y-1 text-xs">
-                  <p><span className="text-muted-foreground">No Invoice:</span> {selectedInvoice.no_invoice}</p>
-                  <p><span className="text-muted-foreground">Tanggal:</span> {formatInvoiceDate(selectedInvoice)}</p>
-                  <p><span className="text-muted-foreground">Customer:</span> {selectedInvoice.customer}</p>
-                  <p><span className="text-muted-foreground">Nomor Rekening:</span> {selectedInvoice.nomor_rekening || "-"}</p>
-                </div>
-              </div>
-
-              <h3 className="text-center text-lg font-bold text-primary mb-4">INVOICE</h3>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs mb-4">
-                  <thead>
-                    <tr className="bg-primary/50 text-primary-foreground">
-                      <th className="px-2 py-2 text-left font-medium">Nama Barang</th>
-                      <th className="px-2 py-2 text-right font-medium">Harga</th>
-                      <th className="px-2 py-2 text-center font-medium">Jumlah</th>
-                      <th className="px-2 py-2 text-right font-medium">Subtotal</th>
-                    </tr>
-                  </thead>
-                  <tbody>{renderItemRows(selectedInvoice.items || [])}</tbody>
-                </table>
-              </div>
-
-              <div className="space-y-1 text-sm border-t border-border pt-3 mb-4">
-                <div className="flex justify-between"><span>Subtotal</span><span>{formatCurrency(selectedInvoice.subtotal)}</span></div>
-                {(selectedInvoice.diskon || 0) > 0 && (
-                  <div className="flex justify-between"><span>Diskon</span><span>- {formatCurrency(selectedInvoice.diskon)}</span></div>
-                )}
-                <div className="flex justify-between font-bold"><span>Total</span><span>{formatCurrency(selectedInvoice.total)}</span></div>
-                <div className="flex justify-between"><span>Jumlah Dibayar</span><span>{formatCurrency(selectedInvoice.jumlah_dibayar)}</span></div>
-                <div className="flex justify-between"><span>Sisa Pembayaran</span><span>{formatCurrency(selectedInvoice.sisa)}</span></div>
-                <div className="flex justify-between font-bold">
-                  <span>Status</span>
-                  <span className={statusClass(selectedInvoice.status)}>{selectedInvoice.status}</span>
-                </div>
-                <div className="flex justify-between"><span>Dibuat Oleh</span><span>{selectedInvoice.dibuat_oleh || "Tidak diketahui"}</span></div>
-                {selectedInvoice.paid_by && (
-                  <>
-                    <div className="flex justify-between"><span>Dilunasi Oleh</span><span>{selectedInvoice.paid_by}</span></div>
-                    <div className="flex justify-between"><span>Waktu Lunas</span><span>{formatDate(selectedInvoice.paid_at)}</span></div>
-                  </>
-                )}
-              </div>
-
-              <div className="rounded-lg bg-muted px-3 py-2 text-xs mb-4">
-                <div className="flex justify-between gap-3">
-                  <span className="text-muted-foreground">Status Cetak</span>
-                  <span className={`font-semibold ${selectedInvoice.is_printed ? "text-primary" : "text-destructive"}`}>
-                    {selectedInvoice.is_printed ? "Sudah Dicetak" : "Belum Dicetak"}
-                  </span>
-                </div>
-                {selectedInvoice.is_printed && (
-                  <div className="mt-2 space-y-1">
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted-foreground">Dicetak Oleh</span>
-                      <span className="font-semibold text-foreground">{selectedInvoice.printed_by || "Tidak diketahui"}</span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted-foreground">Waktu Cetak</span>
-                      <span className="font-semibold text-foreground">{formatDate(selectedInvoice.printed_at)}</span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted-foreground">Jumlah Cetak</span>
-                      <span className="font-semibold text-foreground">{selectedInvoice.print_count || 0}x</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="border-t border-border pt-3 text-xs text-muted-foreground">
-                <p className="font-semibold text-foreground mb-1">Instruksi Pembayaran</p>
-                {paymentInstructions.map((line, idx) => (
-                  <p key={idx} className={idx === 2 ? "mt-2" : ""}>{line}</p>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2 mt-4">
-              <button
-                onClick={() => handlePrintInvoice(selectedInvoice)}
-                disabled={!isAdmin}
-                className="w-full inline-flex items-center justify-center gap-1 rounded-lg bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Printer size={16} />
-                Cetak Ulang
-              </button>
-
-              {isAdmin && selectedInvoice.status === "BELUM LUNAS" && (
-                <button
-                  onClick={() => setPaymentTarget(selectedInvoice)}
-                  disabled={payingInvoiceId === selectedInvoice.id}
-                  className="w-full rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-2.5 text-sm font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {payingInvoiceId === selectedInvoice.id ? "Memproses..." : "✓ Tandai Lunas"}
-                </button>
-              )}
-
-              {(isOwner || (!selectedInvoice.is_printed && selectedInvoice.status !== "LUNAS")) && (
-                <button
-                  onClick={() => navigate(`/cetak-invoice?edit=${selectedInvoice.id}`)}
-                  className="w-full inline-flex items-center justify-center gap-1 rounded-lg border border-primary/50 bg-primary/5 px-3 py-2.5 text-sm font-semibold text-primary hover:bg-primary/10"
-                >
-                  <Edit size={16} />
-                  Edit Invoice
-                </button>
-              )}
-
-              {isOwner && (
-                <button
-                  onClick={() => {
-                    const target = selectedInvoice;
-                    setSelectedInvoice(null);
-                    setDeleteTarget(target);
-                  }}
-                  className="w-full inline-flex items-center justify-center gap-1 rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2.5 text-sm font-semibold text-destructive hover:bg-destructive/20"
-                >
-                  <Trash2 size={16} />
-                  Hapus Invoice
-                </button>
-              )}
-            </div>
-          </div>
         </div>
       )}
 

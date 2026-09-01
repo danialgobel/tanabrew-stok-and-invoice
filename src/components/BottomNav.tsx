@@ -41,7 +41,7 @@ const BottomNav = () => {
 
   return (
     <nav
-      className="fixed bottom-2.5 sm:bottom-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-1.25rem)] max-w-lg print:hidden select-none transition-all duration-300"
+      className="lg:hidden fixed bottom-2.5 sm:bottom-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-1.25rem)] max-w-lg print:hidden select-none transition-all duration-300"
       style={{
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
       }}

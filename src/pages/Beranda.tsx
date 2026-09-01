@@ -2,7 +2,7 @@ import { useProducts } from "@/hooks/useProducts";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { arrayUnion, collection, doc, limit, onSnapshot, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
-import { Bell, LogOut, X, TrendingUp, DollarSign, ShoppingBag, Award, User as UserIcon, Calendar, ArrowRight, CheckCircle2, AlertCircle, Package, Receipt, ChevronRight, Sparkles } from "lucide-react";
+import { Bell, LogOut, X, TrendingUp, DollarSign, ShoppingBag, Award, User as UserIcon, Calendar, ArrowRight, CheckCircle2, AlertCircle, Package, Receipt, ChevronRight, Sparkles, Plus } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from "recharts";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
@@ -711,8 +711,9 @@ const Beranda = () => {
         <WelcomeAnimation name={displayName} role={userProfile?.role} onFinish={handleWelcomeFinish} />
       )}
 
-      <div className={`px-4 pb-28 sm:pb-32 pt-6 max-w-lg mx-auto ${homeIntroReady ? "tanabrew-page-enter" : "opacity-0"}`}>
-        <div className="tanabrew-waterfall-1 flex flex-col items-center mb-6">
+      <div className={`px-4 sm:px-6 lg:px-8 pb-28 sm:pb-32 pt-4 lg:pt-8 max-w-lg lg:max-w-7xl mx-auto ${homeIntroReady ? "tanabrew-page-enter" : "opacity-0"}`}>
+        {/* Mobile Header Logo & Brand (Hidden on Desktop) */}
+        <div className="lg:hidden tanabrew-waterfall-1 flex flex-col items-center mb-6">
           <img
             src="https://i.ibb.co.com/6CgfRK5/TM-LOGO-PUTIH.png"
             alt="Tanabrew Logo"
@@ -728,564 +729,609 @@ const Beranda = () => {
           <p className="text-sm text-muted-foreground">Trademark</p>
         </div>
 
-        {/* Header Profil Pengguna */}
-        <div 
-          onClick={() => {
-            triggerHaptic(10);
-            setProfileModalOpen(true);
-          }}
-          className="tanabrew-waterfall-2 tanabrew-glass-card rounded-2xl border border-border/80 p-4 mb-4 flex items-center justify-between gap-3 shadow-sm cursor-pointer hover:border-primary/40 active:scale-[0.99] transition-all"
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-sm border border-primary/20 shrink-0 overflow-hidden">
-              {userProfile?.photo_url ? (
-                <img
-                  src={userProfile.photo_url}
-                  alt={displayName}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                displayName.slice(0, 2).toUpperCase()
-              )}
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-foreground truncate">{displayName}</p>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="text-[11px] font-semibold text-muted-foreground uppercase">{roleLabel}</span>
-                {isAdmin && notificationStatus === "granted" && (
-                  <>
-                    <span className="text-muted-foreground/30">•</span>
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                      Notif Aktif
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
+        {/* Desktop Welcome Banner */}
+        <div className="hidden lg:flex items-center justify-between gap-4 mb-6 bg-card/70 backdrop-blur-md rounded-2xl border border-border/80 p-5 shadow-sm">
+          <div>
+            <h1 className="text-xl font-extrabold text-foreground tracking-tight">
+              Selamat Datang, {displayName}!
+            </h1>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Dashboard monitoring penjualan, stok inventaris Jogja & Lombok, dan operasional kasir.
+            </p>
           </div>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              triggerHaptic(10);
-              navigate("/akun");
-            }}
-            className="inline-flex items-center gap-1 rounded-xl border border-border bg-muted/60 px-3 py-2 text-xs font-bold text-foreground hover:bg-muted transition-colors"
-          >
-            <UserIcon size={14} />
-            Akun
-          </button>
-        </div>
-
-        {/* Kapsul Ticker Aktivitas Terbaru (Ultra-Compact 1 Baris) */}
-        {displayActivities.length > 0 && currentTickerActivity && (
-          <div className="tanabrew-waterfall-3 mb-4 rounded-xl border border-emerald-500/25 bg-emerald-50/70 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 px-3.5 py-2 transition-all flex items-center justify-between gap-2.5 shadow-sm">
+          <div className="flex items-center gap-2.5">
             <button
               type="button"
               onClick={() => {
                 triggerHaptic(10);
-                navigate("/riwayat?tab=aktivitas", { state: { tab: "aktivitas" } });
+                navigate("/cetak-invoice");
               }}
-              className="flex items-center gap-2.5 min-w-0 flex-1 text-left select-none cursor-pointer group"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2.5 text-xs font-bold shadow-md shadow-primary/25 transition-all cursor-pointer active:scale-95"
             >
-              <span className="relative flex h-2 w-2 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-
-              <div 
-                key={`ticker-text-${tickerIndex}`}
-                className="min-w-0 flex-1 truncate text-xs animate-in fade-in slide-in-from-bottom-2 duration-300"
-              >
-                <span className="font-bold text-emerald-800 dark:text-emerald-300 mr-1.5">
-                  {actionLabel(currentTickerActivity.action)}:
-                </span>
-                <span className="text-foreground/90 font-medium truncate">
-                  {currentTickerActivity.description || "Ada pembaruan data."}
-                </span>
-                <span className="text-muted-foreground/60 text-[10px] ml-1.5 hidden sm:inline">
-                  • {currentTickerActivity.user_name || "User"}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-1 shrink-0 text-emerald-700 dark:text-emerald-400 font-semibold text-[11px] group-hover:translate-x-0.5 transition-transform">
-                <span>Riwayat</span>
-                <ArrowRight size={12} />
-              </div>
+              <Plus size={15} />
+              Buat Invoice Baru
             </button>
-
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                void handleDismissActivity(currentTickerActivity);
+              onClick={() => {
+                triggerHaptic(10);
+                navigate("/update-stok");
               }}
-              className="relative z-20 rounded-lg p-1.5 text-muted-foreground/70 hover:text-foreground hover:bg-muted active:scale-90 transition-all shrink-0 cursor-pointer"
-              title="Tutup aktivitas ini"
-              aria-label="Tutup aktivitas"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card hover:bg-muted/70 text-foreground px-4 py-2.5 text-xs font-bold shadow-sm transition-all cursor-pointer active:scale-95"
             >
-              <X size={15} />
+              <Package size={15} />
+              Update Stok
             </button>
-          </div>
-        )}
-
-        {/* Ringkasan Cepat Hari Ini (Today's Quick Overview) */}
-        <div className="tanabrew-waterfall-4 grid grid-cols-3 gap-2.5 mb-6">
-          <div 
-            onClick={() => {
-              triggerHaptic(10);
-              setOverviewModal("omzet");
-            }}
-            className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 p-3 space-y-1 shadow-sm cursor-pointer active:scale-95 transition-all select-none group"
-          >
-            <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-400">
-              <div className="flex items-center gap-1">
-                <DollarSign size={13} />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Omzet</span>
-              </div>
-              <ChevronRight size={12} className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-            </div>
-            <p className="text-xs sm:text-sm font-bold text-foreground truncate">Rp {fmt(todayOverview.revenue)}</p>
-          </div>
-
-          <div 
-            onClick={() => {
-              triggerHaptic(10);
-              setOverviewModal("transaksi");
-            }}
-            className="rounded-2xl border border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10 p-3 space-y-1 shadow-sm cursor-pointer active:scale-95 transition-all select-none group"
-          >
-            <div className="flex items-center justify-between text-blue-700 dark:text-blue-400">
-              <div className="flex items-center gap-1">
-                <TrendingUp size={13} />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Transaksi</span>
-              </div>
-              <ChevronRight size={12} className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-            </div>
-            <p className="text-xs sm:text-sm font-bold text-foreground">{todayOverview.count} Transaksi</p>
-          </div>
-
-          <div 
-            onClick={() => {
-              triggerHaptic(10);
-              setOverviewModal("terjual");
-            }}
-            className="rounded-2xl border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 p-3 space-y-1 shadow-sm cursor-pointer active:scale-95 transition-all select-none group"
-          >
-            <div className="flex items-center justify-between text-amber-700 dark:text-amber-400">
-              <div className="flex items-center gap-1">
-                <ShoppingBag size={13} />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Terjual</span>
-              </div>
-              <ChevronRight size={12} className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-            </div>
-            <p className="text-xs sm:text-sm font-bold text-foreground">{todayOverview.itemsSold} Pcs</p>
           </div>
         </div>
 
-        {notificationStatus !== "granted" && !showWelcomeAnimation && (
-          <div className="tanabrew-card-enter mb-6 rounded-xl border border-yellow-200 bg-yellow-50/70 p-4 shadow-sm" style={{ animationDelay: "20ms" }}>
-            <div className="flex items-start gap-3">
-              <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-yellow-100 text-yellow-800">
-                <Bell size={16} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-yellow-900">Notifikasi Belum Aktif</p>
-                <p className="mt-1 text-xs text-yellow-800 leading-relaxed">
-                  Aktifkan notifikasi agar info invoice, cetak invoice, dan arahan owner langsung masuk ke HP.
-                </p>
+        {/* Main 12-Column Responsive Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          {/* Main Area (Desktop: 8 Cols) */}
+          <div className="lg:col-span-8 space-y-6 order-2 lg:order-1">
+            {/* Grid 4 Kartu Stok Metrik */}
+            <div className="tanabrew-waterfall-2 grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+              {loading ? (
+                <>
+                  <CardSkeleton lines={2} />
+                  <CardSkeleton lines={2} />
+                  <CardSkeleton lines={2} />
+                  <CardSkeleton lines={2} />
+                </>
+              ) : cards.map((c) => (
+                <button
+                  key={c.label}
+                  disabled={!c.clickable}
+                  onClick={() => {
+                    triggerHaptic(10);
+                    if (c.clickable && c.key) setModal(c.key);
+                  }}
+                  className={`tanabrew-glass-card rounded-2xl border border-border p-4 text-center transition-all ${
+                    c.clickable ? "cursor-pointer active:scale-95 active:shadow-md hover:border-primary/40 select-none" : "cursor-default"
+                  }`}
+                >
+                  <p className="text-2xl font-bold text-primary">{loading ? "..." : c.value}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{c.label}</p>
+                </button>
+              ))}
+            </div>
+
+            {/* Analitik & Performa Toko */}
+            <div className="tanabrew-waterfall-3 tanabrew-dashboard-panel rounded-2xl border border-border bg-card p-5 shadow-sm space-y-5">
+              <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
+                <div>
+                  <h2 className="text-sm font-bold text-foreground">Analitik & Performa Toko</h2>
+                  <p className="text-xs text-muted-foreground">Tren pendapatan 7 hari terakhir & peringkat produk terlaris</p>
+                </div>
+              </div>
+
+              {loadingDashboard || loading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-36 w-full rounded-xl" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Skeleton className="h-12 w-full rounded-lg" />
+                    <Skeleton className="h-12 w-full rounded-lg" />
+                  </div>
+                </div>
+              ) : !hasDashboardData ? (
+                <p className="rounded-xl bg-muted px-3 py-4 text-center text-xs text-muted-foreground">Belum ada data transaksi yang dicatat.</p>
+              ) : (
+                <div className="space-y-5">
+                  {/* Grafik Tren Omzet 7 Hari */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-foreground flex items-center gap-1.5">
+                        <TrendingUp size={14} className="text-emerald-600 dark:text-emerald-400" />
+                        Tren Omzet 7 Hari Terakhir
+                      </span>
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400 font-mono text-[11px]">
+                        Rp {fmt(chartRevenueData.reduce((sum, day) => sum + day.omzet, 0))}
+                      </span>
+                    </div>
+
+                    <div className="w-full rounded-xl bg-muted/30 p-2.5 border border-border/50" style={{ height: 210 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={chartRevenueData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                              <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                            </linearGradient>
+                          </defs>
+                          <XAxis
+                            dataKey="label"
+                            tickLine={false}
+                            axisLine={false}
+                            tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                          />
+                          <YAxis
+                            tickLine={false}
+                            axisLine={false}
+                            tickFormatter={(val) => `${val >= 1000000 ? (val / 1000000).toFixed(1) + "M" : val >= 1000 ? (val / 1000).toFixed(0) + "k" : val}`}
+                            tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "hsl(var(--card))",
+                              borderColor: "hsl(var(--border))",
+                              borderRadius: "0.75rem",
+                              fontSize: "11px",
+                              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                            }}
+                            formatter={(val: number) => [`Rp ${fmt(val)}`, "Omzet"]}
+                            labelFormatter={(lbl) => `Tanggal: ${lbl}`}
+                          />
+                          <Area
+                            type="monotone"
+                            dataKey="omzet"
+                            stroke="#10b981"
+                            strokeWidth={2.5}
+                            fillOpacity={1}
+                            fill="url(#revenueGradient)"
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Status Transaksi & Stok Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        triggerHaptic(10);
+                        setSummaryModal("lunas");
+                      }}
+                      className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-2.5 text-left hover:bg-emerald-500/15 transition-all"
+                    >
+                      <p className="text-[11px] text-muted-foreground">Invoice Lunas</p>
+                      <p className="text-base font-bold text-emerald-700 dark:text-emerald-400">{dashboardStatus.lunas}</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        triggerHaptic(10);
+                        setSummaryModal("belum_lunas");
+                      }}
+                      className="rounded-xl border border-destructive/20 bg-destructive/10 p-2.5 text-left hover:bg-destructive/15 transition-all"
+                    >
+                      <p className="text-[11px] text-muted-foreground">Belum Lunas</p>
+                      <p className="text-base font-bold text-destructive">{dashboardStatus.belumLunas}</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        triggerHaptic(10);
+                        setSummaryModal("stok_menipis");
+                      }}
+                      className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-2.5 text-left hover:bg-amber-500/15 transition-all"
+                    >
+                      <p className="text-[11px] text-muted-foreground">Stok Menipis (&le; 5)</p>
+                      <p className="text-base font-bold text-amber-700 dark:text-amber-400">{lowStockProducts.length}</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        triggerHaptic(10);
+                        setSummaryModal("stok_habis");
+                      }}
+                      className="rounded-xl border border-destructive/20 bg-destructive/10 p-2.5 text-left hover:bg-destructive/15 transition-all"
+                    >
+                      <p className="text-[11px] text-muted-foreground">Stok Habis (0)</p>
+                      <p className="text-base font-bold text-destructive">{emptyStockProducts.length}</p>
+                    </button>
+                  </div>
+
+                  {/* 5 Produk Terlaris (Top 5 Best Seller) */}
+                  <div className="space-y-2.5 pt-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-foreground flex items-center gap-1.5">
+                        <Award size={14} className="text-amber-500" />
+                        Peringkat 5 Produk Terlaris
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">Berdasarkan data penjualan</span>
+                    </div>
+
+                    {topBestSellers.length === 0 ? (
+                      <p className="rounded-xl bg-muted/40 px-3 py-3 text-center text-xs text-muted-foreground">Belum ada riwayat penjualan produk.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {topBestSellers.map((item, idx) => (
+                          <div key={item.name} className="rounded-xl border border-border bg-card p-2.5 space-y-1.5">
+                            <div className="flex items-center justify-between text-xs gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className={`flex h-5 w-5 items-center justify-center rounded-md font-bold text-[10px] shrink-0 ${
+                                  idx === 0 ? "bg-amber-500/20 text-amber-600 border border-amber-500/30" :
+                                  idx === 1 ? "bg-slate-300/30 text-slate-700 dark:text-slate-300 border border-slate-300/40" :
+                                  idx === 2 ? "bg-amber-700/20 text-amber-800 dark:text-amber-300 border border-amber-700/30" :
+                                  "bg-muted text-muted-foreground"
+                                }`}>
+                                  #{idx + 1}
+                                </span>
+                                <span className="font-semibold text-foreground truncate">{item.name}</span>
+                              </div>
+                              <span className="font-bold text-primary shrink-0 text-xs">{item.count} pcs</span>
+                            </div>
+                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                              <div
+                                className="h-full rounded-full bg-primary transition-all duration-500"
+                                style={{ width: `${Math.min(100, Math.max(8, item.percentage))}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Tabel Stok */}
+            <div className="tanabrew-waterfall-4 rounded-2xl border border-border overflow-hidden bg-card shadow-sm">
+              <div className="bg-primary/10 px-4 py-3 flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-primary">Tabel Stok Inventaris</h2>
                 <button
                   type="button"
-                  onClick={handleEnableNotifications}
-                  disabled={notificationLoading}
-                  className="mt-3 inline-flex min-h-8 items-center justify-center rounded-lg bg-yellow-800 hover:bg-yellow-900 text-white px-4 py-1.5 text-xs font-bold shadow-sm disabled:opacity-50"
+                  onClick={() => navigate("/update-stok")}
+                  className="text-xs text-primary font-bold hover:underline"
                 >
-                  {notificationLoading ? "Mengaktifkan..." : "Aktifkan Notifikasi"}
+                  Kelola Stok →
                 </button>
               </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-primary text-primary-foreground">
+                      <th className="px-3 py-2 text-left font-medium">Nama Barang</th>
+                      <th className="px-3 py-2 text-center font-medium">Jogja</th>
+                      <th className="px-3 py-2 text-center font-medium">Lombok</th>
+                      <th className="px-3 py-2 text-center font-medium">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      Array.from({ length: 4 }).map((_, index) => (
+                        <tr key={index} className="border-t border-border">
+                          <td className="px-3 py-3"><Skeleton className="h-4 w-28" /></td>
+                          <td className="px-3 py-3"><Skeleton className="mx-auto h-4 w-8" /></td>
+                          <td className="px-3 py-3"><Skeleton className="mx-auto h-4 w-8" /></td>
+                          <td className="px-3 py-3"><Skeleton className="mx-auto h-4 w-8" /></td>
+                        </tr>
+                      ))
+                    ) : products.length === 0 ? (
+                      <tr><td colSpan={4} className="px-3 py-4 text-center text-muted-foreground">Belum ada produk</td></tr>
+                    ) : (
+                      products.map((p) => (
+                        <tr key={p.id} className={`border-t border-border ${stockState(p.total_stok || 0).rowClass}`}>
+                          <td className="px-3 py-2">
+                            <div className="flex flex-col gap-1">
+                              <span>{p.nama_barang}</span>
+                              {stockState(p.total_stok || 0).label && (
+                                <span className={`w-fit rounded-full px-2 py-0.5 text-[10px] font-semibold ${stockState(p.total_stok || 0).labelClass}`}>
+                                  {stockState(p.total_stok || 0).label}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-center">{p.stok_jogja}</td>
+                          <td className="px-3 py-2 text-center">{p.stok_lombok}</td>
+                          <td className="px-3 py-2 text-center font-medium">{p.total_stok}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-        )}
 
-
-
-        {isOwner && showOwnerCommandMode && (
-          <div className="tanabrew-card-enter mb-6 rounded-xl border border-amber-500/50 bg-amber-50/40 dark:bg-amber-950/10 p-5 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300" style={{ animationDelay: "50ms" }}>
-            <div className="flex items-center justify-between mb-4 border-b border-amber-500/20 pb-2">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-900/40 px-2.5 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span>
-                  Mode Owner Aktif
-                </span>
-              </div>
-              <button 
-                type="button"
-                onClick={() => setShowOwnerCommandMode(false)}
-                className="text-[11px] font-semibold text-amber-900 dark:text-amber-300 hover:underline"
-              >
-                Tutup Arahan Owner
-              </button>
-            </div>
-
-            <div className="mb-4">
-              <h2 className="text-sm font-bold text-amber-900 dark:text-amber-300">Arahan Owner</h2>
-              <p className="text-xs text-amber-800 dark:text-amber-400 mt-0.5">
-                Kirim arahan penting langsung ke seluruh pengguna Tanabrew.
-              </p>
-            </div>
-            
-            <form onSubmit={handleSendOwnerAnnouncement} className="space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-amber-900 dark:text-amber-400 mb-1 block">Judul Notifikasi</label>
-                <input
-                  type="text"
-                  maxLength={80}
-                  value={announcementTitle}
-                  onChange={(e) => setAnnouncementTitle(e.target.value)}
-                  placeholder="Arahan Owner Tanabrew"
-                  className="w-full rounded-lg border border-amber-500/30 bg-background/80 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40"
-                />
-                <span className="text-[10px] text-amber-800/70 dark:text-amber-400/70 block text-right mt-1">
-                  {announcementTitle.length}/80 karakter
-                </span>
-              </div>
-              
-              <div>
-                <label className="text-xs font-semibold text-amber-900 dark:text-amber-400 mb-1 block">Isi Pesan Notifikasi</label>
-                <textarea
-                  required
-                  maxLength={240}
-                  rows={3}
-                  value={announcementMessage}
-                  onChange={(e) => setAnnouncementMessage(e.target.value)}
-                  placeholder="Ketik pesan arahan di sini..."
-                  className="w-full rounded-lg border border-amber-500/30 bg-background/80 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 resize-none"
-                />
-                <span className="text-[10px] text-amber-800/70 dark:text-amber-400/70 block text-right mt-1">
-                  {announcementMessage.length}/240 karakter
-                </span>
-              </div>
-
-              <div className="rounded-lg bg-amber-500/10 p-3 text-[11px] text-amber-800 dark:text-amber-400 leading-relaxed border border-amber-500/10">
-                ⚠️ <strong>Info penting:</strong> Notifikasi ini bersifat arahan langsung dari Owner dan akan dikirim ke pengguna yang sudah mengaktifkan notifikasi.
-              </div>
-              
-              <button
-                type="submit"
-                disabled={announcementLoading || !announcementMessage.trim()}
-                className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 text-sm font-semibold shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-55"
-              >
-                <Bell size={15} />
-                {announcementLoading ? "Mengirim..." : "Kirim Arahan Owner"}
-              </button>
-            </form>
-          </div>
-        )}
-
-
-        {isAdmin && (
-          <div className="tanabrew-card-enter rounded-xl border border-border bg-card p-4 mb-6" style={{ animationDelay: "70ms" }}>
-            <h2 className="text-sm font-bold text-primary mb-3">Pengingat Admin</h2>
-
-            {!hasAdminWarning ? (
-              <p className="text-sm text-muted-foreground">Semua aman untuk saat ini.</p>
-            ) : (
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between gap-3 text-sm">
-                    <span className="text-muted-foreground">Invoice belum dicetak</span>
-                    <span className="font-bold text-primary">{invoiceReminderError ? "-" : unprintedInvoices.length}</span>
-                  </div>
-                  {invoiceReminderError ? (
-                    <p className="mt-1 text-xs text-destructive">Gagal memuat invoice belum dicetak.</p>
+          {/* Side Widget Column (Desktop: 4 Cols) */}
+          <div className="lg:col-span-4 space-y-5 order-1 lg:order-2">
+            {/* Header Profil Pengguna */}
+            <div 
+              onClick={() => {
+                triggerHaptic(10);
+                setProfileModalOpen(true);
+              }}
+              className="tanabrew-waterfall-1 tanabrew-glass-card rounded-2xl border border-border/80 p-4 flex items-center justify-between gap-3 shadow-sm cursor-pointer hover:border-primary/40 active:scale-[0.99] transition-all"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-sm border border-primary/20 shrink-0 overflow-hidden">
+                  {userProfile?.photo_url ? (
+                    <img
+                      src={userProfile.photo_url}
+                      alt={displayName}
+                      className="h-full w-full object-cover"
+                    />
                   ) : (
-                    unprintedInvoices.slice(0, 3).map((invoice) => (
-                      <div key={invoice.id} className="tanabrew-card-enter mt-2 rounded-lg bg-muted px-3 py-2 text-xs">
-                        <p className="font-semibold text-foreground">{invoice.no_invoice || "-"}</p>
-                        <p className="text-muted-foreground">Customer: {invoice.customer || "-"}</p>
-                        <p className={invoice.status === "LUNAS" ? "text-primary" : "text-destructive"}>{invoice.status || "-"}</p>
-                      </div>
-                    ))
+                    displayName.slice(0, 2).toUpperCase()
                   )}
                 </div>
-
-                <div>
-                  <div className="flex justify-between gap-3 text-sm">
-                    <span className="text-muted-foreground">Stok menipis</span>
-                    <span className="font-bold text-yellow-800">{lowStockProducts.length} barang</span>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-foreground truncate">{displayName}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-[11px] font-semibold text-muted-foreground uppercase">{roleLabel}</span>
+                    {isAdmin && notificationStatus === "granted" && (
+                      <>
+                        <span className="text-muted-foreground/30">•</span>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                          Notif Aktif
+                        </span>
+                      </>
+                    )}
                   </div>
-                  {lowStockProducts.slice(0, 3).map((p) => (
-                    <div key={p.id} className="tanabrew-card-enter mt-2 flex justify-between rounded-lg bg-yellow-100/70 px-3 py-2 text-xs">
-                      <span className="font-semibold text-foreground">{p.nama_barang}</span>
-                      <span className="font-bold text-yellow-800">{p.total_stok}</span>
-                    </div>
-                  ))}
                 </div>
+              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  triggerHaptic(10);
+                  navigate("/akun");
+                }}
+                className="inline-flex items-center gap-1 rounded-xl border border-border bg-muted/60 px-3 py-2 text-xs font-bold text-foreground hover:bg-muted transition-colors"
+              >
+                <UserIcon size={14} />
+                Akun
+              </button>
+            </div>
 
-                <div>
-                  <div className="flex justify-between gap-3 text-sm">
-                    <span className="text-muted-foreground">Stok habis</span>
-                    <span className="font-bold text-destructive">{emptyStockProducts.length} barang</span>
+            {/* Kapsul Ticker Aktivitas Terbaru (Ultra-Compact 1 Baris) */}
+            {displayActivities.length > 0 && currentTickerActivity && (
+              <div className="tanabrew-waterfall-2 rounded-xl border border-emerald-500/25 bg-emerald-50/70 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 px-3.5 py-2 transition-all flex items-center justify-between gap-2.5 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic(10);
+                    navigate("/riwayat?tab=aktivitas", { state: { tab: "aktivitas" } });
+                  }}
+                  className="flex items-center gap-2.5 min-w-0 flex-1 text-left select-none cursor-pointer group"
+                >
+                  <span className="relative flex h-2 w-2 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+
+                  <div 
+                    key={`ticker-text-${tickerIndex}`}
+                    className="min-w-0 flex-1 truncate text-xs animate-in fade-in slide-in-from-bottom-2 duration-300"
+                  >
+                    <span className="font-bold text-emerald-800 dark:text-emerald-300 mr-1.5">
+                      {actionLabel(currentTickerActivity.action)}:
+                    </span>
+                    <span className="text-foreground/90 font-medium truncate">
+                      {currentTickerActivity.description || "Ada pembaruan data."}
+                    </span>
+                    <span className="text-muted-foreground/60 text-[10px] ml-1.5 hidden sm:inline">
+                      • {currentTickerActivity.user_name || "User"}
+                    </span>
                   </div>
-                  {emptyStockProducts.slice(0, 3).map((p) => (
-                    <div key={p.id} className="tanabrew-card-enter mt-2 flex justify-between rounded-lg bg-destructive/10 px-3 py-2 text-xs">
-                      <span className="font-semibold text-foreground">{p.nama_barang}</span>
-                      <span className="font-bold text-destructive">{p.total_stok}</span>
-                    </div>
-                  ))}
+
+                  <div className="flex items-center gap-1 shrink-0 text-emerald-700 dark:text-emerald-400 font-semibold text-[11px] group-hover:translate-x-0.5 transition-transform">
+                    <span>Riwayat</span>
+                    <ArrowRight size={12} />
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    void handleDismissActivity(currentTickerActivity);
+                  }}
+                  className="relative z-20 rounded-lg p-1.5 text-muted-foreground/70 hover:text-foreground hover:bg-muted active:scale-90 transition-all shrink-0 cursor-pointer"
+                  title="Tutup aktivitas ini"
+                  aria-label="Tutup aktivitas"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+            )}
+
+            {/* Ringkasan Cepat Hari Ini (Today's Quick Overview) */}
+            <div className="tanabrew-waterfall-3 grid grid-cols-3 lg:grid-cols-1 gap-2.5">
+              <div 
+                onClick={() => {
+                  triggerHaptic(10);
+                  setOverviewModal("omzet");
+                }}
+                className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 p-3.5 space-y-1 shadow-sm cursor-pointer active:scale-95 transition-all select-none group"
+              >
+                <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-400">
+                  <div className="flex items-center gap-1.5">
+                    <DollarSign size={14} />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Omzet Hari Ini</span>
+                  </div>
+                  <ChevronRight size={14} className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                </div>
+                <p className="text-sm sm:text-base font-bold text-foreground truncate">Rp {fmt(todayOverview.revenue)}</p>
+              </div>
+
+              <div 
+                onClick={() => {
+                  triggerHaptic(10);
+                  setOverviewModal("transaksi");
+                }}
+                className="rounded-2xl border border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10 p-3.5 space-y-1 shadow-sm cursor-pointer active:scale-95 transition-all select-none group"
+              >
+                <div className="flex items-center justify-between text-blue-700 dark:text-blue-400">
+                  <div className="flex items-center gap-1.5">
+                    <TrendingUp size={14} />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Total Transaksi</span>
+                  </div>
+                  <ChevronRight size={14} className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                </div>
+                <p className="text-sm sm:text-base font-bold text-foreground">{todayOverview.count} Transaksi</p>
+              </div>
+
+              <div 
+                onClick={() => {
+                  triggerHaptic(10);
+                  setOverviewModal("terjual");
+                }}
+                className="rounded-2xl border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 p-3.5 space-y-1 shadow-sm cursor-pointer active:scale-95 transition-all select-none group"
+              >
+                <div className="flex items-center justify-between text-amber-700 dark:text-amber-400">
+                  <div className="flex items-center gap-1.5">
+                    <ShoppingBag size={14} />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Produk Terjual</span>
+                  </div>
+                  <ChevronRight size={14} className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                </div>
+                <p className="text-sm sm:text-base font-bold text-foreground">{todayOverview.itemsSold} Pcs</p>
+              </div>
+            </div>
+
+            {notificationStatus !== "granted" && !showWelcomeAnimation && (
+              <div className="tanabrew-card-enter rounded-2xl border border-yellow-200 bg-yellow-50/70 p-4 shadow-sm" style={{ animationDelay: "20ms" }}>
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-yellow-100 text-yellow-800">
+                    <Bell size={16} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-yellow-900">Notifikasi Belum Aktif</p>
+                    <p className="mt-1 text-xs text-yellow-800 leading-relaxed">
+                      Aktifkan notifikasi agar info invoice dan arahan owner langsung masuk ke HP.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleEnableNotifications}
+                      disabled={notificationLoading}
+                      className="mt-3 inline-flex min-h-8 items-center justify-center rounded-lg bg-yellow-800 hover:bg-yellow-900 text-white px-4 py-1.5 text-xs font-bold shadow-sm disabled:opacity-50"
+                    >
+                      {notificationLoading ? "Mengaktifkan..." : "Aktifkan Notifikasi"}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
-          </div>
-        )}
 
-        <div className="tanabrew-waterfall-5 tanabrew-dashboard-panel rounded-2xl border border-border bg-card p-4 mb-6 shadow-sm">
-          <div className="mb-4 flex items-center justify-between gap-3 border-b border-border pb-3">
-            <div>
-              <h2 className="text-sm font-bold text-foreground">Analitik & Performa Toko</h2>
-              <p className="text-xs text-muted-foreground">Tren pendapatan 7 hari terakhir & peringkat produk terlaris</p>
-            </div>
-          </div>
-
-          {loadingDashboard || loading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-36 w-full rounded-xl" />
-              <div className="grid grid-cols-2 gap-2">
-                <Skeleton className="h-12 w-full rounded-lg" />
-                <Skeleton className="h-12 w-full rounded-lg" />
-              </div>
-            </div>
-          ) : !hasDashboardData ? (
-            <p className="rounded-xl bg-muted px-3 py-4 text-center text-xs text-muted-foreground">Belum ada data transaksi yang dicatat.</p>
-          ) : (
-            <div className="space-y-5">
-              {/* Grafik Tren Omzet 7 Hari */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-foreground flex items-center gap-1.5">
-                    <TrendingUp size={14} className="text-emerald-600 dark:text-emerald-400" />
-                    Tren Omzet 7 Hari Terakhir
-                  </span>
-                  <span className="font-semibold text-emerald-600 dark:text-emerald-400 font-mono text-[11px]">
-                    Rp {fmt(chartRevenueData.reduce((sum, day) => sum + day.omzet, 0))}
-                  </span>
+            {isOwner && showOwnerCommandMode && (
+              <div className="tanabrew-card-enter rounded-2xl border border-amber-500/50 bg-amber-50/40 dark:bg-amber-950/10 p-5 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300" style={{ animationDelay: "50ms" }}>
+                <div className="flex items-center justify-between mb-4 border-b border-amber-500/20 pb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-900/40 px-2.5 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">
+                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span>
+                      Mode Owner Aktif
+                    </span>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => setShowOwnerCommandMode(false)}
+                    className="text-[11px] font-semibold text-amber-900 dark:text-amber-300 hover:underline"
+                  >
+                    Tutup
+                  </button>
                 </div>
 
-                <div className="w-full rounded-xl bg-muted/30 p-2.5 border border-border/50" style={{ height: 175 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartRevenueData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
-                        </linearGradient>
-                      </defs>
-                      <XAxis
-                        dataKey="label"
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
-                      />
-                      <YAxis
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={(val) => `${val >= 1000000 ? (val / 1000000).toFixed(1) + "M" : val >= 1000 ? (val / 1000).toFixed(0) + "k" : val}`}
-                        tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "hsl(var(--card))",
-                          borderColor: "hsl(var(--border))",
-                          borderRadius: "0.75rem",
-                          fontSize: "11px",
-                          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                        }}
-                        formatter={(val: number) => [`Rp ${fmt(val)}`, "Omzet"]}
-                        labelFormatter={(lbl) => `Tanggal: ${lbl}`}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="omzet"
-                        stroke="#10b981"
-                        strokeWidth={2.5}
-                        fillOpacity={1}
-                        fill="url(#revenueGradient)"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                <div className="mb-4">
+                  <h2 className="text-sm font-bold text-amber-900 dark:text-amber-300">Arahan Owner</h2>
+                  <p className="text-xs text-amber-800 dark:text-amber-400 mt-0.5">
+                    Kirim arahan penting langsung ke seluruh pengguna Tanabrew.
+                  </p>
                 </div>
+                
+                <form onSubmit={handleSendOwnerAnnouncement} className="space-y-4">
+                  <div>
+                    <label className="text-xs font-semibold text-amber-900 dark:text-amber-400 mb-1 block">Judul Notifikasi</label>
+                    <input
+                      type="text"
+                      maxLength={80}
+                      value={announcementTitle}
+                      onChange={(e) => setAnnouncementTitle(e.target.value)}
+                      placeholder="Arahan Owner Tanabrew"
+                      className="w-full rounded-lg border border-amber-500/30 bg-background/80 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="text-xs font-semibold text-amber-900 dark:text-amber-400 mb-1 block">Isi Pesan Notifikasi</label>
+                    <textarea
+                      required
+                      maxLength={240}
+                      rows={3}
+                      value={announcementMessage}
+                      onChange={(e) => setAnnouncementMessage(e.target.value)}
+                      placeholder="Ketik pesan arahan di sini..."
+                      className="w-full rounded-lg border border-amber-500/30 bg-background/80 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 resize-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={announcementLoading || !announcementMessage.trim()}
+                    className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 text-sm font-semibold shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-55"
+                  >
+                    <Bell size={15} />
+                    {announcementLoading ? "Mengirim..." : "Kirim Arahan Owner"}
+                  </button>
+                </form>
               </div>
+            )}
 
-              {/* Status Transaksi & Stok Grid */}
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <button
-                  type="button"
-                  onClick={() => {
-                    triggerHaptic(10);
-                    setSummaryModal("lunas");
-                  }}
-                  className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-2.5 text-left hover:bg-emerald-500/15 transition-all"
-                >
-                  <p className="text-[11px] text-muted-foreground">Invoice Lunas</p>
-                  <p className="text-base font-bold text-emerald-700 dark:text-emerald-400">{dashboardStatus.lunas}</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    triggerHaptic(10);
-                    setSummaryModal("belum_lunas");
-                  }}
-                  className="rounded-xl border border-destructive/20 bg-destructive/10 p-2.5 text-left hover:bg-destructive/15 transition-all"
-                >
-                  <p className="text-[11px] text-muted-foreground">Belum Lunas / Pending</p>
-                  <p className="text-base font-bold text-destructive">{dashboardStatus.belumLunas}</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    triggerHaptic(10);
-                    setSummaryModal("stok_menipis");
-                  }}
-                  className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-2.5 text-left hover:bg-amber-500/15 transition-all"
-                >
-                  <p className="text-[11px] text-muted-foreground">Stok Menipis (&le; 5)</p>
-                  <p className="text-base font-bold text-amber-700 dark:text-amber-400">{lowStockProducts.length}</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    triggerHaptic(10);
-                    setSummaryModal("stok_habis");
-                  }}
-                  className="rounded-xl border border-destructive/20 bg-destructive/10 p-2.5 text-left hover:bg-destructive/15 transition-all"
-                >
-                  <p className="text-[11px] text-muted-foreground">Stok Habis (0)</p>
-                  <p className="text-base font-bold text-destructive">{emptyStockProducts.length}</p>
-                </button>
-              </div>
+            {isAdmin && (
+              <div className="tanabrew-card-enter rounded-2xl border border-border bg-card p-4 shadow-sm" style={{ animationDelay: "70ms" }}>
+                <h2 className="text-sm font-bold text-primary mb-3">Pengingat Admin</h2>
 
-              {/* 5 Produk Terlaris (Top 5 Best Seller) */}
-              <div className="space-y-2.5 pt-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-foreground flex items-center gap-1.5">
-                    <Award size={14} className="text-amber-500" />
-                    Peringkat 5 Produk Terlaris
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">Berdasarkan data penjualan</span>
-                </div>
-
-                {topBestSellers.length === 0 ? (
-                  <p className="rounded-xl bg-muted/40 px-3 py-3 text-center text-xs text-muted-foreground">Belum ada riwayat penjualan produk.</p>
+                {!hasAdminWarning ? (
+                  <p className="text-sm text-muted-foreground">Semua aman untuk saat ini.</p>
                 ) : (
-                  <div className="space-y-2">
-                    {topBestSellers.map((item, idx) => (
-                      <div key={item.name} className="rounded-xl border border-border bg-card p-2.5 space-y-1.5">
-                        <div className="flex items-center justify-between text-xs gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className={`flex h-5 w-5 items-center justify-center rounded-md font-bold text-[10px] shrink-0 ${
-                              idx === 0 ? "bg-amber-500/20 text-amber-600 border border-amber-500/30" :
-                              idx === 1 ? "bg-slate-300/30 text-slate-700 dark:text-slate-300 border border-slate-300/40" :
-                              idx === 2 ? "bg-amber-700/20 text-amber-800 dark:text-amber-300 border border-amber-700/30" :
-                              "bg-muted text-muted-foreground"
-                            }`}>
-                              #{idx + 1}
-                            </span>
-                            <span className="font-semibold text-foreground truncate">{item.name}</span>
-                          </div>
-                          <span className="font-bold text-primary shrink-0 text-xs">{item.count} pcs</span>
-                        </div>
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                          <div
-                            className="h-full rounded-full bg-primary transition-all duration-500"
-                            style={{ width: `${Math.min(100, Math.max(8, item.percentage))}%` }}
-                          />
-                        </div>
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex justify-between gap-3 text-sm">
+                        <span className="text-muted-foreground">Invoice belum dicetak</span>
+                        <span className="font-bold text-primary">{invoiceReminderError ? "-" : unprintedInvoices.length}</span>
                       </div>
-                    ))}
+                      {invoiceReminderError ? (
+                        <p className="mt-1 text-xs text-destructive">Gagal memuat invoice belum dicetak.</p>
+                      ) : (
+                        unprintedInvoices.slice(0, 3).map((invoice) => (
+                          <div key={invoice.id} className="tanabrew-card-enter mt-2 rounded-lg bg-muted px-3 py-2 text-xs">
+                            <p className="font-semibold text-foreground">{invoice.no_invoice || "-"}</p>
+                            <p className="text-muted-foreground">Customer: {invoice.customer || "-"}</p>
+                            <p className={invoice.status === "LUNAS" ? "text-primary" : "text-destructive"}>{invoice.status || "-"}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between gap-3 text-sm">
+                        <span className="text-muted-foreground">Stok menipis</span>
+                        <span className="font-bold text-yellow-800">{lowStockProducts.length} barang</span>
+                      </div>
+                      {lowStockProducts.slice(0, 3).map((p) => (
+                        <div key={p.id} className="tanabrew-card-enter mt-2 flex justify-between rounded-lg bg-yellow-100/70 px-3 py-2 text-xs">
+                          <span className="font-semibold text-foreground">{p.nama_barang}</span>
+                          <span className="font-bold text-yellow-800">{p.total_stok}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between gap-3 text-sm">
+                        <span className="text-muted-foreground">Stok habis</span>
+                        <span className="font-bold text-destructive">{emptyStockProducts.length} barang</span>
+                      </div>
+                      {emptyStockProducts.slice(0, 3).map((p) => (
+                        <div key={p.id} className="tanabrew-card-enter mt-2 flex justify-between rounded-lg bg-destructive/10 px-3 py-2 text-xs">
+                          <span className="font-semibold text-foreground">{p.nama_barang}</span>
+                          <span className="font-bold text-destructive">{p.total_stok}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
-            </div>
-          )}
-        </div>
-
-        <div className="tanabrew-waterfall-6 grid grid-cols-2 gap-3 mb-6">
-          {loading ? (
-            <>
-              <CardSkeleton lines={2} />
-              <CardSkeleton lines={2} />
-              <CardSkeleton lines={2} />
-              <CardSkeleton lines={2} />
-            </>
-          ) : cards.map((c) => (
-            <button
-              key={c.label}
-              disabled={!c.clickable}
-              onClick={() => {
-                triggerHaptic(10);
-                if (c.clickable && c.key) setModal(c.key);
-              }}
-              className={`tanabrew-glass-card rounded-2xl border border-border p-4 text-center transition-all ${
-                c.clickable ? "cursor-pointer active:scale-95 active:shadow-md hover:border-primary/40 select-none" : "cursor-default"
-              }`}
-            >
-              <p className="text-2xl font-bold text-primary">{loading ? "..." : c.value}</p>
-              <p className="text-xs text-muted-foreground mt-1">{c.label}</p>
-            </button>
-          ))}
-        </div>
-
-        <div className="tanabrew-waterfall-6 rounded-2xl border border-border overflow-hidden bg-card shadow-sm">
-          <div className="bg-primary/10 px-4 py-3">
-            <h2 className="text-sm font-semibold text-primary">Tabel Stok</h2>
+            )}
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-primary text-primary-foreground">
-                  <th className="px-3 py-2 text-left font-medium">Nama Barang</th>
-                  <th className="px-3 py-2 text-center font-medium">Jogja</th>
-                  <th className="px-3 py-2 text-center font-medium">Lombok</th>
-                  <th className="px-3 py-2 text-center font-medium">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  Array.from({ length: 4 }).map((_, index) => (
-                    <tr key={index} className="border-t border-border">
-                      <td className="px-3 py-3"><Skeleton className="h-4 w-28" /></td>
-                      <td className="px-3 py-3"><Skeleton className="mx-auto h-4 w-8" /></td>
-                      <td className="px-3 py-3"><Skeleton className="mx-auto h-4 w-8" /></td>
-                      <td className="px-3 py-3"><Skeleton className="mx-auto h-4 w-8" /></td>
-                    </tr>
-                  ))
-                ) : products.length === 0 ? (
-                  <tr><td colSpan={4} className="px-3 py-4 text-center text-muted-foreground">Belum ada produk</td></tr>
-                ) : (
-                  products.map((p) => (
-                    <tr key={p.id} className={`border-t border-border ${stockState(p.total_stok || 0).rowClass}`}>
-                      <td className="px-3 py-2">
-                        <div className="flex flex-col gap-1">
-                          <span>{p.nama_barang}</span>
-                          {stockState(p.total_stok || 0).label && (
-                            <span className={`w-fit rounded-full px-2 py-0.5 text-[10px] font-semibold ${stockState(p.total_stok || 0).labelClass}`}>
-                              {stockState(p.total_stok || 0).label}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 text-center">{p.stok_jogja}</td>
-                      <td className="px-3 py-2 text-center">{p.stok_lombok}</td>
-                      <td className="px-3 py-2 text-center font-medium">{p.total_stok}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+
         </div>
+      </div>
 
         {/* MODAL DETAIL PROFIL PENGGUNA */}
         {profileModalOpen && (
@@ -1685,9 +1731,8 @@ const Beranda = () => {
           open={showPriceListModal}
           onOpenChange={setShowPriceListModal}
         />
-      </div>
-    </>
-  );
-};
+      </>
+    );
+  };
 
 export default Beranda;

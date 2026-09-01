@@ -272,7 +272,7 @@ const Obrolan = () => {
   const onlineCount = teamMembers.filter((m) => m.is_online).length;
 
   return (
-    <div className="mx-auto w-full max-w-lg h-[calc(100dvh-4.25rem)] flex flex-col overflow-hidden px-3.5 pt-3 pb-20">
+    <div className="mx-auto w-full max-w-lg lg:max-w-4xl h-[calc(100dvh-4.25rem)] lg:h-[calc(100vh-2rem)] flex flex-col overflow-hidden px-3.5 sm:px-6 lg:px-8 pt-3 pb-20 lg:pb-6">
       {/* 1. FIXED HEADER & STATUS KEHADIRAN TIM (TIDAK AKAN HILANG SAAT SCROLL) */}
       <div className="shrink-0 rounded-3xl border border-border bg-card p-3.5 shadow-sm space-y-2.5 mb-2 z-10">
         <div className="flex items-center justify-between">

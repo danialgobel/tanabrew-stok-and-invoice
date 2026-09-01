@@ -686,12 +686,29 @@ const GodMode = () => {
     });
   }, [explorerData, searchQuery]);
 
-  if (userProfile?.role !== "webdev") {
-    return null;
+  if (userProfile?.role !== "webdev" && userProfile?.role !== "owner") {
+    return (
+      <div className="mx-auto w-full max-w-lg px-4 py-16 text-center space-y-4">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-destructive/10 text-destructive border border-destructive/20">
+          <ShieldAlert size={32} />
+        </div>
+        <h2 className="text-lg font-bold text-foreground">Akses Terbatas</h2>
+        <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+          Halaman God Mode khusus ditujukan bagi Owner dan Developer Tanabrew.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground shadow-sm hover:bg-primary/90 transition-all cursor-pointer"
+        >
+          Kembali ke Beranda
+        </button>
+      </div>
+    );
   }
 
   return (
-    <div className="mx-auto w-full max-w-lg overflow-x-hidden px-4 pb-48 pt-6 space-y-4">
+    <div className="mx-auto w-full max-w-lg lg:max-w-7xl overflow-x-hidden px-4 sm:px-6 lg:px-8 pb-32 pt-4 lg:pt-8 space-y-5">
       {/* Dev Header */}
       <div className="rounded-xl border border-primary/30 bg-card p-4 shadow-sm relative overflow-hidden">
         <div className="flex items-center justify-between gap-3">

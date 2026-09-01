@@ -15,15 +15,51 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "2.7.0",
-  versionLabel: "v2.7.0",
+  version: "3.0.0",
+  versionLabel: "v3.0.0",
   releaseDate: "2 September 2026",
-  title: "Rangkuman Seluruh Pembaruan Aplikasi Tanabrew",
-  subtitle: "Visual & Animasi Mewah, Ticker Persisten, Pop-up Interaktif & Stabilitas Sistem",
+  title: "Transformasi Desktop Mode, POS Touch Tiles & Ultra-Smooth Animations",
+  subtitle: "Tata Letak Khusus Layar Desktop, Katalog Visual POS Kasir, Master-Detail Riwayat & Spring Physics",
   highlights: [
     {
+      title: "Tata Letak Khusus Layar Desktop (Desktop Mode)",
+      desc: "Saat dibuka di PC / Laptop, Tanabrew bertransformasi menjadi Dashboard POS modern dengan Left Sidebar Navigation permanen, multi-kolom grid 12 kolom di Beranda, split-screen kasir, dan master-detail split pane di riwayat.",
+      badge: "Baru",
+      badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+    },
+    {
+      title: "Katalog Produk Kartu Visual POS (Square Style Touch Tiles)",
+      desc: "Halaman Cetak Invoice kini dilengkapi katalog kartu produk visual dengan tombol filter kategori instan, pencarian cepat, badge stok live Jogja/Lombok, dan tap cepat untuk memasukkan kopi ke keranjang kasir.",
+      badge: "Baru",
+      badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+    },
+    {
+      title: "Master-Detail Split Pane di Halaman Riwayat",
+      desc: "Pada layar desktop, halaman Riwayat terbagi menjadi 2 panel: Daftar transaksi invoice di kolom kiri dan Pratinjau Dokumen Faktur instan di kolom kanan lengkap dengan tombol Cetak, WhatsApp, Tandai Lunas, Edit, dan Hapus.",
+      badge: "Baru",
+      badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+    },
+    {
+      title: "Collapsible Mini/Full Sidebar Navigation",
+      desc: "Sidebar navigasi desktop kini dapat diciutkan menjadi icon-only ramping (w-20) atau dimekarkan (w-64) dengan 1 tombol toggle dan status tersimpan otomatis di perangkat.",
+      badge: "Fitur",
+      badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
+    },
+    {
+      title: "Tombol Pecahan Uang Cepat (Quick Cash Calculator)",
+      desc: "Menghitung pembayaran kasir menjadi instan dengan tombol cepat: Uang Pas, 50k, 100k, 200k, dan 500k tanpa perlu mengetik angka manual di keyboard.",
+      badge: "Fitur",
+      badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
+    },
+    {
+      title: "Animasi Spring Card & Micro-Interactions Ultra-Smooth",
+      desc: "Efek hover kartu dengan fisika pegas (spring physics bezier), transisi elevasi bayangan halus, serta animasi masuk halaman yang semakin dinamis dan responsif.",
+      badge: "Peningkatan",
+      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+    },
+    {
       title: "Floating Glassmorphic Bottom Navigation Bar",
-      desc: "Bilah navigasi bawah kini berbentuk kapsul melayang (Floating Glass Island) dengan efek frosted glass mewah, indikator tab aktif yang bersinar, dan getaran haptic yang memikat.",
+      desc: "Bilah navigasi bawah berbentuk kapsul melayang (Floating Glass Island) dengan efek frosted glass mewah dan indikator tab aktif khusus di layar Smartphone & Tablet.",
       badge: "Baru",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
@@ -64,8 +100,14 @@ export const CURRENT_RELEASE: AppReleaseInfo = {
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
     {
-      title: "Perbaikan Bug Kritis Layar Putih (Blank Screen)",
-      desc: "Memperbaiki bug error format tanggal saat membuka halaman Riwayat maupun saat menekan ikon riwayat di navigasi bawah, sehingga riwayat transaksi dan mutasi stok dimuat dengan stabil.",
+      title: "Akses Resmi God Mode untuk Owner & Developer",
+      desc: "Membuka hak akses menu God Mode untuk role Owner dan Developer, serta mencegah layar putih (blank screen) dengan fallback peringatan akses resmi.",
+      badge: "Perbaikan",
+      badgeColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
+    },
+    {
+      title: "Perlindungan ErrorBoundary Global (Bebas Layar Putih)",
+      desc: "Membungkus seluruh aplikasi dengan Error Boundary untuk mencegah crash layar putih dan menyediakan pemulihan muat ulang cepat jika terjadi kendala data.",
       badge: "Perbaikan",
       badgeColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
     },

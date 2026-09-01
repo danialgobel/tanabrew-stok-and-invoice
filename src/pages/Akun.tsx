@@ -318,7 +318,15 @@ const Akun = () => {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-lg overflow-x-hidden px-4 pb-36 pt-6 space-y-4">
+    <div className="mx-auto w-full max-w-lg lg:max-w-5xl overflow-x-hidden px-4 sm:px-6 lg:px-8 pb-28 sm:pb-32 pt-4 lg:pt-8 space-y-5">
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div>
+          <h1 className="text-xl font-bold text-primary">Pengaturan Akun & Toko</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Kelola profil pengguna, preferensi aplikasi, keamanan akun, dan informasi rilis Tanabrew.
+          </p>
+        </div>
+      </div>
       {/* 1. HERO PROFILE CARD ELEGAN */}
       <div className="rounded-3xl border border-border bg-card p-6 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">

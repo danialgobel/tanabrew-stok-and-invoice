@@ -622,8 +622,15 @@ const UpdateStok = () => {
     <>
     <PullToRefresh onRefresh={handleSafeRefresh} disabled={pullRefreshDisabled} />
 
-    <div className="px-4 pb-28 sm:pb-32 pt-6 max-w-lg mx-auto">
-      <h1 className="text-lg font-bold text-primary mb-4">Update Stok</h1>
+    <div className="px-4 sm:px-6 lg:px-8 pb-28 sm:pb-32 pt-4 lg:pt-8 max-w-lg lg:max-w-7xl mx-auto">
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div>
+          <h1 className="text-xl font-bold text-primary">Manajemen Stok Inventaris</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Kelola data barang, transfer antar gudang Jogja & Lombok, dan perbarui harga.
+          </p>
+        </div>
+      </div>
 
       {isOwner ? (
         <form
