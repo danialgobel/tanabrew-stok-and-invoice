@@ -89,7 +89,7 @@ const AppRoutes = () => {
         </Routes>
       </div>
       {showBottomNav && <BottomNav />}
-      <PWAInstallPrompt />
+      {!isPublicMenu && <PWAInstallPrompt />}
     </>
   );
 };

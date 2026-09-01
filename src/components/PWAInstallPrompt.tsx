@@ -13,6 +13,14 @@ export const PWAInstallPrompt = () => {
   const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
+    // 0. Never show on public customer pricelist / menu pages
+    if (
+      typeof window !== "undefined" &&
+      (window.location.pathname.startsWith("/pricelist") || window.location.pathname.startsWith("/menu"))
+    ) {
+      return;
+    }
+
     // 1. Only show on mobile devices (width <= 768px or touch mobile)
     const isMobileDevice =
       window.innerWidth <= 768 ||

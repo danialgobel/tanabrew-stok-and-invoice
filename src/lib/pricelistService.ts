@@ -14,18 +14,80 @@ export const DEFAULT_PRICELIST_SETTINGS: PriceListSettings = {
   image_url: DEFAULT_PRICELIST_IMAGE,
 };
 
+const CACHE_KEY = "tanabrew_pricelist_img_cache";
 const DOC_REF = () => doc(db, "products", "config_pricelist");
 
 /**
- * Fetch current price list settings from Firestore (with default fallback)
+ * Get cached image URL synchronously (prevents flash of default image)
+ */
+export const getCachedPriceListImage = (): string | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(CACHE_KEY);
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Set cached image URL
+ */
+export const setCachedPriceListImage = (url: string): void => {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(CACHE_KEY, url);
+  } catch {
+    // ignore
+  }
+};
+
+/**
+ * Fetch price list image for public customers (uses serverless API to bypass client permission rules)
+ */
+export const fetchPublicPriceListImage = async (): Promise<string> => {
+  // 1. Try public serverless API endpoint
+  try {
+    const res = await fetch("/api/pricelist", { cache: "no-cache" });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.image_url) {
+        setCachedPriceListImage(data.image_url);
+        return data.image_url;
+      }
+    }
+  } catch {
+    // Ignore and fallback to direct firestore
+  }
+
+  // 2. Direct Firestore fallback
+  try {
+    const snap = await getDoc(DOC_REF());
+    if (snap.exists()) {
+      const data = snap.data();
+      if (data?.image_url) {
+        setCachedPriceListImage(data.image_url);
+        return data.image_url;
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  return getCachedPriceListImage() || DEFAULT_PRICELIST_IMAGE;
+};
+
+/**
+ * Fetch current price list settings from Firestore (for admin panel)
  */
 export const getPriceListSettings = async (): Promise<PriceListSettings> => {
   try {
     const snap = await getDoc(DOC_REF());
     if (snap.exists()) {
       const data = snap.data();
+      const img = data.image_url || DEFAULT_PRICELIST_IMAGE;
+      setCachedPriceListImage(img);
       return {
-        image_url: data.image_url || DEFAULT_PRICELIST_IMAGE,
+        image_url: img,
         updated_at: data.updated_at,
         updated_by: data.updated_by,
       };
@@ -33,7 +95,10 @@ export const getPriceListSettings = async (): Promise<PriceListSettings> => {
   } catch (err) {
     console.warn("Gagal memuat pengaturan price list dari Firestore:", err);
   }
-  return DEFAULT_PRICELIST_SETTINGS;
+  const cached = getCachedPriceListImage();
+  return {
+    image_url: cached || DEFAULT_PRICELIST_IMAGE,
+  };
 };
 
 /**
@@ -42,44 +107,79 @@ export const getPriceListSettings = async (): Promise<PriceListSettings> => {
 export const subscribePriceListSettings = (
   callback: (settings: PriceListSettings) => void,
 ): (() => void) => {
+  // Immediate callback with cache if available
+  const cached = getCachedPriceListImage();
+  if (cached) {
+    callback({ image_url: cached });
+  }
+
+  // Also fetch via public API
+  void fetchPublicPriceListImage().then((img) => {
+    if (img) callback({ image_url: img });
+  });
+
   return onSnapshot(
     DOC_REF(),
     (snap) => {
       if (snap.exists()) {
         const data = snap.data();
+        const img = data.image_url || DEFAULT_PRICELIST_IMAGE;
+        setCachedPriceListImage(img);
         callback({
-          image_url: data.image_url || DEFAULT_PRICELIST_IMAGE,
+          image_url: img,
           updated_at: data.updated_at,
           updated_by: data.updated_by,
         });
-      } else {
-        callback(DEFAULT_PRICELIST_SETTINGS);
       }
     },
     (err) => {
-      console.warn("Snapshot error pada price list:", err);
-      callback(DEFAULT_PRICELIST_SETTINGS);
+      console.warn("Snapshot notice pada price list:", err.message);
+      // Fallback via API
+      void fetchPublicPriceListImage().then((img) => {
+        callback({ image_url: img });
+      });
     },
   );
 };
 
 /**
- * Save updated price list settings to Firestore
+ * Save updated price list settings to Firestore & API (overwrites single record, 0 storage waste)
  */
 export const savePriceListSettings = async (
   imageUrl: string,
   updatedByName?: string,
 ): Promise<void> => {
-  await setDoc(
-    DOC_REF(),
-    {
-      is_system_config: true,
-      image_url: imageUrl,
-      updated_at: serverTimestamp(),
-      updated_by: updatedByName || "Owner",
-    },
-    { merge: true },
-  );
+  setCachedPriceListImage(imageUrl);
+
+  // 1. Direct Firestore write
+  try {
+    await setDoc(
+      DOC_REF(),
+      {
+        is_system_config: true,
+        image_url: imageUrl,
+        updated_at: serverTimestamp(),
+        updated_by: updatedByName || "Owner",
+      },
+      { merge: true },
+    );
+  } catch (firestoreErr) {
+    console.warn("Direct Firestore setDoc failed, attempting API fallback:", firestoreErr);
+  }
+
+  // 2. Call serverless API endpoint for synchronization
+  try {
+    await fetch("/api/pricelist", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        image_url: imageUrl,
+        updated_by: updatedByName || "Owner",
+      }),
+    });
+  } catch (apiErr) {
+    console.warn("API sync failed:", apiErr);
+  }
 };
 
 /**
@@ -92,7 +192,6 @@ export const processAndCompressImage = async (
   quality = 0.82,
 ): Promise<string> => {
   return new Promise((resolve, reject) => {
-    // Safety timeout in case browser file reader fails
     const timeout = setTimeout(() => {
       reject(new Error("Waktu proses gambar habis. Silakan pilih gambar lain."));
     }, 8000);
