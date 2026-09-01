@@ -253,6 +253,15 @@ const Riwayat = () => {
   const isDev = userProfile?.role === "webdev";
   const isOwnerOrDev = isOwner || isDev;
   const isAdmin = userProfile?.role === "admin" || isOwnerOrDev;
+  const canPrint = isAdmin;
+
+  const handleSelectInvoice = (invoice: Invoice) => {
+    triggerHaptic(8);
+    setSelectedInvoice(invoice);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
   const initialTab = useMemo<ActiveTab>(() => {
     const paramTab = searchParams.get("tab") as ActiveTab | null;
@@ -901,8 +910,8 @@ const Riwayat = () => {
       return;
     }
 
-    if (userProfile.role !== "admin" && userProfile.role !== "owner") {
-      toast({ title: "Error", description: "Hanya admin/owner yang dapat mencetak ulang invoice.", variant: "destructive" });
+    if (!canPrint) {
+      toast({ title: "Error", description: "Hanya Admin, Owner, atau Developer yang dapat mencetak ulang invoice.", variant: "destructive" });
       return;
     }
 
@@ -1344,10 +1353,7 @@ const Riwayat = () => {
                     return (
                       <div 
                         key={invoice.id} 
-                        onClick={() => {
-                          triggerHaptic(8);
-                          setSelectedInvoice(invoice);
-                        }}
+                        onClick={() => handleSelectInvoice(invoice)}
                         className={`tanabrew-card-enter rounded-xl border p-4 space-y-3 transition-all cursor-pointer ${
                           isSelected
                             ? "border-primary bg-primary/5 ring-1 ring-primary/40 shadow-sm"
@@ -1406,7 +1412,7 @@ const Riwayat = () => {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setSelectedInvoice(invoice);
+                              handleSelectInvoice(invoice);
                             }}
                             className="inline-flex items-center justify-center gap-1 rounded-lg bg-muted/80 hover:bg-muted px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors cursor-pointer"
                           >

@@ -29,9 +29,14 @@ const CetakInvoice = () => {
   const { currentUser, userProfile } = useAuth();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const editId = searchParams.get("edit");
   const isEditMode = Boolean(editId);
+
+  const isOwner = userProfile?.role === "owner";
+  const isDev = userProfile?.role === "webdev";
+  const isOwnerOrDev = isOwner || isDev;
+  const isAdmin = userProfile?.role === "admin" || isOwnerOrDev;
+  const canPrint = isAdmin;
 
   const [tanggal, setTanggal] = useState(() => todayInputValue());
   const [noInvoice, setNoInvoice] = useState("");
@@ -147,8 +152,6 @@ const CetakInvoice = () => {
   const total = subtotal - (diskon || 0);
   const sisa = total - (jumlahDibayar || 0);
   const status = sisa <= 0 ? "LUNAS" : "BELUM LUNAS";
-  const canPrint = userProfile?.role === "admin" || userProfile?.role === "owner" || userProfile?.role === "webdev";
-  const isAdmin = canPrint;
 
   const fmt = (n: number) => new Intl.NumberFormat("id-ID").format(n);
 
@@ -633,13 +636,13 @@ const CetakInvoice = () => {
           <div className="flex-1">
             <button
               onClick={handlePrint}
-              disabled={!isAdmin || printing}
-              className="w-full bg-primary text-primary-foreground rounded-lg py-2.5 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!canPrint || printing}
+              className="w-full bg-primary text-primary-foreground rounded-lg py-2.5 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {printing ? "Memproses Cetak..." : "Cetak Invoice"}
             </button>
             {!canPrint && (
-              <p className="mt-2 text-xs text-destructive text-center">Hanya Admin atau Owner yang dapat mencetak invoice.</p>
+              <p className="mt-2 text-xs text-destructive text-center">Hanya Admin, Owner, atau Developer yang dapat mencetak invoice.</p>
             )}
           </div>
           <button

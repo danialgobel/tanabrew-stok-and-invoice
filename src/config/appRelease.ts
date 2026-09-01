@@ -15,27 +15,27 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.0.1",
-  versionLabel: "v3.0.1",
+  version: "3.0.2",
+  versionLabel: "v3.0.2",
   releaseDate: "2 September 2026",
-  title: "Hotfix & Penyempurnaan Cetak Invoice, Riwayat, Obrolan & God Mode",
-  subtitle: "Perbaikan Komponen Cetak Invoice, Tombol Aksi Riwayat Desktop, Obrolan Realtime & Hak Akses Owner",
+  title: "Akses Penuh Role Developer, Auto-Scroll Detail Riwayat & Manajemen User",
+  subtitle: "Pemulihan Hak Cetak Developer, Klik Kartu & Detail Otomatis Scroll ke Atas, dan Pengelolaan User God Mode",
   highlights: [
     {
-      title: "Perbaikan Error Cetak Invoice (Receipt Component)",
-      desc: "Memperbaiki kendala ikon pada halaman Cetak Invoice sehingga tab Invoice dapat dibuka dengan lancar dan stabil di HP maupun Desktop.",
+      title: "Hak Cetak Penuh untuk Role Developer",
+      desc: "Role Developer (webdev) kini memiliki hak akses penuh untuk mencetak invoice di halaman Cetak Invoice maupun cetak ulang di Riwayat.",
       badge: "Perbaikan",
       badgeColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
     },
     {
-      title: "Tombol Aksi Lengkap di Setiap Kartu Riwayat",
-      desc: "Menampilkan tombol aksi lengkap (Detail, Cetak, WhatsApp, Edit, Hapus, dan Lunas) langsung pada setiap kartu transaksi di Riwayat untuk layar Laptop, PC Desktop, maupun HP.",
+      title: "Klik Kartu Invoice & Detail Auto-Scroll",
+      desc: "Menekan kartu invoice atau tombol Detail pada Riwayat kini secara instan memilih invoice dan menggulir (scroll) layar ke atas untuk menampilkan rincian dokumen lengkap.",
       badge: "Peningkatan",
       badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
     {
-      title: "Penyempurnaan Obrolan Tim & Kotak Ketik Desktop",
-      desc: "Obrolan tim kini memuat data secara instan dari cloud, menampilkan carousel status kehadiran anggota tim di bagian atas, dan kotak pesan terpasang rapi di bagian bawah layar tanpa celah.",
+      title: "Stabilitas Manajemen Pengguna God Mode",
+      desc: "Memuat daftar user dan mengubah role pengguna (Staff, Admin, Owner, Dev) terhubung langsung ke database utama dengan cepat dan aman.",
       badge: "Peningkatan",
       badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
