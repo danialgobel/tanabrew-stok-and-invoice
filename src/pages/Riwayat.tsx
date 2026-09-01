@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   collection,
   doc,
@@ -246,7 +246,39 @@ const Riwayat = () => {
   const { toast } = useToast();
   const { currentUser, userProfile } = useAuth();
   const { products } = useProducts();
-  const [activeTab, setActiveTab] = useState<ActiveTab>("invoice");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+
+  const initialTab = useMemo<ActiveTab>(() => {
+    const paramTab = searchParams.get("tab") as ActiveTab | null;
+    if (paramTab === "invoice" || paramTab === "stok" || paramTab === "aktivitas") {
+      return paramTab;
+    }
+    const stateTab = (location.state as { tab?: ActiveTab } | null)?.tab;
+    if (stateTab === "invoice" || stateTab === "stok" || stateTab === "aktivitas") {
+      return stateTab;
+    }
+    return "invoice";
+  }, [searchParams, location.state]);
+
+  const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab);
+
+  useEffect(() => {
+    const paramTab = searchParams.get("tab") as ActiveTab | null;
+    if (paramTab === "invoice" || paramTab === "stok" || paramTab === "aktivitas") {
+      setActiveTab(paramTab);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (tab: ActiveTab) => {
+    setActiveTab(tab);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("tab", tab);
+      return next;
+    }, { replace: true });
+  };
+
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
@@ -945,7 +977,7 @@ const Riwayat = () => {
           return (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => handleTabChange(tab.key)}
               className={`flex items-center justify-center gap-1 rounded-lg border px-2 py-2.5 text-sm font-semibold transition-colors ${
                 active
                   ? "border-primary bg-primary text-primary-foreground"

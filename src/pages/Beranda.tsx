@@ -704,7 +704,7 @@ const Beranda = () => {
               type="button"
               onClick={() => {
                 triggerHaptic(10);
-                navigate("/riwayat");
+                navigate("/riwayat?tab=aktivitas", { state: { tab: "aktivitas" } });
               }}
               className="flex items-center gap-2.5 min-w-0 flex-1 text-left select-none cursor-pointer group"
             >
