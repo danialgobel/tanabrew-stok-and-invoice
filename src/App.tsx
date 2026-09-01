@@ -25,7 +25,7 @@ const queryClient = new QueryClient();
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { AppUpdateAnnouncementModal } from "@/components/AppUpdateAnnouncementModal";
-
+import PriceListManagerModal from "@/components/PriceListManagerModal";
 import { DesktopSidebar } from "@/components/DesktopSidebar";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
@@ -50,6 +50,14 @@ const AppRoutes = () => {
     };
     window.addEventListener("tanabrew:sidebar-state-change" as any, handleSidebarChange);
     return () => window.removeEventListener("tanabrew:sidebar-state-change" as any, handleSidebarChange);
+  }, []);
+
+  // Global PriceList Modal state — listens to 5-tap logo event from ANY page
+  const [showPriceListModal, setShowPriceListModal] = useState(false);
+  useEffect(() => {
+    const handleOpenPricelist = () => setShowPriceListModal(true);
+    window.addEventListener("tanabrew:open-pricelist-modal", handleOpenPricelist);
+    return () => window.removeEventListener("tanabrew:open-pricelist-modal", handleOpenPricelist);
   }, []);
 
   useEffect(() => {
@@ -109,6 +117,8 @@ const AppRoutes = () => {
       {showNav && <BottomNav />}
       {!isPublicMenu && <PWAInstallPrompt />}
       <AppUpdateAnnouncementModal />
+      {/* Global Price List Modal — triggered by 5-tap logo on any page/device */}
+      <PriceListManagerModal open={showPriceListModal} onOpenChange={setShowPriceListModal} />
     </>
   );
 };

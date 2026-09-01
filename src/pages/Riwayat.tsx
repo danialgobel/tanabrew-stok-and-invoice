@@ -294,19 +294,31 @@ const Riwayat = () => {
   const [hasMoreInvoices, setHasMoreInvoices] = useState(false);
   const [invoiceCursor, setInvoiceCursor] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [loadingLogs, setLoadingLogs] = useState(true);
-  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  // Desktop: klik kartu → update kolom kanan (tidak buka modal)
+  const [desktopSelectedInvoice, setDesktopSelectedInvoice] = useState<Invoice | null>(null);
+  // Mobile: klik kartu/Detail → buka popup modal
+  const [mobileModalInvoice, setMobileModalInvoice] = useState<Invoice | null>(null);
+  // Compatibility alias agar kode existing (delete/payment) tetap berjalan
+  const selectedInvoice = mobileModalInvoice;
+  const setSelectedInvoice = setMobileModalInvoice;
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const isDesktop = () => typeof window !== "undefined" && window.innerWidth >= 1024;
 
   const handleSelectInvoice = (invoice: Invoice) => {
     triggerHaptic(8);
-    setSelectedInvoice(invoice);
-    if (typeof window !== "undefined") {
-      window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
-      if (document.documentElement) document.documentElement.scrollTop = 0;
-      if (document.body) document.body.scrollTop = 0;
-    }
-    if (previewContainerRef.current) {
-      previewContainerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (isDesktop()) {
+      // Desktop: tampilkan di kolom kanan, scroll ke atas
+      setDesktopSelectedInvoice(invoice);
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+      }
+    } else {
+      // Mobile/Tablet: buka popup modal
+      setMobileModalInvoice(invoice);
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+      }
     }
   };
   const [paymentTarget, setPaymentTarget] = useState<Invoice | null>(null);
@@ -972,7 +984,8 @@ const Riwayat = () => {
       </tr>
     ));
 
-  const activeSelectedInvoice = selectedInvoice || (filteredInvoices.length > 0 ? filteredInvoices[0] : null);
+  // Desktop: hanya tampilkan preview jika user secara eksplisit mengklik kartu
+  const activeSelectedInvoice = desktopSelectedInvoice;
 
   const renderInvoiceDocumentCard = (invoice: Invoice, showClose = false) => (
     <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-sm space-y-4">
@@ -1517,18 +1530,18 @@ const Riwayat = () => {
         </div>
       )}
 
-      {/* Detail Pop-up Modal (Mobile & Desktop) */}
-      {selectedInvoice && (
+      {/* Mobile Popup Modal (hidden on lg: screens, triggered on card click / Detail button) */}
+      {mobileModalInvoice && (
         <div
-          className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 overflow-y-auto animate-in fade-in"
-          onClick={() => setSelectedInvoice(null)}
+          className="lg:hidden fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 overflow-y-auto animate-in fade-in duration-200"
+          onClick={() => setMobileModalInvoice(null)}
         >
           <div 
-            className="bg-card w-full max-w-xl rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 pb-12 sm:pb-6 max-h-[88vh] overflow-y-auto shadow-2xl border border-border animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200 text-foreground" 
+            className="bg-card w-full max-w-xl rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 pb-12 sm:pb-6 max-h-[88vh] overflow-y-auto shadow-2xl border border-border animate-in slide-in-from-bottom-6 duration-200 text-foreground" 
             style={{ paddingBottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}
             onClick={(e) => e.stopPropagation()}
           >
-            {renderInvoiceDocumentCard(selectedInvoice, true)}
+            {renderInvoiceDocumentCard(mobileModalInvoice, true)}
           </div>
         </div>
       )}

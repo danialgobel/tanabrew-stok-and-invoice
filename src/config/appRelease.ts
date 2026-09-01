@@ -15,48 +15,31 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.0.3",
-  versionLabel: "v3.0.3",
+  version: "3.0.4",
+  versionLabel: "v3.0.4",
   releaseDate: "2 September 2026",
-  title: "Penyempurnaan Modal Detail Invoice, Manajemen Developer & Branding Desktop",
-  subtitle: "Pop-up Detail Universal Semua Device, Manajemen Akun Root, Pembersihan POS/Specialty & 5-Tap Logo Trigger",
+  title: "Perbaikan Fundamental Riwayat, 5-Tap Logo Global & Optimasi Performa",
+  subtitle: "Tombol Detail & Klik Kartu Invoice Kini Berfungsi, 5x Ketuk Logo di Semua Halaman, Transisi Tab Instan Tanpa Lag",
   highlights: [
     {
-      title: "Modal Detail Invoice Universal (Desktop & HP)",
-      desc: "Menekan tombol Detail atau kartu invoice pada Riwayat kini secara instan membuka pop-up dokumen resmi lengkap di Desktop maupun HP serta otomatis scroll ke atas.",
-      badge: "Peningkatan",
-      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
-    },
-    {
-      title: "Manajemen Akun Developer Root Access",
-      desc: "Memuat daftar user dan mengubah role pengguna (Staff, Admin, Owner, Dev) menggunakan Admin SDK Serverless sehingga bebas dari kendala izin database.",
+      title: "Fix Kritis: Tombol Detail & Klik Kartu Invoice Riwayat",
+      desc: "Diperbaiki bug fundamental di mana klik kartu atau tombol Detail tidak membuka rincian invoice. Di HP: popup modal muncul seketika. Di Desktop: kolom kanan langsung memperlihatkan dokumen invoice yang dipilih.",
       badge: "Perbaikan",
       badgeColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
     },
     {
-      title: "Pembersihan Branding Desktop & Logo 5x Tap",
-      desc: "Menghapus kata POS dan kata Specialty di sidebar desktop, mengubah nama menu menjadi Developer, serta mengaktifkan fitur rahasia 5x ketuk logo di Desktop.",
-      badge: "Peningkatan",
-      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
-    },
-    {
-      title: "Perbaikan Akses & Manajemen User God Mode",
-      desc: "Memperbaiki hak akses God Mode untuk Owner & Developer serta menstabilkan fitur pengelolaan role pengguna secara langsung.",
+      title: "5x Ketuk Logo Kini Bekerja di Semua Halaman",
+      desc: "Fitur rahasia Price List Manager yang dipicu dengan 5 ketukan logo Tanabrew kini aktif secara global — dapat diakses dari halaman manapun (Beranda, Riwayat, Akun, dll) baik di HP maupun Desktop.",
       badge: "Perbaikan",
       badgeColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
     },
     {
-      title: "Penyelarasan Alur Kerja Desktop & Mobile",
-      desc: "Menjamin form dan alur kerja di Desktop 100% konsisten dan identik dengan versi Mobile, dengan optimasi layout layar yang luas, rapi, dan responsif.",
+      title: "Transisi Antar Tab Instan & Tanpa Lag",
+      desc: "Menghilangkan efek blur GPU-intensif dari animasi perpindahan halaman/tab yang menjadi penyebab utama stuttering/lag. Kini transisi terasa instan dan halus dengan durasi dipercepat 2x.",
       badge: "Peningkatan",
       badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
-    {
-      title: "Tata Letak Khusus Layar Desktop (Desktop Mode)",
-      desc: "Saat dibuka di PC / Laptop, Tanabrew bertransformasi dengan Left Sidebar Navigation permanen, multi-kolom grid 12 kolom di Beranda, dan card list responsif di Riwayat.",
-      badge: "Baru",
-      badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-    },
+
     {
       title: "Collapsible Mini/Full Sidebar Navigation",
       desc: "Sidebar navigasi desktop kini dapat diciutkan menjadi icon-only ramping (w-20) atau dimekarkan (w-64) dengan 1 tombol toggle dan status tersimpan otomatis di perangkat.",

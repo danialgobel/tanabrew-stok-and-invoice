@@ -125,20 +125,14 @@ const Beranda = () => {
       const next = prev + 1;
       if (next >= 5) {
         triggerHaptic(20);
-        setShowPriceListModal(true);
+        // Dispatch global event — handled by App.tsx PriceListManagerModal
+        window.dispatchEvent(new CustomEvent("tanabrew:open-pricelist-modal"));
         return 0;
       }
       return next;
     });
   };
 
-  useEffect(() => {
-    const handleOpenPricelist = () => {
-      setShowPriceListModal(true);
-    };
-    window.addEventListener("tanabrew:open-pricelist-modal", handleOpenPricelist);
-    return () => window.removeEventListener("tanabrew:open-pricelist-modal", handleOpenPricelist);
-  }, []);
   const profileDismissedActivityIds = useMemo(
     () => (Array.isArray(userProfile?.dismissed_activity_ids) ? userProfile.dismissed_activity_ids : []),
     [userProfile?.dismissed_activity_ids],
