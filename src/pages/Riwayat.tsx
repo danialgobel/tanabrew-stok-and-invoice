@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   collection,
@@ -255,14 +255,6 @@ const Riwayat = () => {
   const isAdmin = userProfile?.role === "admin" || isOwnerOrDev;
   const canPrint = isAdmin;
 
-  const handleSelectInvoice = (invoice: Invoice) => {
-    triggerHaptic(8);
-    setSelectedInvoice(invoice);
-    if (typeof window !== "undefined") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-  };
-
   const initialTab = useMemo<ActiveTab>(() => {
     const paramTab = searchParams.get("tab") as ActiveTab | null;
     if (paramTab === "invoice" || paramTab === "stok" || paramTab === "aktivitas") {
@@ -302,8 +294,21 @@ const Riwayat = () => {
   const [hasMoreInvoices, setHasMoreInvoices] = useState(false);
   const [invoiceCursor, setInvoiceCursor] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [loadingLogs, setLoadingLogs] = useState(true);
-  const [loadingStockMovements, setLoadingStockMovements] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const previewContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const handleSelectInvoice = (invoice: Invoice) => {
+    triggerHaptic(8);
+    setSelectedInvoice(invoice);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+      if (document.documentElement) document.documentElement.scrollTop = 0;
+      if (document.body) document.body.scrollTop = 0;
+    }
+    if (previewContainerRef.current) {
+      previewContainerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
   const [paymentTarget, setPaymentTarget] = useState<Invoice | null>(null);
   const [payingInvoiceId, setPayingInvoiceId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Invoice | null>(null);
@@ -1497,7 +1502,7 @@ const Riwayat = () => {
             </div>
 
             {/* Right Document Preview Column (Desktop 7 Cols Sticky) */}
-            <div className="hidden lg:block lg:col-span-7 lg:sticky lg:top-6 space-y-4">
+            <div ref={previewContainerRef} className="hidden lg:block lg:col-span-7 lg:sticky lg:top-6 space-y-4">
               {activeSelectedInvoice ? (
                 renderInvoiceDocumentCard(activeSelectedInvoice, false)
               ) : (
