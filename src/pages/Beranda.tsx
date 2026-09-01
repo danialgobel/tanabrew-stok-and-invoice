@@ -693,13 +693,13 @@ const Beranda = () => {
         <WelcomeAnimation name={displayName} role={userProfile?.role} onFinish={handleWelcomeFinish} />
       )}
 
-      <div className={`px-4 pb-24 pt-6 max-w-lg mx-auto ${homeIntroReady ? "tanabrew-page-enter" : "opacity-0"}`}>
-        <div className="flex flex-col items-center mb-6">
+      <div className={`px-4 pb-28 sm:pb-32 pt-6 max-w-lg mx-auto ${homeIntroReady ? "tanabrew-page-enter" : "opacity-0"}`}>
+        <div className="tanabrew-waterfall-1 flex flex-col items-center mb-6">
           <img
             src="https://i.ibb.co.com/6CgfRK5/TM-LOGO-PUTIH.png"
             alt="Tanabrew Logo"
             onClick={handleLogoClick}
-            className="w-24 h-24 rounded-full object-cover border-2 border-primary bg-primary cursor-pointer select-none active:scale-95 transition-transform"
+            className="w-24 h-24 rounded-full object-cover border-2 border-primary bg-primary cursor-pointer select-none active:scale-95 transition-transform shadow-md"
           />
           <h1 
             onClick={handleLogoClick}
@@ -716,7 +716,7 @@ const Beranda = () => {
             triggerHaptic(10);
             setProfileModalOpen(true);
           }}
-          className="tanabrew-card-enter bg-card rounded-2xl border border-border p-4 mb-4 flex items-center justify-between gap-3 shadow-sm cursor-pointer hover:border-primary/40 active:scale-[0.99] transition-all"
+          className="tanabrew-waterfall-2 tanabrew-glass-card rounded-2xl border border-border/80 p-4 mb-4 flex items-center justify-between gap-3 shadow-sm cursor-pointer hover:border-primary/40 active:scale-[0.99] transition-all"
         >
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-sm border border-primary/20 shrink-0 overflow-hidden">
@@ -762,7 +762,7 @@ const Beranda = () => {
 
         {/* Kapsul Ticker Aktivitas Terbaru (Ultra-Compact 1 Baris) */}
         {displayActivities.length > 0 && currentTickerActivity && (
-          <div className="tanabrew-card-enter mb-4 rounded-xl border border-emerald-500/25 bg-emerald-50/70 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 px-3.5 py-2 transition-all flex items-center justify-between gap-2.5 shadow-sm">
+          <div className="tanabrew-waterfall-3 mb-4 rounded-xl border border-emerald-500/25 bg-emerald-50/70 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 px-3.5 py-2 transition-all flex items-center justify-between gap-2.5 shadow-sm">
             <button
               type="button"
               onClick={() => {
@@ -814,7 +814,7 @@ const Beranda = () => {
         )}
 
         {/* Ringkasan Cepat Hari Ini (Today's Quick Overview) */}
-        <div className="tanabrew-card-enter grid grid-cols-3 gap-2.5 mb-6">
+        <div className="tanabrew-waterfall-4 grid grid-cols-3 gap-2.5 mb-6">
           <div 
             onClick={() => {
               triggerHaptic(10);
@@ -1023,7 +1023,7 @@ const Beranda = () => {
           </div>
         )}
 
-        <div className="tanabrew-card-enter tanabrew-dashboard-panel rounded-2xl border border-border bg-card p-4 mb-6 shadow-sm" style={{ animationDelay: "90ms" }}>
+        <div className="tanabrew-waterfall-5 tanabrew-dashboard-panel rounded-2xl border border-border bg-card p-4 mb-6 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-3 border-b border-border pb-3">
             <div>
               <h2 className="text-sm font-bold text-foreground">Analitik & Performa Toko</h2>
@@ -1193,7 +1193,7 @@ const Beranda = () => {
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mb-6">
+        <div className="tanabrew-waterfall-6 grid grid-cols-2 gap-3 mb-6">
           {loading ? (
             <>
               <CardSkeleton lines={2} />
@@ -1209,7 +1209,7 @@ const Beranda = () => {
                 triggerHaptic(10);
                 if (c.clickable && c.key) setModal(c.key);
               }}
-              className={`tanabrew-card-enter rounded-xl bg-card border border-border p-4 text-center transition-all ${
+              className={`tanabrew-glass-card rounded-2xl border border-border p-4 text-center transition-all ${
                 c.clickable ? "cursor-pointer active:scale-95 active:shadow-md hover:border-primary/40 select-none" : "cursor-default"
               }`}
             >
@@ -1219,7 +1219,7 @@ const Beranda = () => {
           ))}
         </div>
 
-        <div className="rounded-xl border border-border overflow-hidden">
+        <div className="tanabrew-waterfall-6 rounded-2xl border border-border overflow-hidden bg-card shadow-sm">
           <div className="bg-primary/10 px-4 py-3">
             <h2 className="text-sm font-semibold text-primary">Tabel Stok</h2>
           </div>

@@ -540,7 +540,7 @@ const CetakInvoice = () => {
 
   if (loadingInvoice) {
     return (
-      <div className="mx-auto w-full max-w-lg px-4 pb-24 pt-6 space-y-4">
+      <div className="mx-auto w-full max-w-lg px-4 pb-28 sm:pb-32 pt-6 space-y-4">
         <Skeleton className="h-8 w-1/3" />
         <Skeleton className="h-64 w-full" />
       </div>
@@ -549,7 +549,7 @@ const CetakInvoice = () => {
 
   if (saved) {
     return (
-      <div className="px-4 pb-24 pt-6 max-w-lg mx-auto">
+      <div className="px-4 pb-28 sm:pb-32 pt-6 max-w-lg mx-auto">
         {actionNotice && (
           <AnimatedNotification
             key={actionNotice.id}
@@ -665,7 +665,7 @@ const CetakInvoice = () => {
   }
 
   return (
-    <div className="mx-auto w-full max-w-lg overflow-x-hidden px-4 pb-24 pt-6">
+    <div className="mx-auto w-full max-w-lg overflow-x-hidden px-4 pb-28 sm:pb-32 pt-6">
       {actionNotice && (
         <AnimatedNotification
           key={actionNotice.id}

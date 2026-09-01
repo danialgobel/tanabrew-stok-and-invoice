@@ -960,7 +960,7 @@ const Riwayat = () => {
     <>
     <PullToRefresh onRefresh={handleSafeRefresh} disabled={Boolean(selectedInvoice || paymentTarget)} />
 
-    <div className="px-4 pb-24 pt-6 max-w-lg mx-auto">
+    <div className="px-4 pb-28 sm:pb-32 pt-6 max-w-lg mx-auto">
       {actionNotice && (
         <AnimatedNotification
           key={actionNotice.id}

@@ -622,7 +622,7 @@ const UpdateStok = () => {
     <>
     <PullToRefresh onRefresh={handleSafeRefresh} disabled={pullRefreshDisabled} />
 
-    <div className="px-4 pb-24 pt-6 max-w-lg mx-auto">
+    <div className="px-4 pb-28 sm:pb-32 pt-6 max-w-lg mx-auto">
       <h1 className="text-lg font-bold text-primary mb-4">Update Stok</h1>
 
       {isOwner ? (
