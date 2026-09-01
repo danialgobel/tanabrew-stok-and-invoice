@@ -29,6 +29,7 @@ const CetakInvoice = () => {
   const { currentUser, userProfile } = useAuth();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const editId = searchParams.get("edit");
   const isEditMode = Boolean(editId);
 
@@ -318,8 +319,8 @@ const CetakInvoice = () => {
       return;
     }
 
-    if (userProfile.role !== "admin") {
-      toast({ title: "Error", description: "Hanya admin yang dapat mencetak invoice.", variant: "destructive" });
+    if (!canPrint) {
+      toast({ title: "Error", description: "Hanya Admin, Owner, atau Developer yang dapat mencetak invoice.", variant: "destructive" });
       return;
     }
 
