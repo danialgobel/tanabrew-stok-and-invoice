@@ -17,6 +17,7 @@ import NotFound from "@/pages/NotFound";
 import Akun from "@/pages/Akun";
 import GodMode from "@/pages/GodMode";
 import Obrolan from "@/pages/Obrolan";
+import PriceListPublic from "@/pages/PriceListPublic";
 import { logoutOneSignalUser, syncOneSignalUserIdentity } from "@/lib/onesignal";
 
 const queryClient = new QueryClient();
@@ -33,7 +34,8 @@ const AppRoutes = () => {
   const location = useLocation();
   const previousOneSignalUid = useRef<string | null>(null);
   const isAuthPage = location.pathname === "/login" || location.pathname === "/register";
-  const showBottomNav = Boolean(currentUser) && !loading && !isAuthPage;
+  const isPublicMenu = location.pathname === "/pricelist" || location.pathname === "/menu";
+  const showBottomNav = Boolean(currentUser) && !loading && !isAuthPage && !isPublicMenu;
 
   useEffect(() => {
     if (loading) return;
@@ -74,6 +76,8 @@ const AppRoutes = () => {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/pricelist" element={<PriceListPublic />} />
+          <Route path="/menu" element={<PriceListPublic />} />
           <Route path="/" element={<ProtectedPage><Beranda /></ProtectedPage>} />
           <Route path="/update-stok" element={<ProtectedPage><UpdateStok /></ProtectedPage>} />
           <Route path="/cetak-invoice" element={<ProtectedPage><CetakInvoice /></ProtectedPage>} />

@@ -8,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import WelcomeAnimation from "@/components/WelcomeAnimation";
+import PriceListManagerModal from "@/components/PriceListManagerModal";
 import { CardSkeleton, Skeleton } from "@/components/Skeleton";
 import PullToRefresh from "@/components/PullToRefresh";
 import { sendTanabrewNotification } from "@/lib/notificationSender";
@@ -107,14 +108,19 @@ const Beranda = () => {
   const roleLabel = userProfile?.role === "owner" ? "Owner" : userProfile?.role === "admin" ? "Admin" : userProfile?.role === "staff" ? "Staff" : "-";
   const isAdmin = userProfile?.role === "admin" || userProfile?.role === "owner";
   const isOwner = userProfile?.role === "owner";
+  const [showPriceListModal, setShowPriceListModal] = useState(false);
 
   const handleLogoClick = () => {
-    if (!isOwner) return;
+    triggerHaptic(10);
     setLogoClickCount((prev) => {
       const next = prev + 1;
       if (next >= 5) {
-        setShowOwnerCommandMode(true);
-        toast({ title: "Mode Arahan Owner", description: "Mode Arahan Owner aktif!" });
+        triggerHaptic(30);
+        setShowPriceListModal(true);
+        toast({
+          title: "Pengaturan Price List Terbuka ☕",
+          description: "Panel kontrol rahasia daftar harga aktif.",
+        });
         return 0;
       }
       return next;
@@ -1377,6 +1383,12 @@ const Beranda = () => {
             </div>
           </div>
         )}
+
+        {/* MODAL PENGATURAN PRICE LIST RAHASIA (5-TAP LOGO) */}
+        <PriceListManagerModal
+          open={showPriceListModal}
+          onOpenChange={setShowPriceListModal}
+        />
       </div>
     </>
   );
