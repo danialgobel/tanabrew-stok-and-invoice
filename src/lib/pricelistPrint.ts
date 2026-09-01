@@ -35,30 +35,38 @@ const formatPrice = (priceVal: string | number) => {
   if (!isNaN(num) && priceVal !== "") {
     const formatted = new Intl.NumberFormat("id-ID", {
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      maximumFractionDigits: 0,
     }).format(num);
     return `Rp.${formatted}.00`;
   }
   return String(priceVal);
 };
 
-const pricelistShellHtml = (bodyHtml: string) => {
+const pricelistShellHtml = (bodyHtml: string, isB2B: boolean) => {
+  const docTitle = isB2B ? "Tanabrew Price List B2B" : "Tanabrew Price List";
+  const fileName = isB2B ? "Tanabrew-Pricelist-B2B.pdf" : "Tanabrew-Pricelist.pdf";
+
   return `<!doctype html>
-<html>
+<html lang="id">
 <head>
   <meta charset="utf-8">
-  <title>Tanabrew Price List</title>
+  <title>${docTitle}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Outfit:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     @page { 
-      size: 210mm 297mm; 
-      margin: 0 !important; /* Zero page margin for full-bleed printing */
+      size: A4 portrait; 
+      margin: 0 !important; 
     }
     
     * { 
       box-sizing: border-box; 
+      margin: 0;
+      padding: 0;
     }
     
     html, body {
@@ -75,7 +83,7 @@ const pricelistShellHtml = (bodyHtml: string) => {
     /* Screen Preview Styles */
     @media screen {
       body {
-        background-color: #d2ddd4;
+        background-color: #c7d8cc;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -85,7 +93,7 @@ const pricelistShellHtml = (bodyHtml: string) => {
       }
       .pricelist-container {
         margin: 20px auto 0;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
       }
     }
 
@@ -98,29 +106,57 @@ const pricelistShellHtml = (bodyHtml: string) => {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-wrap: wrap;
       gap: 12px;
       padding: 12px 24px;
       background: #ffffff;
       border-bottom: 1px solid #c8e6c9;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.08);
     }
     
-    .back-button {
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-action {
       min-height: 38px;
       border: 0;
       border-radius: 8px;
-      background: #2e7d32;
-      color: #fff;
-      padding: 0 18px;
-      font-size: 14px;
+      padding: 0 16px;
+      font-size: 13.5px;
       font-weight: 700;
       cursor: pointer;
       font-family: 'Outfit', sans-serif;
-      transition: background 0.2s;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
-    
-    .back-button:hover {
+
+    .btn-back {
+      background: #e8f5e9;
+      color: #1b5e20;
+    }
+    .btn-back:hover {
+      background: #c8e6c9;
+    }
+
+    .btn-download {
       background: #1b5e20;
+      color: #ffffff;
+    }
+    .btn-download:hover {
+      background: #2e7d32;
+    }
+
+    .btn-print {
+      background: #2e7d32;
+      color: #ffffff;
+    }
+    .btn-print:hover {
+      background: #388e3c;
     }
     
     .back-note {
@@ -128,16 +164,16 @@ const pricelistShellHtml = (bodyHtml: string) => {
       color: #556f5a;
     }
 
-    /* Container for the pricelist sheet - Fixed Standard A4 Canvas */
+    /* Container for the pricelist sheet - Exact A4 Dimensions */
     .pricelist-container {
       position: relative;
       width: 210mm;
       min-width: 210mm;
       max-width: 210mm;
-      height: 297mm;
-      min-height: 297mm;
-      max-height: 297mm;
-      padding: 16mm 18mm 16mm 18mm;
+      height: 296mm; /* 296mm prevents sub-pixel 1px page 2 jump in print engines */
+      min-height: 296mm;
+      max-height: 296mm;
+      padding: 14mm 16mm 12mm 16mm;
       box-sizing: border-box;
       display: flex;
       flex-direction: column;
@@ -147,6 +183,7 @@ const pricelistShellHtml = (bodyHtml: string) => {
       overflow: hidden;
       page-break-inside: avoid;
       page-break-after: avoid;
+      page-break-before: avoid;
     }
 
     /* SVG watermarked leaf background covering the full A4 canvas */
@@ -155,7 +192,7 @@ const pricelistShellHtml = (bodyHtml: string) => {
       top: 0;
       left: 0;
       width: 210mm;
-      height: 297mm;
+      height: 296mm;
       z-index: -1;
       pointer-events: none;
     }
@@ -165,23 +202,23 @@ const pricelistShellHtml = (bodyHtml: string) => {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 30px;
-      padding-bottom: 10px;
-      height: 80px; /* Restrict height to prevent layout push */
+      margin-bottom: 20px;
+      padding-bottom: 5px;
+      height: 75px;
     }
 
     .header-left {
       display: flex;
       align-items: center;
-      overflow: visible; /* Let negative margins overflow safely */
+      overflow: visible;
     }
 
     .header-left img {
-      height: 210px !important; /* Scale up image to make internal graphic large */
+      height: 200px !important;
       width: auto !important;
-      margin-top: -65px !important; /* Crop top blank space */
-      margin-bottom: -65px !important; /* Crop bottom blank space */
-      margin-left: -50px !important; /* Shift left to collapse left blank space */
+      margin-top: -62px !important;
+      margin-bottom: -62px !important;
+      margin-left: -48px !important;
       object-fit: contain !important;
       display: block !important;
     }
@@ -193,7 +230,7 @@ const pricelistShellHtml = (bodyHtml: string) => {
     .header-right h1 {
       margin: 0;
       font-family: 'Outfit', sans-serif;
-      font-size: 40px;
+      font-size: 38px;
       font-weight: 800;
       color: #1b5e20;
       letter-spacing: 2px;
@@ -203,14 +240,14 @@ const pricelistShellHtml = (bodyHtml: string) => {
     /* Content split by vertical separator */
     .content-section {
       position: relative;
-      margin-top: 10px;
+      margin-top: 5px;
       flex-grow: 1;
     }
     
     .vertical-divider {
       position: absolute;
       left: 71.5%;
-      top: 36px;
+      top: 32px;
       bottom: 0;
       width: 2.5px;
       background-color: #1b5e20;
@@ -221,9 +258,9 @@ const pricelistShellHtml = (bodyHtml: string) => {
       display: flex;
       justify-content: space-between;
       font-weight: 800;
-      font-size: 20px;
+      font-size: 19px;
       color: #1b5e20;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
       font-family: 'Outfit', sans-serif;
       letter-spacing: 1px;
     }
@@ -240,16 +277,16 @@ const pricelistShellHtml = (bodyHtml: string) => {
 
     /* Categories / Criteria layout */
     .category-group {
-      margin-bottom: 24px;
+      margin-bottom: 18px;
       page-break-inside: avoid;
     }
     
     .category-title {
       font-family: 'Outfit', sans-serif;
       font-weight: 800;
-      font-size: 19px !important; /* Prominent category header, larger than product text */
+      font-size: 18px !important;
       color: #1b5e20;
-      margin: 25px 0 16px 0;
+      margin: 18px 0 12px 0;
       letter-spacing: 0.5px;
       text-transform: uppercase;
     }
@@ -258,7 +295,7 @@ const pricelistShellHtml = (bodyHtml: string) => {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 15px;
+      margin-bottom: 12px;
       page-break-inside: avoid;
     }
     
@@ -269,17 +306,17 @@ const pricelistShellHtml = (bodyHtml: string) => {
     .product-name {
       font-family: 'Outfit', sans-serif;
       font-weight: 700;
-      font-size: 13.5px !important;
+      font-size: 13px !important;
       color: #1b5e20;
       line-height: 1.25;
     }
     
     .product-desc {
       font-family: 'Poppins', sans-serif;
-      font-size: 10.5px !important;
+      font-size: 10px !important;
       color: #556f5a;
-      margin-top: 3px;
-      line-height: 1.4;
+      margin-top: 2px;
+      line-height: 1.35;
       font-weight: 400;
     }
     
@@ -288,7 +325,7 @@ const pricelistShellHtml = (bodyHtml: string) => {
       text-align: right;
       font-family: 'Outfit', sans-serif;
       font-weight: 600;
-      font-size: 13.5px !important;
+      font-size: 13px !important;
       color: #1b5e20;
       padding-top: 1px;
       white-space: nowrap;
@@ -300,8 +337,8 @@ const pricelistShellHtml = (bodyHtml: string) => {
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
-      padding-top: 15px;
-      margin-top: 30px;
+      padding-top: 10px;
+      margin-top: 20px;
       font-family: 'Outfit', sans-serif;
       page-break-inside: avoid;
     }
@@ -309,29 +346,29 @@ const pricelistShellHtml = (bodyHtml: string) => {
     .contacts {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
     }
     
     .contact-item {
       display: flex;
       align-items: center;
-      font-size: 12.5px;
+      font-size: 12px;
       font-weight: 700;
       color: #1b5e20;
       line-height: 1;
     }
     
     .contact-icon {
-      width: 16px;
-      height: 16px;
-      margin-right: 8px;
+      width: 15px;
+      height: 15px;
+      margin-right: 7px;
       color: #1b5e20;
       flex-shrink: 0;
     }
 
     .trademark {
       font-family: 'Dancing Script', cursive;
-      font-size: 21px;
+      font-size: 20px;
       color: #1b5e20;
       font-weight: 700;
       letter-spacing: 0.5px;
@@ -339,14 +376,18 @@ const pricelistShellHtml = (bodyHtml: string) => {
       padding-bottom: 2px;
     }
 
-    /* Print settings */
+    /* Print settings - Single Page Exact Lock */
     @media print {
       .no-print { 
         display: none !important; 
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
       }
       html, body {
         width: 210mm !important;
-        height: 297mm !important;
+        height: 296mm !important;
+        max-height: 296mm !important;
         margin: 0 !important;
         padding: 0 !important;
         background-color: #edf4f0 !important;
@@ -358,52 +399,91 @@ const pricelistShellHtml = (bodyHtml: string) => {
         width: 210mm !important;
         min-width: 210mm !important;
         max-width: 210mm !important;
-        height: 297mm !important;
-        min-height: 297mm !important;
-        max-height: 297mm !important;
-        padding: 16mm 18mm 16mm 18mm !important;
+        height: 296mm !important;
+        min-height: 296mm !important;
+        max-height: 296mm !important;
+        padding: 14mm 16mm 12mm 16mm !important;
         margin: 0 !important;
         box-shadow: none !important;
         page-break-inside: avoid !important;
         page-break-after: avoid !important;
+        page-break-before: avoid !important;
+        overflow: hidden !important;
       }
     }
   </style>
 </head>
 <body>
   <div class="print-toolbar no-print">
-    <button type="button" class="back-button" onclick="window.close()">&larr; Kembali ke Tanabrew</button>
-    <span class="back-note">Gunakan dialog cetak browser untuk menyimpan PDF berkualitas tinggi (Save as PDF) or print langsung.</span>
+    <div class="toolbar-actions">
+      <button type="button" class="btn-action btn-back" onclick="window.close()">&larr; Kembali</button>
+      <button type="button" id="btnDownloadPdf" class="btn-action btn-download" onclick="downloadDirectPdf()">⬇️ Simpan File PDF (Full-Bleed)</button>
+      <button type="button" class="btn-action btn-print" onclick="window.print()">🖨️ Cetak Browser</button>
+    </div>
+    <span class="back-note">💡 Tips: Klik <b>"Simpan File PDF"</b> untuk mendapatkan PDF 1 halaman penuh tanpa margin putih.</span>
   </div>
 
   ${bodyHtml}
 
   <script>
-    window.addEventListener('load', function(){
-      setTimeout(function(){
-        try { 
-          window.focus(); 
-          window.print(); 
-        } catch (error) {
-          console.error(error);
-        }
-      }, 500);
-    });
+    window.downloadDirectPdf = async function() {
+      const btn = document.getElementById('btnDownloadPdf');
+      const originalText = btn ? btn.innerHTML : '';
+      if (btn) btn.innerHTML = '⏳ Menyiapkan PDF...';
+      
+      const target = document.querySelector('.pricelist-container');
+      if (!target) return;
+
+      try {
+        const canvas = await html2canvas(target, {
+          scale: 3,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#edf4f0',
+          width: target.offsetWidth,
+          height: target.offsetHeight
+        });
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.98);
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4'
+        });
+
+        pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+        pdf.save('${fileName}');
+        if (btn) btn.innerHTML = '✅ PDF Berhasil Disimpan!';
+        setTimeout(() => {
+          if (btn) btn.innerHTML = originalText;
+        }, 2500);
+      } catch (err) {
+        console.error('PDF Generation Error:', err);
+        if (btn) btn.innerHTML = originalText;
+        window.print();
+      }
+    };
   <\/script>
 </body>
 </html>`;
 };
 
-export const printPricelist = ({ categories, stockLocation, printedBy, roleLabel, priceMode = "normal" }: PrintPricelistInput, reportWindow?: PricelistWindow) => {
+export const printPricelist = (
+  { categories, stockLocation, printedBy, roleLabel, priceMode = "normal" }: PrintPricelistInput,
+  reportWindow?: PricelistWindow,
+) => {
   const isB2B = priceMode === "b2b";
   // Build category blocks
   const categoriesHtml = categories
-    .filter(cat => cat.items && cat.items.length > 0)
-    .map(cat => {
+    .filter((cat) => cat.items && cat.items.length > 0)
+    .map((cat) => {
       const itemsHtml = cat.items
-        .map(item => {
+        .map((item) => {
           const displayPrice = isB2B
-            ? (item.harga_b2b !== undefined && item.harga_b2b !== "" ? item.harga_b2b : item.harga)
+            ? item.harga_b2b !== undefined && item.harga_b2b !== ""
+              ? item.harga_b2b
+              : item.harga
             : item.harga;
           return `
           <div class="product-row">
@@ -463,7 +543,7 @@ export const printPricelist = ({ categories, stockLocation, printedBy, roleLabel
         <div class="header">
           <!-- Perfectly Integrated Official High-Resolution Logo from image 2 -->
           <div class="header-left">
-            <img src="/logo-pricelist.png" style="height: 210px !important; width: auto !important; margin-top: -65px !important; margin-bottom: -65px !important; margin-left: -50px !important; display: block !important; object-fit: contain !important;" />
+            <img src="/logo-pricelist.png" style="height: 200px !important; width: auto !important; margin-top: -62px !important; margin-bottom: -62px !important; margin-left: -48px !important; display: block !important; object-fit: contain !important;" />
           </div>
           <div class="header-right">
             <h1>PRICE LIST</h1>
@@ -516,11 +596,11 @@ export const printPricelist = ({ categories, stockLocation, printedBy, roleLabel
     </div>
   `;
 
-  const html = pricelistShellHtml(pageHtml);
-  
+  const html = pricelistShellHtml(pageHtml, isB2B);
+
   const popup = reportWindow || window.open("", "_blank");
   if (!popup) return false;
-  
+
   popup.document.open();
   popup.document.write(html);
   popup.document.close();
