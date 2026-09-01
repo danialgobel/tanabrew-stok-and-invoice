@@ -134,15 +134,45 @@ const Beranda = () => {
     return activityLogs.filter((activity) => activity.id && !dismissedSet.has(activity.id));
   }, [activityLogs, dismissedActivityIds, profileDismissedActivityIds, userProfile?.last_seen_activity_id]);
 
+  const demoActivities: ActivityLog[] = useMemo(
+    () => [
+      {
+        id: "demo-act-1",
+        action: "PRINT_INVOICE",
+        description: "Invoice #INV-2026-089 berhasil dicetak",
+        user_name: "Admin Tanabrew",
+      },
+      {
+        id: "demo-act-2",
+        action: "CREATE_INVOICE",
+        description: "Invoice baru dicatat untuk Pesanan Espresso Roast",
+        user_name: "Kasir",
+      },
+      {
+        id: "demo-act-3",
+        action: "UPDATE_PAYMENT_STATUS",
+        description: "Pembayaran invoice disinkronkan lunas secara real-time",
+        user_name: "Owner",
+      },
+    ],
+    [],
+  );
+
+  const displayActivities = useMemo(() => {
+    if (newActivities.length > 0) return newActivities;
+    if (activityLogs.length > 0) return activityLogs;
+    return demoActivities;
+  }, [newActivities, activityLogs, demoActivities]);
+
   useEffect(() => {
-    if (newActivities.length <= 1) return;
+    if (displayActivities.length <= 1) return;
     const interval = setInterval(() => {
-      setTickerIndex((prev) => (prev + 1) % newActivities.length);
+      setTickerIndex((prev) => (prev + 1) % displayActivities.length);
     }, 4500);
     return () => clearInterval(interval);
-  }, [newActivities.length]);
+  }, [displayActivities.length]);
 
-  const currentTickerActivity = newActivities[tickerIndex % newActivities.length] || newActivities[0];
+  const currentTickerActivity = displayActivities[tickerIndex % displayActivities.length] || displayActivities[0];
   const notificationInfo = useMemo(() => {
     switch (notificationStatus) {
       case "granted":
@@ -668,7 +698,7 @@ const Beranda = () => {
         </div>
 
         {/* Kapsul Ticker Aktivitas Terbaru (Ultra-Compact 1 Baris) */}
-        {newActivities.length > 0 && currentTickerActivity && (
+        {displayActivities.length > 0 && currentTickerActivity && (
           <div className="tanabrew-card-enter mb-4 rounded-xl border border-emerald-500/25 bg-emerald-50/70 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 px-3.5 py-2 transition-all flex items-center justify-between gap-2.5 shadow-sm">
             <button
               type="button"
