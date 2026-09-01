@@ -1,153 +1,118 @@
 # Tanabrew Stock & Invoice - Dokumentasi Lengkap & AI Checkpoint
 
-Aplikasi **Tanabrew Stock & Invoice** adalah platform manajemen inventaris, kasir (POS), dan penagihan (invoice) yang terintegrasi langsung dengan database cloud (Google Firebase Firestore).
+Aplikasi **Tanabrew Stock & Invoice** adalah platform manajemen inventaris biji kopi specialty, kasir (POS), dan penagihan (invoice) terintegrasi yang terhubung langsung dengan Google Firebase Cloud Firestore.
 
-Aplikasi ini didesain sebagai Progressive Web App (PWA) agar dapat di-install sebagai aplikasi shortcut pada ponsel maupun desktop staff dengan navigasi ala aplikasi mobile native.
+Aplikasi ini mengusung arsitektur **Dual-Responsive**:
+1. **Smartphone & Tablet (< 1024px)**: Berperan sebagai Progressive Web App (PWA) dengan *Floating Glassmorphic Bottom Navigation Bar*, gestur tarik muat ulang (*Pull-to-Refresh*), dan dialog drawer sentuh.
+2. **Desktop & Laptop (≥ 1024px — v3.0.0)**: Berperan sebagai SaaS POS Dashboard dengan *Permanent Collapsible Left Sidebar Navigation*, Multi-Kolom 12-Grid di Beranda, Katalog Kartu Visual POS (*Square Style Touch Tiles*) di Cetak Invoice, dan Master-Detail Split Pane di Riwayat Transaksi.
 
 ---
 
-## 🚀 AI Agent Context (Status Checkpoint Terakhir)
+## 🚀 AI Agent Context (Status Checkpoint v3.0.0)
 
 > [!IMPORTANT]
-> - **Penanganan Tanggal & Pendapatan Bulanan**: Modul `src/lib/dateUtils.ts` menjadi *single source of truth* untuk seluruh parsing, formatting, dan filtering tanggal invoice. Tanggal transaksi invoice (`invoice.tanggal`) selalu diprioritaskan di atas server timestamp (`invoice.created_at`), memastikan akurasi nomor invoice, hasil cetak faktur, serta perhitungan pendapatan harian dan bulanan.
-> - **Status Fitur Price List & PWA Cache**: Fitur Price List PDF berkualitas tinggi telah **selesai 100%** dan terintegrasi dengan data stok produk. Sistem caching Vercel juga telah dioptimalkan agar shortcut aplikasi perangkat staff otomatis memperbarui konten saat dideploy.
+> - **Arsitektur Rilis Wajib (`src/config/appRelease.ts`)**: Setiap pembaruan kode WAJIB menaikkan nomor versi dan memperbarui `highlights` di file ini. Sistem modal pop-up `AppUpdateAnnouncementModal.tsx` akan otomatis menampilkan 1 jendela pembaruan tunggal untuk seluruh pengguna dan role.
+> - **Penanganan Tanggal & Akurasi Pendapatan (`src/lib/dateUtils.ts`)**: Modul ini adalah *single source of truth* untuk seluruh parsing, penomoran invoice, dan kalkulasi pendapatan bulanan & harian.
+> - **Perlindungan Crash Global (`src/components/ErrorBoundary.tsx`)**: Seluruh aplikasi dibungkus oleh ErrorBoundary di `src/App.tsx` agar tidak pernah terjadi *blank white screen*.
 
 ### Fitur Terkini yang Diselesaikan & Sempurna:
-1. **Modul Tanggal Terpusat & Akurasi Pendapatan (`src/lib/dateUtils.ts`)**:
-   - Pemilihan tanggal otomatis (default hari ini dalam waktu lokal).
-   - Penomoran invoice (`INV/TNB/YYYY/MM/XXXX`) sinkron dengan tanggal dan bulan invoice.
-   - Format tanggal Indonesia yang elegan untuk cetak dan preview.
-   - Perhitungan pendapatan bulanan & harian akurat berdasarkan tanggal transaksi invoice.
 
-2. **Modul Cetak Price List PDF (`src/lib/pricelistPrint.ts`)**:
-   - Layout berukuran A4 beresolusi tinggi, berbasis vektor tajam (teks dapat diblok) menggunakan pencetakan `window.print()`.
-   - Menggunakan logo resmi lengkap `/logo-pricelist.png` (waves `SSS`, `TM`, divider `|`, dan teks `tanabrew roastery` orisinal) dengan koreksi margin putih bawaan gambar via CSS negative-margin.
-   - Pola latar belakang menggunakan siluet daun palem/monstera SVG dengan lekukan jari yang dalam (palmate leaf) pudar (`#f6faf7`) di atas warna mint (`#edf4f0`).
-   - Fitur full-bleed (tanpa batas margin putih pinggiran kertas) dengan setelan `@page { margin: 0; }`.
-   - Huruf *Tanabrew Roastery Trademark* bergaya cursive menggunakan Google Font `Dancing Script`.
-   - Hierarki ukuran font yang tegas: Kriteria Kategori (`19px` bold) jauh lebih besar daripada Nama Produk (`13.5px` bold) dan Harga (`13.5px` semi-bold).
+1. **Tata Letak Khusus Desktop Mode & Left Sidebar Navigation**:
+   - Sidebar navigasi desktop ramping (`w-20`) atau lebar (`w-64`) dengan tombol toggle ciutkan/lebarkan dan jam digital realtime.
+   - Halaman Beranda 12-Grid memisahkan grafik pendapatan, metrik stok cabang, kartu profil, ticker kapsul, dan kontrol owner secara seimbang.
 
-3. **Panel Konfigurasi di Halaman Update Stok (`src/pages/UpdateStok.tsx`)**:
-   - Tombol **Cetak Price List** hijau emerald di samping tombol cetak laporan stok.
-   - Modal 2 langkah:
-     - **Langkah 1**: Filter lokasi stok (Jogja / Lombok / Semua). Produk dengan stok = 0 di lokasi terpilih disembunyikan otomatis.
-     - **Langkah 2**: Manajemen kriteria (tambah/hapus kategori) dan penyusunan produk.
-   - Menghubungkan produk dari database secara instan via select dropdown, lengkap dengan **Auto-Splitting** (memecah nama produk database berformat `Nama - Deskripsi` menjadi kolom nama dan kolom deskripsi terpisah).
-   - Tombol **`+ Manual`**: Memungkinkan pengisian manual (Nama, Harga, dan Deskripsi secara langsung) untuk barang kustom yang tidak ada di database.
-   - Autosave ke `localStorage` (key: `tanabrew_pricelist_config`) agar data susunan tidak hilang ketika browser dimuat ulang.
+2. **Katalog Kartu Visual POS Kasir (`src/pages/CetakInvoice.tsx`)**:
+   - Grid kartu produk visual untuk memasukkan pesanan dengan 1 tap.
+   - Filter chip kategori instan (*Semua, Beans, Filter, Espresso, dll.*) + search bar.
+   - Tombol Pecahan Uang Cepat (*Quick Cash Buttons*: `Uang Pas`, `50k`, `100k`, `200k`, `500k`) untuk menghitung kembalian kasir seketika.
 
-4. **Penyelesaian Caching Aplikasi Shortcut/PWA (`vercel.json`)**:
-   - Menyetel header `Cache-Control: public, max-age=0, must-revalidate` untuk file `index.html` dan `manifest.webmanifest`.
-   - **Tujuan**: Memaksa shortcut di HP/device staff untuk selalu mengecek server Vercel ketika dibuka, sehingga setiap pembaruan aplikasi langsung ter-update otomatis pada perangkat mereka tanpa tersangkut cache lama.
-   - File statis `/assets/*` tetap di-cache setahun (`max-age=31536000, immutable`) demi kecepatan muat yang optimal.
+3. **Master-Detail Split Pane di Halaman Riwayat (`src/pages/Riwayat.tsx`)**:
+   - Kolom kiri (5 kolom) untuk filter & daftar transaksi, kolom kanan (7 kolom sticky) untuk pratinjau dokumen faktur resmi secara real-time.
+   - Tombol aksi dokumen (*Cetak Ulang PDF, Kirim WhatsApp, Tandai Lunas, Edit, Hapus*) dapat diakses seketika tanpa pop-up modal bertumpuk.
+
+4. **Kapsul Ticker Aktivitas & Animasi Pegas Spring Bezier**:
+   - Ticker 1 baris ramping dengan rotasi otomatis 2 detik dan tombol silang (✕) yang tersimpan permanen di memori lokal & cloud.
+   - Animasi transisi pegas (*spring physics bezier* `cubic-bezier(0.16, 1, 0.3, 1)`) pada kartu dan efek liquid shimmer lighting.
+
+5. **Modul Cetak Price List PDF Kualitas Tinggi (`src/lib/pricelistPrint.ts`)**:
+   - Layout A4 full-bleed tajam berbasis vektor dengan auto-splitting nama produk dan mode input barang manual.
 
 ---
 
 ## 🛠️ Modul & Fitur Aplikasi Secara Keseluruhan
 
-Aplikasi ini mencakup modul-modul bisnis utama berikut:
+### 1. Autentikasi & Hak Akses (`src/context/AuthContext.tsx`)
+- Firebase Authentication dengan Role-Based Access Control (RBAC):
+  - **Owner & Developer (`webdev`)**: Hak akses penuh ke grafik pendapatan, hapus invoice, reset log, dan menu **God Mode** (`/god-mode`).
+  - **Admin**: Hak akses manajemen stok, cetak invoice, dan penagihan.
+  - **Staff**: Hak akses operasional kasir dan mutasi stok.
 
-### 1. Sistem Autentikasi & Hak Akses (`src/context/AuthContext.tsx`)
-- Menggunakan Firebase Authentication untuk login, registrasi, dan kelola sesi.
-- Menyediakan Role-Based Access Control (RBAC) dengan hak akses:
-  - **Owner/Admin (GodMode)**: Hak akses penuh ke grafik pendapatan, hapus data transaksi, dan konfigurasi sistem.
-  - **Staff/Kasir**: Hak akses terbatas untuk melakukan transaksi kasir, update mutasi stok, dan cetak invoice.
+### 2. POS Kasir & Pembuat Invoice (`src/pages/CetakInvoice.tsx`, `Riwayat.tsx`)
+- Penomoran otomatis `INV/TNB/YYYY/MM/XXXX` sesuai tanggal transaksi.
+- Dukungan printer termal maupun cetak PDF standar A4.
+- Pengiriman invoice via WhatsApp resmi.
 
-### 2. Dashboard Analitik & Beranda (`src/pages/Beranda.tsx`)
-- Menampilkan total penjualan harian, mingguan, bulanan, dan tahunan.
-- Menampilkan grafik interaktif omzet dan transaksi.
-- Log aktivitas terbaru (Activity Log) yang melacak tindakan user (misal: "Staff A mengubah stok Jogja Kopi Gayo menjadi 10").
-- Widget peringatan stok kritis/hampir habis (Low Stock Warning).
+### 3. Manajemen Inventaris Multi-Gudang (`src/pages/UpdateStok.tsx`)
+- Melacak stok terpisah untuk **Gudang Jogja** dan **Gudang Lombok**.
+- Mutasi stok cepat, opname stok, dan pencetakan lembar laporan fisik.
 
-### 3. POS Kasir & Transaksi (`src/pages/Riwayat.tsx`, `CetakInvoice.tsx`)
-- Pencatatan transaksi penjualan secara real-time.
-- Pembuatan nomor invoice otomatis menggunakan kode unik berdasarkan tahun/bulan/nomor urut sesuai tanggal invoice.
-- Cetak Invoice dalam format struk belanja yang ramah printer termal maupun cetak PDF standar.
-- Menyimpan status pembayaran (LUNAS / BELUM LUNAS).
+### 4. Obrolan Tim Internal (`src/pages/Obrolan.tsx`)
+- Ruang koordinasi internal tim Tanabrew berbasis Firestore real-time.
 
-### 4. Manajemen Inventaris Multilokasi (`src/pages/UpdateStok.tsx`)
-- Melacak jumlah stok barang di dua gudang/outlet fisik terpisah: **Jogja** dan **Lombok**.
-- Fitur mutasi stok cepat (tambah stok masuk, kurangi stok rusak, penyesuaian opname).
-- Pencetakan Lembar Laporan Stok fisik untuk audit manual.
-- Generator Price List PDF yang dinamis.
-
-### 5. PWA Mobile UI & Push Notification (`src/lib/onesignal.ts`)
-- Navigasi mobile-friendly dengan bar navigasi bawah (`BottomNav.tsx`) yang lengket di layar handphone.
-- Fitur geser ke bawah untuk menyegarkan data (`PullToRefresh.tsx`) yang meniru pengalaman aplikasi mobile native.
-- OneSignal SDK terintegrasi untuk mengirimkan notifikasi push ketika stok habis atau terdapat pengumuman penting bagi staff.
+### 5. Menu Publik (`src/pages/PriceListPublic.tsx`)
+- Rute publik `/pricelist` & `/menu` untuk scan QR / ID Card pelanggan tanpa perlu login.
 
 ---
 
 ## 📂 Struktur Direktori Proyek
 
 ```bash
-├── public/                 # File statis
+├── public/                 # File statis & ikon aset
 ├── src/
-│   ├── components/         # Reusable UI Components
-│   │   ├── ui/             # Shadcn UI primitives
-│   │   ├── BottomNav.tsx   # Bar navigasi bawah
-│   │   ├── ConfirmDialog.tsx# Dialog konfirmasi
-│   │   └── PullToRefresh.tsx# Gesture tarik-layar untuk memuat ulang data
+│   ├── components/         # Komponen UI
+│   │   ├── DesktopSidebar.tsx          # Navigasi bilah samping kiri desktop
+│   │   ├── BottomNav.tsx               # Bar navigasi bawah mobile (Floating Island)
+│   │   ├── ErrorBoundary.tsx           # Penangkal crash & layar putih global
+│   │   ├── AppUpdateAnnouncementModal.tsx # Modal pengumuman pembaruan versi
+│   │   ├── PullToRefresh.tsx           # Gestur tarik-layar muat ulang
+│   │   └── ConfirmDialog.tsx           # Dialog konfirmasi aksi penting
+│   ├── config/
+│   │   └── appRelease.ts   # Konfigurasi versi & changelog aplikasi resmi
 │   ├── context/
-│   │   └── AuthContext.tsx # Provider autentikasi Firebase
-│   ├── hooks/              # Custom React Hooks
-│   ├── lib/                # Layanan & Utilitas Helper
-│   │   ├── dateUtils.ts    # Utilitas tanggal terpusat, parsing, & kalkulasi pendapatan
-│   │   ├── invoiceNumber.ts# Penomoran invoice transaksi & update stok
-│   │   ├── firebase.ts     # Inisialisasi SDK Firebase Firestore & Auth
-│   │   ├── pricelistPrint.ts# Template desain cetak Price List PDF A4
-│   │   ├── reportPrint.ts  # Template desain cetak Laporan Stok & Mutasi
-│   │   └── onesignal.ts    # Integrasi notifikasi push OneSignal
-│   ├── pages/              # Halaman Tampilan (Screens)
-│   │   ├── Beranda.tsx     # Dashboard Grafik & Peringatan Stok
-│   │   ├── Riwayat.tsx     # POS Kasir & Transaksi Log
-│   │   ├── CetakInvoice.tsx# Pembuatan & Cetak Invoice
-│   │   ├── UpdateStok.tsx  # Halaman Stok & Generator Price List
-│   │   ├── Obrolan.tsx     # Ruang Komunikasi Tim Internal
-│   │   ├── Akun.tsx        # Profil Pengguna & Preferensi Operasional
-│   │   └── GodMode.tsx     # Pengaturan Developer & Maintenance Database
-│   ├── types/              # Type definition TypeScript
-│   ├── App.tsx             # Pengaturan Router Rute & Proteksi Halaman
-│   └── main.tsx            # React DOM entrypoint
-├── index.html              # Template HTML utama
-├── vercel.json             # Konfigurasi rewrite & anti-cache header Vercel
-├── tailwind.config.ts      # Konfigurasi desain & token warna Tailwind CSS
-└── package.json            # Informasi dependency & script build/test
+│   │   └── AuthContext.tsx # Provider autentikasi Firebase & RBAC
+│   ├── hooks/              # Custom React Hooks (useProducts, useToast, dll.)
+│   ├── lib/                # Utilitas & Layanan
+│   │   ├── dateUtils.ts    # Utilitas tanggal terpusat & kalkulasi pendapatan
+│   │   ├── invoiceNumber.ts# Penomoran transaksi & mutasi stok
+│   │   ├── invoicePdfGenerator.ts # Generator PDF faktur invoice
+│   │   ├── pricelistPrint.ts # Template cetak Price List PDF
+│   │   ├── reportPrint.ts  # Template cetak Laporan Transaksi & Mutasi
+│   │   ├── whatsappClient.ts # Integrasi pengiriman WhatsApp
+│   │   └── onesignal.ts    # Integrasi Push Notification OneSignal
+│   ├── pages/              # Halaman Aplikasi
+│   │   ├── Beranda.tsx     # Dashboard analitik & 12-grid desktop
+│   │   ├── CetakInvoice.tsx# Kasir POS Touch Tiles & Invoice
+│   │   ├── Riwayat.tsx     # Master-Detail Split Pane & Riwayat
+│   │   ├── UpdateStok.tsx  # Gudang Jogja/Lombok & Price List
+│   │   ├── Obrolan.tsx     # Chat koordinasi tim
+│   │   ├── Akun.tsx        # Profil pengguna & changelog viewer
+│   │   ├── GodMode.tsx     # Pusat kendali Owner & Developer
+│   │   └── PriceListPublic.tsx # Halaman menu publik untuk QR/ID Card
+│   ├── App.tsx             # Root Router & ErrorBoundary wrapper
+│   └── index.css           # Desain token, animasi spring, & glassmorphism
+└── AGENTS.md               # Pedoman wajib pengembangan AI Agent
 ```
 
 ---
 
-## 💻 Cara Menjalankan Proyek Secara Lokal
+## 🏗️ Standar Pengujian & Kontribusi
 
-### Prasyarat:
-Pastikan Anda telah menginstal Node.js (versi 18+) di komputer Anda.
-
-1. **Instal dependency**:
-   ```bash
-   npm install
-   ```
-
-2. **Konfigurasi Environment Variables**:
-   Buat file `.env.local` atau isi `.env` di root folder dengan kredensial Firebase Anda.
-
-3. **Jalankan server development**:
-   ```bash
-   npm run dev
-   ```
-   Aplikasi akan berjalan di [http://localhost:8080/](http://localhost:8080/).
-
----
-
-## 🧪 Pengujian Unit (Unit Testing)
-
-Jalankan perintah berikut untuk menjalankan seluruh pengujian:
+Sebelum melakukan commit dan push ke repositori:
 ```bash
+# 1. Jalankan pengujian unit
 npm test -- --run
+
+# 2. Jalankan kompilasi build produksi
+npm run build
 ```
-
----
-
-## ⚠️ Panduan Keamanan untuk AI Agent Pengembang Berikutnya
-1. **Integritas Tanggal**: Selalu gunakan fungsi dari `src/lib/dateUtils.ts` saat melakukan kalkulasi, formatting, atau filtering tanggal invoice.
-2. **PWA & Caching**: Aturan header di `vercel.json` sangat krusial agar aplikasi shortcut staff ter-update otomatis. Jangan menghapus blok `"headers"` di file tersebut.
-3. **Format CSS Cetak**: Layout cetak di `pricelistPrint.ts` menggunakan style khusus `@media print` dan ukuran A4. Perubahan layout harus dites menggunakan print preview browser untuk menjamin estetika tetap presisi.
+Pastikan seluruh pengujian selesai dengan `exit code 0` bebas dari error.
