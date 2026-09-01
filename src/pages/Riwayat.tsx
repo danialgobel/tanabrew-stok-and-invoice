@@ -79,6 +79,8 @@ const formatRole = (role?: string) => {
   return role || "Tidak diketahui";
 };
 
+const formatDate = (value: unknown) => formatDateTime(value);
+
 const actionLabel = (action?: string) => {
   switch (action) {
     case "CREATE_PRODUCT":

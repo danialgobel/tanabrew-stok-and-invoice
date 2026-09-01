@@ -168,7 +168,7 @@ const Beranda = () => {
     if (displayActivities.length <= 1) return;
     const interval = setInterval(() => {
       setTickerIndex((prev) => (prev + 1) % displayActivities.length);
-    }, 4500);
+    }, 2000);
     return () => clearInterval(interval);
   }, [displayActivities.length]);
 
@@ -713,7 +713,10 @@ const Beranda = () => {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
 
-              <div className="min-w-0 flex-1 truncate text-xs">
+              <div 
+                key={`ticker-text-${tickerIndex}`}
+                className="min-w-0 flex-1 truncate text-xs animate-in fade-in slide-in-from-bottom-2 duration-300"
+              >
                 <span className="font-bold text-emerald-800 dark:text-emerald-300 mr-1.5">
                   {actionLabel(currentTickerActivity.action)}:
                 </span>
