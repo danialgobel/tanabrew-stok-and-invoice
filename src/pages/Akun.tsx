@@ -34,6 +34,8 @@ import {
   Check,
   X,
   Sparkles,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 const Akun = () => {
@@ -66,6 +68,9 @@ const Akun = () => {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [sendingResetEmail, setSendingResetEmail] = useState(false);
 
@@ -670,23 +675,20 @@ const Akun = () => {
         Keluar dari Akun (Logout)
       </button>
 
-      {/* MODAL EDIT NAMA (MODERN BOTTOM SHEET / GLASS) */}
+      {/* MODAL EDIT NAMA */}
       {showEditNameModal && (
         <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in"
           onClick={() => setShowEditNameModal(false)}
         >
           <div
-            className="bg-card w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6 border border-border shadow-2xl space-y-4 animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200"
-            style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
+            className="bg-card w-full max-w-sm rounded-2xl p-5 sm:p-6 border border-border shadow-2xl space-y-4 my-auto max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-center sm:hidden pb-1">
-              <div className="h-1.5 w-12 rounded-full bg-muted-foreground/30" />
-            </div>
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="text-sm font-bold text-foreground">Ubah Nama Profil</h3>
               <button
+                type="button"
                 onClick={() => setShowEditNameModal(false)}
                 className="p-1 rounded-full text-muted-foreground hover:bg-muted"
               >
@@ -709,14 +711,14 @@ const Akun = () => {
                 <button
                   type="button"
                   onClick={() => setShowEditNameModal(false)}
-                  className="rounded-xl bg-muted py-3 text-xs font-semibold text-muted-foreground hover:bg-muted/80"
+                  className="rounded-xl bg-muted py-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted/80"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={savingName || !nameInput.trim()}
-                  className="rounded-xl bg-primary py-3 text-xs font-bold text-primary-foreground hover:opacity-90 disabled:opacity-50 shadow-sm"
+                  className="rounded-xl bg-primary py-2.5 text-xs font-bold text-primary-foreground hover:opacity-90 disabled:opacity-50 shadow-sm"
                 >
                   {savingName ? "Menyimpan..." : "Simpan Nama"}
                 </button>
@@ -726,26 +728,23 @@ const Akun = () => {
         </div>
       )}
 
-      {/* MODAL GANTI PASSWORD (MODERN BOTTOM SHEET / GLASS) */}
+      {/* MODAL GANTI PASSWORD */}
       {showChangePasswordModal && (
         <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in"
           onClick={() => setShowChangePasswordModal(false)}
         >
           <div
-            className="bg-card w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6 border border-border shadow-2xl space-y-4 animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200"
-            style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
+            className="bg-card w-full max-w-sm rounded-2xl p-5 sm:p-6 border border-border shadow-2xl space-y-4 my-auto max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-center sm:hidden pb-1">
-              <div className="h-1.5 w-12 rounded-full bg-muted-foreground/30" />
-            </div>
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2">
                 <KeyRound size={16} className="text-primary" />
                 <h3 className="text-sm font-bold text-foreground">Ubah Kata Sandi</h3>
               </div>
               <button
+                type="button"
                 onClick={() => setShowChangePasswordModal(false)}
                 className="p-1 rounded-full text-muted-foreground hover:bg-muted"
               >
@@ -755,49 +754,76 @@ const Akun = () => {
             <form onSubmit={handleChangePassword} className="space-y-3">
               <div>
                 <label className="text-xs font-semibold text-muted-foreground mb-1 block">Kata Sandi Saat Ini:</label>
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Masukkan kata sandi lama"
-                  className="w-full rounded-xl border border-input bg-background p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring shadow-xs"
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type={showCurrentPassword ? "text" : "password"}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Masukkan kata sandi lama"
+                    className="w-full rounded-xl border border-input bg-background p-2.5 pr-9 text-xs focus:outline-none focus:ring-2 focus:ring-ring shadow-xs"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword((prev) => !prev)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showCurrentPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="text-xs font-semibold text-muted-foreground mb-1 block">Kata Sandi Baru (min 6 karakter):</label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Masukkan kata sandi baru"
-                  className="w-full rounded-xl border border-input bg-background p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring shadow-xs"
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Masukkan kata sandi baru"
+                    className="w-full rounded-xl border border-input bg-background p-2.5 pr-9 text-xs focus:outline-none focus:ring-2 focus:ring-ring shadow-xs"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword((prev) => !prev)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showNewPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="text-xs font-semibold text-muted-foreground mb-1 block">Konfirmasi Kata Sandi Baru:</label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Ulangi kata sandi baru"
-                  className="w-full rounded-xl border border-input bg-background p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring shadow-xs"
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Ulangi kata sandi baru"
+                    className="w-full rounded-xl border border-input bg-background p-2.5 pr-9 text-xs focus:outline-none focus:ring-2 focus:ring-ring shadow-xs"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((prev) => !prev)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showConfirmPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-border">
                 <button
                   type="button"
                   onClick={() => setShowChangePasswordModal(false)}
-                  className="rounded-xl bg-muted py-3 text-xs font-semibold text-muted-foreground hover:bg-muted/80"
+                  className="rounded-xl bg-muted py-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted/80"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={savingPassword || !currentPassword || !newPassword}
-                  className="rounded-xl bg-primary py-3 text-xs font-bold text-primary-foreground hover:opacity-90 disabled:opacity-50 shadow-sm"
+                  className="rounded-xl bg-primary py-2.5 text-xs font-bold text-primary-foreground hover:opacity-90 disabled:opacity-50 shadow-sm"
                 >
                   {savingPassword ? "Memproses..." : "Ganti Kata Sandi"}
                 </button>
