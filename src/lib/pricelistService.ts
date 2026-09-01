@@ -1,5 +1,5 @@
 import { doc, getDoc, setDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
-import { db } from "./firebase";
+import { db, auth } from "./firebase";
 
 export interface PriceListSettings {
   image_url: string;
@@ -169,16 +169,20 @@ export const savePriceListSettings = async (
 
   // 2. Call serverless API endpoint for synchronization
   try {
+    const token = await auth.currentUser?.getIdToken();
     await fetch("/api/pricelist", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({
         image_url: imageUrl,
         updated_by: updatedByName || "Owner",
       }),
     });
   } catch (apiErr) {
-    console.warn("API sync failed:", apiErr);
+    console.warn("API sync notice:", apiErr);
   }
 };
 

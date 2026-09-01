@@ -113,22 +113,42 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
 
     if (req.method === "POST") {
-      const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
-      const imageUrl = body.image_url;
+      // Verify requester authentication
+      const authHeader = req.headers["authorization"] || req.headers["Authorization"];
+      const authStr = Array.isArray(authHeader) ? authHeader[0] : authHeader;
 
-      if (!imageUrl) {
-        return res.status(400).json({ error: "image_url is required" });
+      if (!authStr || !authStr.startsWith("Bearer ")) {
+        return res.status(401).json({ error: "Unauthorized: Token otentikasi diperlukan." });
       }
 
       if (adminApp) {
+        const { getAuth } = await import("firebase-admin/auth");
         const { getFirestore, FieldValue } = await import("firebase-admin/firestore");
+        
+        const token = authStr.substring(7);
+        const decoded = await getAuth(adminApp).verifyIdToken(token);
+        
         const db = getFirestore(adminApp);
+        const userDoc = await db.collection("users").doc(decoded.uid).get();
+        const role = userDoc.data()?.role;
+
+        if (role !== "owner" && role !== "admin" && role !== "webdev") {
+          return res.status(403).json({ error: "Akses ditolak: Hanya Owner atau Admin yang diizinkan." });
+        }
+
+        const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
+        const imageUrl = body.image_url;
+
+        if (!imageUrl) {
+          return res.status(400).json({ error: "image_url is required" });
+        }
+
         await db.collection("products").doc("config_pricelist").set(
           {
             is_system_config: true,
             image_url: imageUrl,
             updated_at: FieldValue.serverTimestamp(),
-            updated_by: body.updated_by || "Owner",
+            updated_by: userDoc.data()?.name || "Owner",
           },
           { merge: true },
         );
