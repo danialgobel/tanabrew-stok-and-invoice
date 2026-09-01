@@ -11,7 +11,6 @@ import Beranda from "@/pages/Beranda";
 import UpdateStok from "@/pages/UpdateStok";
 import CetakInvoice from "@/pages/CetakInvoice";
 import Riwayat from "@/pages/Riwayat";
-import Spreadsheet from "@/pages/Spreadsheet";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import NotFound from "@/pages/NotFound";
@@ -80,7 +79,6 @@ const AppRoutes = () => {
           <Route path="/cetak-invoice" element={<ProtectedPage><CetakInvoice /></ProtectedPage>} />
           <Route path="/riwayat" element={<ProtectedPage><Riwayat /></ProtectedPage>} />
           <Route path="/obrolan" element={<ProtectedPage><Obrolan /></ProtectedPage>} />
-          <Route path="/spreadsheet" element={<ProtectedPage><Spreadsheet /></ProtectedPage>} />
           <Route path="/akun" element={<ProtectedPage><Akun /></ProtectedPage>} />
           <Route path="/god-mode" element={<ProtectedPage><GodMode /></ProtectedPage>} />
           <Route path="*" element={<NotFound />} />

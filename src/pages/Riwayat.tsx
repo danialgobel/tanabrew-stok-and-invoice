@@ -15,7 +15,7 @@ import {
   type DocumentData,
   type QueryDocumentSnapshot,
 } from "firebase/firestore";
-import { Activity, Download, Edit, Eye, FileText, Package, Printer, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { Activity, Download, Edit, Eye, FileText, Package, Printer, RotateCcw, Search, Trash2, X, Smartphone } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { addActivityLog } from "@/lib/activityLog";
 import AnimatedNotification from "@/components/AnimatedNotification";
@@ -29,13 +29,27 @@ import { sendTanabrewNotification } from "@/lib/notificationSender";
 import { openReportWindow, printInvoiceReport, printStockReport, printTanabrewReport, writeReportError } from "@/lib/reportPrint";
 import { deleteInvoiceWithStock } from "@/lib/invoiceNumber";
 import { downloadCsv, monthFileStamp } from "@/lib/csvExport";
+import { generateInvoicePdfBlob } from "@/lib/invoicePdfGenerator";
+import { sendInvoiceToWhatsApp } from "@/lib/whatsappClient";
 import type { ActivityLog, Invoice, InvoiceItem, StockMovement } from "@/types";
-import { syncInvoiceToSpreadsheet } from "@/lib/spreadsheet/invoiceSync";
+import {
+  type DateFilter,
+  todayInputValue,
+  formatFullDate,
+  formatMonthYear,
+  formatDisplayDate,
+  formatInvoiceDate,
+  formatDateTime,
+  getDateValue,
+  getInvoiceDateValue,
+  getDateRange,
+  matchesDateFilter,
+  getPeriodLabel,
+} from "@/lib/dateUtils";
 
 type ActiveTab = "invoice" | "stok" | "aktivitas";
 type PayStatusFilter = "semua" | "LUNAS" | "BELUM LUNAS";
 type PrintStatusFilter = "semua" | "belum" | "sudah";
-type DateFilter = "semua" | "hari_ini" | "bulan_ini" | "custom";
 type ReportType = "invoice" | "stok" | "gabungan";
 
 type ActionNotice = {
@@ -51,144 +65,12 @@ const paymentInstructions = [
   "No. Rekening 7196999501",
 ];
 
-const toInputDate = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
-
-const todayInputValue = () => toInputDate(new Date());
-
-const parseInputDate = (value: string) => {
-  const [year, month, day] = value.split("-").map(Number);
-  if (!year || !month || !day) return null;
-
-  return new Date(year, month - 1, day);
-};
-
-const formatFullDate = (date: Date) =>
-  new Intl.DateTimeFormat("id-ID", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(date);
-
-const formatMonthYear = (date: Date) =>
-  new Intl.DateTimeFormat("id-ID", {
-    month: "long",
-    year: "numeric",
-  }).format(date);
-
 const formatCurrency = (value?: number) =>
   new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",
     maximumFractionDigits: 0,
   }).format(value || 0);
-
-const indonesianMonths: Record<string, number> = {
-  januari: 0, jan: 0,
-  februari: 1, feb: 1,
-  maret: 2, mar: 2,
-  april: 3, apr: 3,
-  mei: 4, may: 4,
-  juni: 5, jun: 5,
-  juli: 6, jul: 6,
-  agustus: 7, agu: 7, aug: 7,
-  september: 8, sep: 8,
-  oktober: 9, okt: 9, oct: 9,
-  november: 10, nov: 10,
-  desember: 11, des: 11, dec: 11,
-};
-
-const parseDateString = (str: string): number => {
-  if (!str) return 0;
-  const trimmed = str.trim();
-
-  // Try standard ISO date parsing first
-  const parsed = Date.parse(trimmed);
-  if (!Number.isNaN(parsed)) return parsed;
-
-  // Handle DD/MM/YYYY, DD-MM-YYYY, or Indonesian date formats like "29 Agustus 2026"
-  const parts = trimmed.split(/[/ -]/);
-  if (parts.length === 3) {
-    const p0 = Number(parts[0]);
-    const p1 = Number(parts[1]);
-    const p2 = Number(parts[2]);
-
-    // Format DD/MM/YYYY
-    if (p2 >= 1900 && p1 >= 1 && p1 <= 12 && p0 >= 1 && p0 <= 31) {
-      return new Date(p2, p1 - 1, p0).getTime();
-    }
-    // Format YYYY/MM/DD
-    if (p0 >= 1900 && p1 >= 1 && p1 <= 12 && p2 >= 1 && p2 <= 31) {
-      return new Date(p0, p1 - 1, p2).getTime();
-    }
-    // Format "29 Agustus 2026"
-    const mName = parts[1].toLowerCase();
-    if (indonesianMonths[mName] !== undefined && p2 >= 1900) {
-      return new Date(p2, indonesianMonths[mName], p0).getTime();
-    }
-  }
-
-  return 0;
-};
-
-const getDateValue = (value: unknown) => {
-  if (!value) return 0;
-
-  if (typeof value === "object" && value !== null && "toDate" in value && typeof (value as any).toDate === "function") {
-    return (value as any).toDate().getTime();
-  }
-
-  if (value instanceof Date) return value.getTime();
-
-  if (typeof value === "number") return value;
-
-  if (typeof value === "string") {
-    return parseDateString(value);
-  }
-
-  return 0;
-};
-
-const getInvoiceDateValue = (invoice: Invoice) => {
-  const createdTime = getDateValue(invoice.created_at);
-  if (createdTime) return createdTime;
-
-  const tanggalTime = getDateValue(invoice.tanggal);
-  if (tanggalTime) return tanggalTime;
-
-  // Fallback to invoice number pattern INV/TNB/YYYY/MM/XXXX
-  if (invoice.no_invoice) {
-    const parts = invoice.no_invoice.split("/");
-    if (parts.length >= 4) {
-      const year = Number(parts[2]);
-      const month = Number(parts[3]);
-      if (year >= 2000 && month >= 1 && month <= 12) {
-        return new Date(year, month - 1, 1).getTime();
-      }
-    }
-  }
-
-  return 0;
-};
-
-const formatDate = (value: unknown, fallback?: string) => {
-  if (!value) return fallback || "-";
-  if (typeof value === "string") return value;
-
-  const time = getDateValue(value);
-  if (!time) return fallback || "-";
-
-  return new Intl.DateTimeFormat("id-ID", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(time));
-};
-
-const formatInvoiceDate = (invoice: Invoice) => formatDate(invoice.created_at, invoice.tanggal);
 
 const formatRole = (role?: string) => {
   if (role === "owner") return "Owner";
@@ -243,52 +125,6 @@ const escapeHtml = (value: unknown) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
-
-const getDateRange = (filter: DateFilter, startDate: string, endDate: string) => {
-  const now = new Date();
-  let start: Date | null = null;
-  let end: Date | null = null;
-
-  if (filter === "hari_ini") {
-    start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-    end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-  }
-
-  if (filter === "bulan_ini") {
-    start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-    end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-  }
-
-  if (filter === "custom") {
-    start = startDate ? new Date(`${startDate}T00:00:00`) : null;
-    end = endDate ? new Date(`${endDate}T23:59:59`) : null;
-  }
-
-  return { start, end };
-};
-
-const matchesDateFilter = (invoice: Invoice, filter: DateFilter, startDate: string, endDate: string) => {
-  if (filter === "semua") return true;
-
-  const time = getInvoiceDateValue(invoice);
-  if (!time) return false;
-
-  const { start, end } = getDateRange(filter, startDate, endDate);
-  if (start && time < start.getTime()) return false;
-  if (end && time > end.getTime()) return false;
-  return true;
-};
-
-const getPeriodLabel = (filter: DateFilter, startDate: string, endDate: string) => {
-  if (filter === "hari_ini") return formatFullDate(new Date());
-  if (filter === "bulan_ini") return formatMonthYear(new Date());
-  if (filter === "custom") {
-    const startLabel = startDate ? formatFullDate(parseInputDate(startDate) || new Date(startDate)) : "-";
-    const endLabel = endDate ? formatFullDate(parseInputDate(endDate) || new Date(endDate)) : "-";
-    return `${startLabel} - ${endLabel}`;
-  }
-  return "Semua Tanggal";
-};
 
 const getStockStatus = (total?: number) => {
   const value = total || 0;
@@ -435,6 +271,7 @@ const Riwayat = () => {
   const [reportStartDate, setReportStartDate] = useState(todayInputValue());
   const [reportEndDate, setReportEndDate] = useState(todayInputValue());
   const [loadingReport, setLoadingReport] = useState<ReportType | null>(null);
+  const [sendingWaInvoiceId, setSendingWaInvoiceId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!actionNotice) return;
@@ -893,9 +730,6 @@ const Riwayat = () => {
       showActionNotice("Invoice berhasil ditandai lunas", `No Invoice: ${paidInvoice.no_invoice}`);
       toast({ title: "Berhasil", description: `Invoice ${paidInvoice.no_invoice} sudah LUNAS.` });
       sendInvoiceNotification("UPDATE_PAYMENT_STATUS", paidInvoice);
-      
-      // Google Spreadsheet synchronization disabled as per request
-      // void syncInvoiceToSpreadsheet(paidInvoice.id || paymentTarget.id);
     } catch {
       toast({ title: "Error", description: "Gagal menandai invoice lunas.", variant: "destructive" });
     } finally {
@@ -962,6 +796,67 @@ const Riwayat = () => {
 
     showActionNotice("Invoice diproses untuk dicetak", "Status cetak diperbarui");
     sendInvoiceNotification("PRINT_INVOICE", invoice);
+
+    // Otomatis kirim PDF invoice ke WhatsApp Grup
+    void handleSendWhatsAppInvoice(invoice, false);
+  };
+
+  const handleSendWhatsAppInvoice = async (invoice: Invoice, force = true) => {
+    if (!currentUser || !userProfile) {
+      toast({ title: "Error", description: "Data user belum siap, silakan coba lagi.", variant: "destructive" });
+      return;
+    }
+
+    if (userProfile.role !== "admin" && userProfile.role !== "owner" && userProfile.role !== "webdev") {
+      toast({ title: "Akses Ditolak", description: "Hanya Admin/Owner/Developer yang dapat mengirim invoice ke WhatsApp.", variant: "destructive" });
+      return;
+    }
+
+    if (!invoice.id) return;
+    setSendingWaInvoiceId(invoice.id);
+
+    try {
+      const { base64, fileName } = await generateInvoicePdfBlob(invoice);
+      const result = await sendInvoiceToWhatsApp(currentUser, {
+        invoice,
+        pdfBase64: base64,
+        fileName,
+        forceSend: force,
+      });
+
+      if (result.alreadySent) {
+        toast({ title: "Info WhatsApp", description: `Invoice ${invoice.no_invoice} sudah pernah dikirim sebelumnya.` });
+      } else {
+        toast({
+          title: "WhatsApp Terkirim",
+          description: `PDF invoice ${invoice.no_invoice} berhasil dikirim ke grup ${result.groupName || "WhatsApp"}.`,
+        });
+      }
+
+      setInvoices((prev) =>
+        prev.map((inv) =>
+          inv.id === invoice.id
+            ? {
+                ...inv,
+                whatsapp_status: {
+                  status: "SENT",
+                  group_name: result.groupName || "Grup WhatsApp",
+                  sent_at: new Date(),
+                } as any,
+              }
+            : inv
+        )
+      );
+    } catch (err: any) {
+      console.warn("Gagal mengirim invoice ke WhatsApp:", err);
+      toast({
+        title: "Gagal Mengirim WhatsApp",
+        description: err.message || "Pastikan WhatsApp service aktif.",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingWaInvoiceId(null);
+    }
   };
 
   const handlePrintInvoice = async (invoice: Invoice) => {
@@ -1300,24 +1195,57 @@ const Riwayat = () => {
                       </div>
                     </div>
                   )}
+
+                  {/* WhatsApp Status Badge */}
+                  <div className="mt-2 pt-2 border-t border-border/60 flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Smartphone size={11} className="text-emerald-600" />
+                      Status WhatsApp
+                    </span>
+                    <span className={`font-bold ${
+                      (invoice as any).whatsapp_status?.status === "SENT"
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : (invoice as any).whatsapp_status?.status === "FAILED"
+                        ? "text-destructive"
+                        : (invoice as any).whatsapp_status?.status === "SENDING"
+                        ? "text-amber-500"
+                        : "text-muted-foreground"
+                    }`}>
+                      {(invoice as any).whatsapp_status?.status === "SENT"
+                        ? `✓ Terkirim (${(invoice as any).whatsapp_status.group_name || "Grup"})`
+                        : (invoice as any).whatsapp_status?.status === "FAILED"
+                        ? "Gagal Kirim"
+                        : (invoice as any).whatsapp_status?.status === "SENDING"
+                        ? "Sedang Mengirim..."
+                        : "Belum Terkirim"}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Primary Action Buttons */}
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <button
                     onClick={() => setSelectedInvoice(invoice)}
-                    className="inline-flex items-center justify-center gap-1 rounded-lg bg-muted px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    className="inline-flex items-center justify-center gap-1 rounded-lg bg-muted px-2 py-2 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                   >
-                    <Eye size={14} />
-                    Lihat Detail
+                    <Eye size={13} />
+                    Detail
                   </button>
                   <button
                     onClick={() => handlePrintInvoice(invoice)}
                     disabled={!isAdmin}
-                    className="inline-flex items-center justify-center gap-1 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center justify-center gap-1 rounded-lg bg-primary px-2 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Printer size={14} />
-                    Cetak Ulang
+                    <Printer size={13} />
+                    Cetak
+                  </button>
+                  <button
+                    onClick={() => handleSendWhatsAppInvoice(invoice, true)}
+                    disabled={!isAdmin || sendingWaInvoiceId === invoice.id}
+                    className="inline-flex items-center justify-center gap-1 rounded-lg bg-emerald-600 px-2 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Smartphone size={13} />
+                    {sendingWaInvoiceId === invoice.id ? "Kirim..." : "Kirim WA"}
                   </button>
                 </div>
 

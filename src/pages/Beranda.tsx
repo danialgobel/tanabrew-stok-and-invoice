@@ -18,6 +18,7 @@ import {
   syncOneSignalUserIdentity,
   type OneSignalPermissionState,
 } from "@/lib/onesignal";
+import { getInvoiceDateValue, getDateValue, formatInvoiceDate as formatInvoiceDateUtil } from "@/lib/dateUtils";
 import type { ActivityLog, Invoice } from "@/types";
 
 const actionLabel = (action?: string) => {
@@ -39,20 +40,6 @@ const actionLabel = (action?: string) => {
     default:
       return action || "Aktivitas";
   }
-};
-
-const getDateValue = (value: unknown) => {
-  if (!value) return 0;
-  if (typeof value === "object" && "toDate" in value && typeof value.toDate === "function") {
-    return value.toDate().getTime();
-  }
-  if (value instanceof Date) return value.getTime();
-  if (typeof value === "string") {
-    const parsed = Date.parse(value);
-    return Number.isNaN(parsed) ? 0 : parsed;
-  }
-  if (typeof value === "number") return value;
-  return 0;
 };
 
 const stockState = (total: number) => {
@@ -251,11 +238,7 @@ const Beranda = () => {
       collection(db, "invoices"),
       (snap) => {
         const data = snap.docs.map((invoiceDoc) => ({ id: invoiceDoc.id, ...invoiceDoc.data() } as Invoice));
-        data.sort((a, b) => {
-          const aDate = getDateValue(a.created_at) || getDateValue(a.tanggal);
-          const bDate = getDateValue(b.created_at) || getDateValue(b.tanggal);
-          return bDate - aDate;
-        });
+        data.sort((a, b) => getInvoiceDateValue(b) - getInvoiceDateValue(a));
         setAdminInvoices(data);
         setDashboardInvoices(data);
         setLoadingDashboard(false);
@@ -297,7 +280,7 @@ const Beranda = () => {
     const todayDate = now.getDate();
 
     const todayInvoices = dashboardInvoices.filter((inv) => {
-      const time = getDateValue(inv.created_at) || getDateValue(inv.tanggal);
+      const time = getInvoiceDateValue(inv);
       if (!time) return false;
       const d = new Date(time);
       return d.getFullYear() === todayYear && d.getMonth() === todayMonth && d.getDate() === todayDate;
@@ -323,7 +306,7 @@ const Beranda = () => {
     });
 
     dashboardInvoices.forEach((inv) => {
-      const time = getDateValue(inv.created_at) || getDateValue(inv.tanggal);
+      const time = getInvoiceDateValue(inv);
       if (!time) return;
       const d = new Date(time);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -391,15 +374,7 @@ const Beranda = () => {
   }, []);
 
   const formatInvoiceDate = useCallback((invoice: Invoice) => {
-    const value = invoice.created_at || invoice.tanggal;
-    if (!value) return "-";
-    if (typeof value === "string") return value;
-    const time = getDateValue(value);
-    if (!time) return "-";
-    return new Intl.DateTimeFormat("id-ID", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(new Date(time));
+    return formatInvoiceDateUtil(invoice);
   }, []);
 
   const syncCurrentNotificationIdentity = useCallback(async () => {

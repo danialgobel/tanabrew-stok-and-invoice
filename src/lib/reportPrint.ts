@@ -48,40 +48,9 @@ const formatCurrency = (value?: number) =>
     maximumFractionDigits: 0,
   }).format(value || 0);
 
-const formatPrintedAt = () =>
-  new Intl.DateTimeFormat("id-ID", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date());
+import { formatInvoiceDate, formatDateTime } from "@/lib/dateUtils";
 
-const getDateValue = (value: unknown) => {
-  if (!value) return 0;
-
-  if (typeof value === "object" && "toDate" in value && typeof value.toDate === "function") {
-    return value.toDate().getTime();
-  }
-
-  if (value instanceof Date) return value.getTime();
-  if (typeof value === "number") return value;
-
-  if (typeof value === "string") {
-    const parsed = Date.parse(value);
-    return Number.isNaN(parsed) ? 0 : parsed;
-  }
-
-  return 0;
-};
-
-const formatDate = (value: unknown, fallback?: string) => {
-  if (typeof value === "string" && value) return value;
-
-  const time = getDateValue(value);
-  if (!time) return fallback || "-";
-
-  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(new Date(time));
-};
-
-const formatInvoiceDate = (invoice: Invoice) => invoice.tanggal || formatDate(invoice.created_at);
+const formatPrintedAt = () => formatDateTime(new Date());
 
 const getStockStatus = (product: Product) => {
   const total = product.total_stok || 0;

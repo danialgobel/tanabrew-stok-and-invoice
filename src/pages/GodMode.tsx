@@ -43,10 +43,12 @@ import {
   LogIn,
   UserCheck,
   Loader2,
+  Smartphone,
 } from "lucide-react";
+import WhatsAppSettingsModal from "@/components/WhatsAppSettingsModal";
 
 type CollectionName = "invoices" | "products" | "activity_logs" | "stock_movements" | "users";
-type GodModeTab = "users" | "explorer" | "health" | "notifications" | "backup" | "spreadsheet" | "logs";
+type GodModeTab = "users" | "explorer" | "health" | "notifications" | "backup" | "whatsapp" | "logs";
 
 interface LogEntry {
   timestamp: string;
@@ -111,9 +113,8 @@ const GodMode = () => {
   const [restoringBackup, setRestoringBackup] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Spreadsheet Tester State
-  const [testingSpreadsheet, setTestingSpreadsheet] = useState(false);
-  const [spreadsheetStatus, setSpreadsheetStatus] = useState<string | null>(null);
+  // WhatsApp Modal State
+  const [showWaModal, setShowWaModal] = useState(false);
 
   const logsEndRef = useRef<HTMLDivElement>(null);
 
@@ -639,30 +640,7 @@ const GodMode = () => {
     }
   };
 
-  // 6. Spreadsheet Sync Tester
-  const handleTestSpreadsheet = async () => {
-    setTestingSpreadsheet(true);
-    addLog("Menguji koneksi Google Apps Script Spreadsheet API...", "info");
-    try {
-      const start = Date.now();
-      await fetch("https://script.google.com/macros/s/AKfycbyQ2XqB5jYtE_fNqH7yP-1zY0f5yZ2Q-j-q7-q/exec?action=ping", {
-        method: "GET",
-        mode: "no-cors",
-      });
-      const duration = Date.now() - start;
-      setSpreadsheetStatus(`Endpoint Terhubung (Respon: ${duration}ms)`);
-      addLog(`Google Apps Script merespons dalam ${duration}ms.`, "success");
-      toast({ title: "Koneksi Berhasil", description: `Google Spreadsheet API terhubung (${duration}ms).` });
-    } catch (err: any) {
-      setSpreadsheetStatus(`Gagal terhubung: ${err.message}`);
-      addLog(`Koneksi Spreadsheet gagal: ${err.message}`, "error");
-      toast({ title: "Koneksi Gagal", description: err.message, variant: "destructive" });
-    } finally {
-      setTestingSpreadsheet(false);
-    }
-  };
-
-  // 7. Maintenance Log Cleanup
+  // Maintenance Log Cleanup
   const handleClearOldLogs = async () => {
     const confirmClean = window.confirm("Hapus log aktivitas yang lebih lama dari 90 hari?");
     if (!confirmClean) return;
@@ -738,14 +716,14 @@ const GodMode = () => {
       </div>
 
       {/* Navigation Tabs (7 Submodules) */}
-      <div className="grid grid-cols-4 gap-1.5 text-xs font-semibold">
+      <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5 text-xs font-semibold">
         {[
           { key: "users", label: "Users", icon: Users },
           { key: "explorer", label: "Master Data", icon: Database },
           { key: "health", label: "Health Check", icon: Wrench },
           { key: "notifications", label: "Broadcast", icon: Send },
           { key: "backup", label: "Backup", icon: HardDrive },
-          { key: "spreadsheet", label: "Spreadsheet", icon: FileText },
+          { key: "whatsapp", label: "WhatsApp", icon: Smartphone },
           { key: "logs", label: "Console", icon: TerminalIcon },
         ].map((tab) => {
           const active = activeTab === tab.key;
@@ -1117,31 +1095,6 @@ const GodMode = () => {
         </div>
       )}
 
-      {/* SUBMODULE 6: GOOGLE SPREADSHEET SYNC */}
-      {activeTab === "spreadsheet" && (
-        <div className="rounded-xl border border-border bg-card p-4 space-y-4">
-          <div>
-            <h2 className="text-sm font-bold text-primary">Google Apps Script & Spreadsheet</h2>
-            <p className="text-xs text-muted-foreground">Uji respon sinkronisasi spreadsheet otomatis</p>
-          </div>
-
-          <button
-            onClick={handleTestSpreadsheet}
-            disabled={testingSpreadsheet}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/5 py-2.5 text-xs font-bold text-primary hover:bg-primary/10 disabled:opacity-50"
-          >
-            <Activity size={14} />
-            {testingSpreadsheet ? "Menguji API..." : "Tes Koneksi Google Apps Script API"}
-          </button>
-
-          {spreadsheetStatus && (
-            <div className="rounded-lg bg-muted p-3 text-xs font-mono">
-              <p className="font-semibold text-foreground">Hasil Pengujian:</p>
-              <p className="text-muted-foreground text-[11px] mt-1">{spreadsheetStatus}</p>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* SUBMODULE 7: LOGS & CONSOLE MAINTENANCE */}
       {activeTab === "logs" && (
@@ -1156,6 +1109,30 @@ const GodMode = () => {
               className="inline-flex items-center gap-1 rounded-lg border border-destructive/30 bg-destructive/10 px-2 py-1 text-[11px] font-semibold text-destructive hover:bg-destructive/20"
             >
               <Trash2 size={12} /> Bersihkan Log &gt; 90 Hari
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* SUBMODULE: WHATSAPP SETTINGS */}
+      {activeTab === "whatsapp" && (
+        <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-bold text-primary">Otomasi WhatsApp Invoice</h2>
+              <p className="text-xs text-muted-foreground">Koneksi nomor WhatsApp dan pemilihan grup tujuan pengiriman invoice PDF</p>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
+            <p className="text-xs text-foreground">
+              WhatsApp Service berjalan 24/7 di cloud server untuk otomatis mengirimkan file invoice PDF ke grup WhatsApp setiap kali Owner, Admin, atau Developer mencetak invoice.
+            </p>
+            <button
+              onClick={() => setShowWaModal(true)}
+              className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-xs flex items-center justify-center gap-2 hover:bg-primary/90 transition-all shadow-sm"
+            >
+              <Smartphone size={15} /> Buka Panel Pengaturan & Scan QR WhatsApp
             </button>
           </div>
         </div>
@@ -1309,6 +1286,11 @@ const GodMode = () => {
         loading={deleting}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={handleDeleteDocument}
+      />
+      {/* MODAL WHATSAPP SETTINGS */}
+      <WhatsAppSettingsModal
+        open={showWaModal}
+        onOpenChange={setShowWaModal}
       />
     </div>
   );

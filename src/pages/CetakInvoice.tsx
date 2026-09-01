@@ -7,13 +7,15 @@ import { createInvoiceWithNumberAndStock, updateInvoiceWithStock } from "@/lib/i
 import { sendTanabrewNotification } from "@/lib/notificationSender";
 import { useProducts } from "@/hooks/useProducts";
 import { useAuth } from "@/context/AuthContext";
-import type { InvoiceItem } from "@/types";
+import type { Invoice, InvoiceItem } from "@/types";
 import { Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/Skeleton";
-import { syncInvoiceToSpreadsheet } from "@/lib/spreadsheet/invoiceSync";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { triggerHaptic } from "@/lib/haptics";
+import { todayInputValue, parseDateInput, formatDisplayDate, toValidDateInputValue } from "@/lib/dateUtils";
+import { generateInvoicePdfBlob } from "@/lib/invoicePdfGenerator";
+import { sendInvoiceToWhatsApp } from "@/lib/whatsappClient";
 
 type ActionNotice = {
   id: number;
@@ -31,7 +33,7 @@ const CetakInvoice = () => {
   const editId = searchParams.get("edit");
   const isEditMode = Boolean(editId);
 
-  const [tanggal, setTanggal] = useState("");
+  const [tanggal, setTanggal] = useState(() => todayInputValue());
   const [noInvoice, setNoInvoice] = useState("");
   const [customer, setCustomer] = useState("");
   const [stockLocation, setStockLocation] = useState<StockLocation>(() => {
@@ -107,7 +109,7 @@ const CetakInvoice = () => {
             return;
           }
 
-          setTanggal(data.tanggal || "");
+          setTanggal(toValidDateInputValue(data.tanggal || data.created_at));
           setCustomer(data.customer || "");
           setStockLocation(data.stock_location || "Jogja");
           setItems(
@@ -145,7 +147,8 @@ const CetakInvoice = () => {
   const total = subtotal - (diskon || 0);
   const sisa = total - (jumlahDibayar || 0);
   const status = sisa <= 0 ? "LUNAS" : "BELUM LUNAS";
-  const isAdmin = userProfile?.role === "admin";
+  const canPrint = userProfile?.role === "admin" || userProfile?.role === "owner" || userProfile?.role === "webdev";
+  const isAdmin = canPrint;
 
   const fmt = (n: number) => new Intl.NumberFormat("id-ID").format(n);
 
@@ -257,7 +260,6 @@ const CetakInvoice = () => {
             edited_by: userProfile.name,
             edited_by_uid: currentUser.uid,
             edited_by_role: userProfile.role,
-            spreadsheetSyncStatus: "PENDING",
           },
           stockItems,
           stockLocation,
@@ -269,10 +271,8 @@ const CetakInvoice = () => {
         showActionNotice("Invoice berhasil diperbarui", `No Invoice: ${noInvoice}`);
         toast({ title: "Berhasil", description: "Invoice diperbarui" });
         sendInvoiceNotification("CREATE_INVOICE", savedInvoiceId, noInvoice);
-
-        // Google Spreadsheet synchronization disabled as per request
-        // void syncInvoiceToSpreadsheet(savedInvoiceId);
       } else {
+        const parsedDate = tanggal ? parseDateInput(tanggal) || new Date() : new Date();
         const { invoiceId, noInvoice: generatedNoInvoice } = await createInvoiceWithNumberAndStock({
           invoiceData: {
             tanggal, customer,
@@ -288,12 +288,12 @@ const CetakInvoice = () => {
             printed_by_uid: "",
             printed_by_role: "",
             print_count: 0,
-            spreadsheetSyncStatus: "PENDING",
           },
           stockItems,
           stockLocation,
           user: { uid: currentUser.uid, name: userProfile.name, role: userProfile.role },
           customer,
+          date: parsedDate,
         });
         setNoInvoice(generatedNoInvoice);
         setSavedInvoiceId(invoiceId);
@@ -301,9 +301,6 @@ const CetakInvoice = () => {
         showActionNotice("Invoice berhasil dibuat", `No Invoice: ${generatedNoInvoice}`);
         toast({ title: "Berhasil", description: "Invoice tersimpan" });
         sendInvoiceNotification("CREATE_INVOICE", invoiceId, generatedNoInvoice);
-
-        // Google Spreadsheet synchronization disabled as per request
-        // void syncInvoiceToSpreadsheet(invoiceId);
       }
     } catch (error) {
       const description = error instanceof Error && error.message ? error.message : "Gagal menyimpan";
@@ -354,6 +351,50 @@ const CetakInvoice = () => {
 
     showActionNotice("Invoice diproses untuk dicetak", "Status cetak diperbarui");
     sendInvoiceNotification("PRINT_INVOICE", savedInvoiceId, noInvoice);
+
+    // Otomatis kirim PDF invoice ke Grup WhatsApp
+    const currentInvoiceData: Invoice = {
+      id: savedInvoiceId,
+      no_invoice: noInvoice,
+      tanggal,
+      customer,
+      items: invoiceItems,
+      subtotal,
+      diskon,
+      total,
+      jumlah_dibayar: jumlahDibayar,
+      sisa,
+      status,
+      stock_location: stockLocation,
+      dibuat_oleh: userProfile.name,
+      dibuat_oleh_role: userProfile.role,
+    };
+
+    void (async () => {
+      try {
+        const { base64, fileName } = await generateInvoicePdfBlob(currentInvoiceData);
+        const waRes = await sendInvoiceToWhatsApp(currentUser, {
+          invoice: currentInvoiceData,
+          pdfBase64: base64,
+          fileName,
+        });
+
+        if (waRes.alreadySent) {
+          console.log("Invoice sudah terkirim ke WhatsApp sebelumnya.");
+        } else {
+          toast({
+            title: "WhatsApp Terkirim",
+            description: `PDF invoice berhasil dikirim ke grup ${waRes.groupName || "WhatsApp"}.`,
+          });
+        }
+      } catch (waErr: any) {
+        console.warn("Gagal mengirim PDF invoice ke WhatsApp:", waErr);
+        toast({
+          title: "Status WhatsApp",
+          description: `Invoice berhasil dicetak, namun pengiriman WhatsApp gagal: ${waErr.message || "Server belum siap"}`,
+        });
+      }
+    })();
   };
 
   const handlePrint = async () => {
@@ -362,8 +403,8 @@ const CetakInvoice = () => {
       return;
     }
 
-    if (userProfile.role !== "admin") {
-      toast({ title: "Error", description: "Hanya admin yang dapat mencetak invoice.", variant: "destructive" });
+    if (!canPrint) {
+      toast({ title: "Error", description: "Hanya Admin, Owner, atau Developer yang dapat mencetak invoice.", variant: "destructive" });
       return;
     }
 
@@ -411,7 +452,7 @@ const CetakInvoice = () => {
     <img src="https://i.ibb.co.com/Q7dCXq9q/logo-tanabrew-hijau.png" alt="Tanabrew" />
     <div class="info">
       <div><span>No Invoice:</span> ${noInvoice}</div>
-      <div><span>Tanggal:</span> ${tanggal}</div>
+      <div><span>Tanggal:</span> ${formatDisplayDate(tanggal)}</div>
       <div><span>Customer:</span> ${customer}</div>
       <div><span>Stok Keluar:</span> ${stockLocation}</div>
     </div>
@@ -527,7 +568,7 @@ const CetakInvoice = () => {
             />
             <div className="text-right space-y-1 text-sm">
               <p><span className="text-muted-foreground">No Invoice:</span> {noInvoice}</p>
-              <p><span className="text-muted-foreground">Tanggal:</span> {tanggal}</p>
+              <p><span className="text-muted-foreground">Tanggal:</span> {formatDisplayDate(tanggal)}</p>
               <p><span className="text-muted-foreground">Customer:</span> {customer}</p>
               <p><span className="text-muted-foreground">Stok Keluar:</span> {stockLocation}</p>
             </div>
@@ -597,8 +638,8 @@ const CetakInvoice = () => {
             >
               {printing ? "Memproses Cetak..." : "Cetak Invoice"}
             </button>
-            {!isAdmin && (
-              <p className="mt-2 text-xs text-destructive text-center">Hanya admin yang dapat mencetak invoice.</p>
+            {!canPrint && (
+              <p className="mt-2 text-xs text-destructive text-center">Hanya Admin atau Owner yang dapat mencetak invoice.</p>
             )}
           </div>
           <button
@@ -610,7 +651,7 @@ const CetakInvoice = () => {
               setJumlahDibayar(0);
               setNoInvoice("");
               setCustomer("");
-              setTanggal("");
+              setTanggal(todayInputValue());
               setStockLocation("Jogja");
               navigate("/cetak-invoice");
             }}

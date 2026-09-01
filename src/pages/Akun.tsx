@@ -3,6 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import WhatsAppSettingsModal from "@/components/WhatsAppSettingsModal";
 import { triggerHaptic, isHapticEnabled, setHapticEnabled } from "@/lib/haptics";
 import {
   getNotificationPermissionState,
@@ -73,6 +74,7 @@ const Akun = () => {
     return (localStorage.getItem("tanabrew_default_warehouse") as "Jogja" | "Lombok") || "Jogja";
   });
   const [hapticOn, setHapticOn] = useState(() => isHapticEnabled());
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
 
   // Help FAQ expanded state
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
@@ -516,6 +518,26 @@ const Akun = () => {
               />
             </button>
           </div>
+
+          {/* Otomasi WhatsApp Invoice */}
+          <div
+            onClick={() => {
+              triggerHaptic(15);
+              setShowWhatsAppModal(true);
+            }}
+            className="flex items-center justify-between pt-2.5 border-t border-border/60 px-1 cursor-pointer hover:opacity-80 transition-opacity"
+          >
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600">
+                <Smartphone size={15} />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground">Otomasi WhatsApp Invoice</p>
+                <p className="text-[11px] text-muted-foreground">Koneksi akun & pemilihan grup penerima PDF</p>
+              </div>
+            </div>
+            <ChevronRight size={15} className="text-muted-foreground" />
+          </div>
         </div>
       </div>
 
@@ -796,6 +818,12 @@ const Akun = () => {
         loading={loggingOut}
         onCancel={() => setConfirmLogoutOpen(false)}
         onConfirm={handleLogout}
+      />
+
+      {/* MODAL PENGATURAN OTOMASI WHATSAPP */}
+      <WhatsAppSettingsModal
+        open={showWhatsAppModal}
+        onOpenChange={setShowWhatsAppModal}
       />
     </div>
   );
