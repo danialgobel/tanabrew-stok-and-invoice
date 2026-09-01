@@ -15,8 +15,8 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "2.5.0",
-  versionLabel: "v2.5.0",
+  version: "2.5.1",
+  versionLabel: "v2.5.1",
   releaseDate: "2 September 2026",
   title: "Pembaruan Aplikasi Tanabrew",
   subtitle: "Peningkatan Performa, Fitur Interaktif & Stabilitas Sistem",
@@ -46,8 +46,8 @@ export const CURRENT_RELEASE: AppReleaseInfo = {
       badgeColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
     },
     {
-      title: "Menu & Price List Publik Pelanggan",
-      desc: "Akses publik Price List Tanabrew (/pricelist & /menu) tanpa perlu login dengan proteksi API serverless yang aman, serta fitur rahasia modal pengaturan Price List melalui 5-tap logo Tanabrew di Beranda.",
+      title: "QR / ID Card Panel & Price List Publik",
+      desc: "Panel Price List publik untuk scan QR / ID Card pelanggan (/pricelist & /menu) tanpa perlu login, serta shortcut pengaturan Price List melalui 5-tap logo Tanabrew di Beranda.",
       badge: "Fitur",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
@@ -59,15 +59,9 @@ export const CURRENT_RELEASE: AppReleaseInfo = {
     },
     {
       title: "Sinkronisasi Versi & Pengaturan di Halaman Akun",
-      desc: "Menampilkan versi aplikasi v2.5.0 resmi di Halaman Akun dengan tombol untuk membaca riwayat catatan changelog kapan saja, serta pengaturan getaran sentuhan (haptic).",
+      desc: "Menampilkan versi aplikasi v2.5.1 resmi di Halaman Akun dengan tombol untuk membaca riwayat catatan changelog kapan saja, serta pengaturan getaran sentuhan (haptic).",
       badge: "Peningkatan",
       badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
-    },
-    {
-      title: "Sistem Pop-up Pengumuman Rilis Otomatis",
-      desc: "Sistem pop-up pemberitahuan update otomatis di semua perangkat (HP, tablet, laptop) dan semua role pengguna agar seluruh staf langsung mengetahui pembaruan sistem saat membuka aplikasi.",
-      badge: "Fitur",
-      badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
     },
   ],
 };
