@@ -113,6 +113,16 @@ export default function PriceListPublic() {
           animation: tbFadeDown 0.6s ease both;
         }
 
+        .tb-brand-tagline {
+          font-size: clamp(0.9rem, 3.8vw, 1.1rem);
+          font-weight: 600;
+          opacity: 0.9;
+          margin-top: 4px;
+          letter-spacing: 0.8px;
+          text-transform: uppercase;
+          animation: tbFadeDown 0.6s 0.1s ease both;
+        }
+
         .tb-main-content {
           flex: 1;
           width: 100%;
@@ -367,6 +377,7 @@ export default function PriceListPublic() {
             </svg>
           </div>
           <h1 className="tb-brand-name">Tanabrew</h1>
+          <p className="tb-brand-tagline">Price List</p>
         </div>
       </header>
 
@@ -438,7 +449,7 @@ export default function PriceListPublic() {
 
       {/* ===== FOOTER ===== */}
       <footer className="tb-site-footer">
-        <p>© 2026 Tanabrew &nbsp;•&nbsp; Terima kasih sudah mampir 🌿</p>
+        <p>© 2026 Tanabrew &nbsp;•&nbsp; Terima kasih sudah mampir</p>
       </footer>
 
       {/* ===== LIGHTBOX ===== */}
