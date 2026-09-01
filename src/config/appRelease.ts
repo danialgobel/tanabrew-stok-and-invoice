@@ -15,12 +15,36 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.0.0",
-  versionLabel: "v3.0.0",
+  version: "3.0.1",
+  versionLabel: "v3.0.1",
   releaseDate: "2 September 2026",
-  title: "Transformasi Desktop Mode, POS Touch Tiles & Ultra-Smooth Animations",
-  subtitle: "Tata Letak Khusus Layar Desktop, Katalog Visual POS Kasir, Master-Detail Riwayat & Spring Physics",
+  title: "Hotfix & Penyempurnaan Cetak Invoice, Riwayat, Obrolan & God Mode",
+  subtitle: "Perbaikan Komponen Cetak Invoice, Tombol Aksi Riwayat Desktop, Obrolan Realtime & Hak Akses Owner",
   highlights: [
+    {
+      title: "Perbaikan Error Cetak Invoice (Receipt Component)",
+      desc: "Memperbaiki kendala ikon pada halaman Cetak Invoice sehingga tab Invoice dapat dibuka dengan lancar dan stabil di HP maupun Desktop.",
+      badge: "Perbaikan",
+      badgeColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
+    },
+    {
+      title: "Tombol Aksi Lengkap di Setiap Kartu Riwayat",
+      desc: "Menampilkan tombol aksi lengkap (Detail, Cetak, WhatsApp, Edit, Hapus, dan Lunas) langsung pada setiap kartu transaksi di Riwayat untuk layar Laptop, PC Desktop, maupun HP.",
+      badge: "Peningkatan",
+      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+    },
+    {
+      title: "Penyempurnaan Obrolan Tim & Kotak Ketik Desktop",
+      desc: "Obrolan tim kini memuat data secara instan dari cloud, menampilkan carousel status kehadiran anggota tim di bagian atas, dan kotak pesan terpasang rapi di bagian bawah layar tanpa celah.",
+      badge: "Peningkatan",
+      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+    },
+    {
+      title: "Perbaikan Akses & Manajemen User God Mode",
+      desc: "Memperbaiki hak akses God Mode untuk Owner & Developer serta menstabilkan fitur pengelolaan role pengguna secara langsung.",
+      badge: "Perbaikan",
+      badgeColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
+    },
     {
       title: "Tata Letak Khusus Layar Desktop (Desktop Mode)",
       desc: "Saat dibuka di PC / Laptop, Tanabrew bertransformasi menjadi Dashboard POS modern dengan Left Sidebar Navigation permanen, multi-kolom grid 12 kolom di Beranda, split-screen kasir, dan master-detail split pane di riwayat.",
@@ -35,7 +59,7 @@ export const CURRENT_RELEASE: AppReleaseInfo = {
     },
     {
       title: "Master-Detail Split Pane di Halaman Riwayat",
-      desc: "Pada layar desktop, halaman Riwayat terbagi menjadi 2 panel: Daftar transaksi invoice di kolom kiri dan Pratinjau Dokumen Faktur instan di kolom kanan lengkap dengan tombol Cetak, WhatsApp, Tandai Lunas, Edit, dan Hapus.",
+      desc: "Pada layar desktop, halaman Riwayat terbagi menjadi 2 panel: Daftar transaksi invoice di kolom kiri dan Pratinjau Dokumen Invoice instan di kolom kanan lengkap dengan tombol Cetak, WhatsApp, Tandai Lunas, Edit, dan Hapus.",
       badge: "Baru",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },

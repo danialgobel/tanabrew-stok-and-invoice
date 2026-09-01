@@ -120,10 +120,10 @@ const GodMode = () => {
 
   // Access check
   useEffect(() => {
-    if (userProfile && userProfile.role !== "webdev") {
+    if (userProfile && userProfile.role !== "webdev" && userProfile.role !== "owner") {
       toast({
         title: "Akses Ditolak",
-        description: "Halaman ini hanya untuk Developer.",
+        description: "Halaman ini hanya untuk Developer dan Owner.",
         variant: "destructive",
       });
       navigate("/");

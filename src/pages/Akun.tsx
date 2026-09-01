@@ -487,7 +487,7 @@ const Akun = () => {
           <div className="space-y-1.5 px-1">
             <div className="flex items-center justify-between">
               <p className="font-semibold text-foreground">Gudang Utama Invoice</p>
-              <span className="text-[11px] text-muted-foreground">Default saat buka faktur</span>
+              <span className="text-[11px] text-muted-foreground">Default saat buka invoice</span>
             </div>
             <div className="grid grid-cols-2 gap-2">
               {(["Jogja", "Lombok"] as const).map((loc) => {

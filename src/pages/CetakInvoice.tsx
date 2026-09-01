@@ -9,7 +9,7 @@ import { useProducts } from "@/hooks/useProducts";
 import { useAuth } from "@/context/AuthContext";
 import type { Product, Invoice, InvoiceItem } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Search, ShoppingBag, Check, Coffee, Layers, Grid, List, Minus, Sparkles, Tag } from "lucide-react";
+import { Plus, Trash2, Search, ShoppingBag, Check, Coffee, Layers, Grid, List, Minus, Sparkles, Tag, Receipt, FileText, Package } from "lucide-react";
 import { Skeleton } from "@/components/Skeleton";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { triggerHaptic } from "@/lib/haptics";

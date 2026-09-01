@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
-import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
+import { collection, query, orderBy, limit, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, getDocs } from "firebase/firestore";
 import { triggerHaptic } from "@/lib/haptics";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -12,12 +12,8 @@ import {
   Clock,
   Sparkles,
   Loader2,
-  Check,
   CheckCheck,
-  ChevronDown,
-  ChevronUp,
   RefreshCw,
-  Circle,
   X,
 } from "lucide-react";
 import type { UserProfile } from "@/context/AuthContext";
@@ -36,7 +32,7 @@ interface TeamMessage {
   created_at?: any;
 }
 
-const Obrolan = () => {
+export const Obrolan = () => {
   const { currentUser, userProfile } = useAuth();
   const { toast } = useToast();
 
@@ -44,108 +40,140 @@ const Obrolan = () => {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [inputText, setInputText] = useState("");
   const [sending, setSending] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showAllMembersModal, setShowAllMembersModal] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  // 1. Fetch team members with active presence (silent background fetch)
-  const fetchTeamMembers = useCallback(async (isSilent = true) => {
-    if (!currentUser) return;
-    if (!isSilent) setRefreshing(true);
+  const sortTeamMembers = useCallback((users: TeamMember[]) => {
+    const roleOrder: Record<string, number> = { owner: 4, webdev: 3, admin: 2, staff: 1 };
+    return [...users].sort((a: TeamMember, b: TeamMember) => {
+      // 1. Akun sendiri selalu paling atas
+      if (currentUser && a.uid === currentUser.uid) return -1;
+      if (currentUser && b.uid === currentUser.uid) return 1;
 
-    try {
-      const token = await currentUser.getIdToken();
-      const res = await fetch("/api/team-chat", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      // 2. Utamakan yang sedang online
+      if (a.is_online && !b.is_online) return -1;
+      if (!a.is_online && b.is_online) return 1;
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      // 3. Utamakan yang punya foto profil
+      const hasPhotoA = Boolean(a.photo_url && a.photo_url.trim().length > 0);
+      const hasPhotoB = Boolean(b.photo_url && b.photo_url.trim().length > 0);
+      if (hasPhotoA && !hasPhotoB) return -1;
+      if (!hasPhotoA && hasPhotoB) return 1;
 
-      if (data.success && data.users) {
-        const roleOrder: Record<string, number> = { owner: 4, webdev: 3, admin: 2, staff: 1 };
-        const sortedMembers = data.users.sort((a: TeamMember, b: TeamMember) => {
-          // 1. Akun sendiri selalu paling atas
-          if (a.uid === currentUser.uid) return -1;
-          if (b.uid === currentUser.uid) return 1;
-
-          // 2. Utamakan yang sudah memiliki foto profil
-          const hasPhotoA = Boolean(a.photo_url && a.photo_url.trim().length > 0);
-          const hasPhotoB = Boolean(b.photo_url && b.photo_url.trim().length > 0);
-          if (hasPhotoA && !hasPhotoB) return -1;
-          if (!hasPhotoA && hasPhotoB) return 1;
-
-          // 3. Utamakan yang sedang online
-          if (a.is_online && !b.is_online) return -1;
-          if (!a.is_online && b.is_online) return 1;
-
-          // 4. Urutkan berdasarkan hierarki role
-          return (roleOrder[b.role] || 0) - (roleOrder[a.role] || 0);
-        });
-        setTeamMembers(sortedMembers);
-        if (data.messages && data.messages.length > 0) {
-          setMessages((prev) => (prev.length === 0 ? data.messages : prev));
-        }
-      }
-    } catch (err) {
-      console.warn("Gagal memuat anggota tim:", err);
-    } finally {
-      setRefreshing(false);
-    }
+      // 4. Urutkan berdasarkan role
+      return (roleOrder[b.role] || 0) - (roleOrder[a.role] || 0);
+    });
   }, [currentUser]);
 
-  // 2. Realtime listener for instant messages (0 lag, 0 delay) + presence sync
+  // 1. Direct realtime listeners for Firestore (Instant loading & 0 delay)
   useEffect(() => {
-    // Initial fetch in background
-    fetchTeamMembers(true);
+    setLoading(true);
 
-    // Refresh presence every 30 seconds
-    const presenceInterval = setInterval(() => {
-      fetchTeamMembers(true);
-    }, 30000);
-
-    // Realtime Firestore listener for instant message delivery
-    let unsubSnapshot: (() => void) | null = null;
-    try {
-      const q = query(collection(db, "team_messages"), orderBy("created_at", "asc"), limit(100));
-      unsubSnapshot = onSnapshot(
-        q,
-        (snapshot) => {
-          if (!snapshot.empty) {
-            const msgs: TeamMessage[] = [];
-            snapshot.forEach((doc) => {
-              msgs.push({ id: doc.id, ...doc.data() } as TeamMessage);
-            });
-            setMessages(msgs);
-            setTimeout(() => {
-              messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-            }, 50);
-          }
-        },
-        (err) => {
-          console.warn("Snapshot fallback to API fetch:", err);
-        }
-      );
-    } catch (err) {
-      console.warn("Realtime listener init error:", err);
+    // Sync active presence
+    if (currentUser) {
+      void updateDoc(doc(db, "users", currentUser.uid), {
+        last_active_at: serverTimestamp(),
+      }).catch(() => {});
     }
 
-    return () => {
-      clearInterval(presenceInterval);
-      if (unsubSnapshot) unsubSnapshot();
-    };
-  }, [fetchTeamMembers]);
+    // Realtime users / team members subscription
+    const unsubUsers = onSnapshot(
+      collection(db, "users"),
+      (snap) => {
+        const members: TeamMember[] = snap.docs.map((d) => {
+          const data = d.data();
+          const lastActive = data.last_active_at?.toDate
+            ? data.last_active_at.toDate()
+            : data.last_active_at
+            ? new Date(data.last_active_at)
+            : null;
+          const isOnline = lastActive ? Date.now() - lastActive.getTime() < 10 * 60 * 1000 : false;
 
-  // Scroll to bottom on initial message load
+          return {
+            uid: d.id,
+            name: data.name || data.email?.split("@")[0] || "Anggota Tim",
+            email: data.email || "",
+            role: data.role || "staff",
+            photo_url: data.photo_url || "",
+            last_active_at: data.last_active_at,
+            is_online: isOnline || (currentUser && d.id === currentUser.uid),
+          } as TeamMember;
+        });
+
+        setTeamMembers(sortTeamMembers(members));
+        setLoading(false);
+      },
+      (err) => {
+        console.warn("Users realtime listener error:", err);
+        setLoading(false);
+      }
+    );
+
+    // Realtime group chat messages subscription
+    const q = query(collection(db, "team_messages"), orderBy("created_at", "asc"), limit(150));
+    const unsubMessages = onSnapshot(
+      q,
+      (snapshot) => {
+        const msgs: TeamMessage[] = [];
+        snapshot.forEach((d) => {
+          msgs.push({ id: d.id, ...d.data() } as TeamMessage);
+        });
+        setMessages(msgs);
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }, 50);
+      },
+      (err) => {
+        console.warn("Messages realtime listener error:", err);
+      }
+    );
+
+    return () => {
+      unsubUsers();
+      unsubMessages();
+    };
+  }, [currentUser, sortTeamMembers]);
+
+  // Scroll to bottom when message arrives
   useEffect(() => {
     if (messages.length > 0) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages.length]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    triggerHaptic(10);
+    try {
+      const snap = await getDocs(collection(db, "users"));
+      const members: TeamMember[] = snap.docs.map((d) => {
+        const data = d.data();
+        const lastActive = data.last_active_at?.toDate
+          ? data.last_active_at.toDate()
+          : data.last_active_at
+          ? new Date(data.last_active_at)
+          : null;
+        const isOnline = lastActive ? Date.now() - lastActive.getTime() < 10 * 60 * 1000 : false;
+        return {
+          uid: d.id,
+          name: data.name || data.email?.split("@")[0] || "Anggota Tim",
+          email: data.email || "",
+          role: data.role || "staff",
+          photo_url: data.photo_url || "",
+          last_active_at: data.last_active_at,
+          is_online: isOnline || (currentUser && d.id === currentUser.uid),
+        } as TeamMember;
+      });
+      setTeamMembers(sortTeamMembers(members));
+    } catch (err) {
+      console.warn("Manual refresh error:", err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,51 +182,42 @@ const Obrolan = () => {
 
     setSending(true);
     triggerHaptic(15);
-
-    // Optimistic message addition for instant UI feedback
-    const optimisticMsg: TeamMessage = {
-      id: `temp-${Date.now()}`,
-      sender_uid: currentUser.uid,
-      sender_name: userProfile?.name || currentUser.displayName || "Saya",
-      sender_role: userProfile?.role || "staff",
-      sender_photo: userProfile?.photo_url || "",
-      message: text,
-      created_at: new Date(),
-    };
-
-    setMessages((prev) => [...prev, optimisticMsg]);
     setInputText("");
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 50);
 
     try {
-      const token = await currentUser.getIdToken();
-      const res = await fetch("/api/team-chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ message: text }),
+      await addDoc(collection(db, "team_messages"), {
+        sender_uid: currentUser.uid,
+        sender_name: userProfile?.name || currentUser.displayName || currentUser.email?.split("@")[0] || "Saya",
+        sender_role: userProfile?.role || "staff",
+        sender_photo: userProfile?.photo_url || "",
+        message: text,
+        created_at: serverTimestamp(),
       });
 
-      const result = await res.json();
-      if (!res.ok || !result.success) {
-        throw new Error(result.error || "Gagal mengirim pesan");
-      }
+      // Update user presence
+      void updateDoc(doc(db, "users", currentUser.uid), {
+        last_active_at: serverTimestamp(),
+      }).catch(() => {});
 
-      triggerHaptic(25);
-      // Refresh presence in background
-      fetchTeamMembers(true);
+      // Background push notification trigger
+      void currentUser.getIdToken().then((token) => {
+        fetch("/api/team-chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ message: text, notifyOnly: true }),
+        }).catch(() => {});
+      });
+
+      triggerHaptic(20);
     } catch (err: any) {
       toast({
         title: "Gagal Mengirim Pesan",
         description: err.message || "Periksa koneksi internet Anda.",
         variant: "destructive",
       });
-      // Revert optimistic message if error
-      setMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id));
     } finally {
       setSending(false);
     }
@@ -218,12 +237,12 @@ const Obrolan = () => {
     switch (role) {
       case "owner":
         return { label: "Owner", class: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" };
+      case "webdev":
+        return { label: "Dev", class: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20" };
       case "admin":
         return { label: "Admin", class: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20" };
-      case "webdev":
-        return { label: "Developer", class: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20" };
       default:
-        return { label: "Staff", class: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20" };
+        return { label: "Staff", class: "bg-muted text-muted-foreground border-border" };
     }
   };
 
@@ -248,7 +267,7 @@ const Obrolan = () => {
   };
 
   const formatLastActive = (timestamp: any) => {
-    if (!timestamp) return "Belum ada riwayat aktif";
+    if (!timestamp) return "Offline";
     try {
       let date: Date;
       if (timestamp.toDate) {
@@ -259,11 +278,11 @@ const Obrolan = () => {
         date = new Date(timestamp);
       }
       const diffMinutes = Math.floor((Date.now() - date.getTime()) / 60000);
-      if (diffMinutes < 5) return "Aktif saat ini";
-      if (diffMinutes < 60) return `Aktif ${diffMinutes} menit lalu`;
+      if (diffMinutes < 5) return "Aktif sekarang";
+      if (diffMinutes < 60) return `${diffMinutes}m lalu`;
       const diffHours = Math.floor(diffMinutes / 60);
-      if (diffHours < 24) return `Aktif ${diffHours} jam lalu`;
-      return `Aktif ${Math.floor(diffHours / 24)} hari lalu`;
+      if (diffHours < 24) return `${diffHours}j lalu`;
+      return `${Math.floor(diffHours / 24)}h lalu`;
     } catch {
       return "Offline";
     }
@@ -272,16 +291,16 @@ const Obrolan = () => {
   const onlineCount = teamMembers.filter((m) => m.is_online).length;
 
   return (
-    <div className="mx-auto w-full max-w-lg lg:max-w-4xl h-[calc(100dvh-4.25rem)] lg:h-[calc(100vh-2rem)] flex flex-col overflow-hidden px-3.5 sm:px-6 lg:px-8 pt-3 pb-20 lg:pb-6">
-      {/* 1. FIXED HEADER & STATUS KEHADIRAN TIM (TIDAK AKAN HILANG SAAT SCROLL) */}
-      <div className="shrink-0 rounded-3xl border border-border bg-card p-3.5 shadow-sm space-y-2.5 mb-2 z-10">
+    <div className="mx-auto w-full max-w-lg lg:max-w-6xl h-[calc(100dvh-4.5rem)] lg:h-[calc(100vh-2rem)] flex flex-col overflow-hidden px-3 sm:px-6 lg:px-8 pt-3 pb-20 lg:pb-3">
+      {/* 1. HEADER & STATUS TIM */}
+      <div className="shrink-0 rounded-2xl border border-border bg-card p-3 shadow-xs space-y-2 mb-2 z-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary/10 text-primary font-bold border border-primary/20 shrink-0">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold border border-primary/20 shrink-0">
               <MessageSquare size={18} />
             </div>
             <div>
-              <h1 className="text-xs font-bold text-foreground">Obrolan Tim Tanabrew</h1>
+              <h1 className="text-xs sm:text-sm font-bold text-foreground">Obrolan Tim Tanabrew</h1>
               <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
                 <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -295,36 +314,31 @@ const Obrolan = () => {
 
           <div className="flex items-center gap-1">
             <button
-              onClick={() => fetchTeamMembers(false)}
+              type="button"
+              onClick={handleRefresh}
               disabled={refreshing}
-              className="p-1.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-              title="Perbarui Pesan"
+              className="p-1.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
+              title="Perbarui Anggota Tim"
             >
               <RefreshCw size={13} className={refreshing ? "animate-spin text-primary" : ""} />
             </button>
             <button
+              type="button"
               onClick={() => {
                 triggerHaptic(10);
                 setShowAllMembersModal(true);
               }}
-              className="inline-flex items-center gap-1 rounded-xl border border-border bg-muted/60 px-2 py-1 text-[10px] font-bold text-foreground hover:bg-muted transition-colors"
+              className="inline-flex items-center gap-1 rounded-xl border border-border bg-muted/60 px-2.5 py-1 text-[10px] font-bold text-foreground hover:bg-muted transition-colors cursor-pointer"
             >
-              <Users size={11} />
-              Anggota Tim Tanabrew
+              <Users size={12} />
+              <span>Daftar Tim</span>
             </button>
           </div>
         </div>
 
-        {/* 2. ANGGOTA TIM CAROUSEL (DENGAN INDIKATOR STATUS ONLINE/OFFLINE) */}
+        {/* 2. ANGGOTA TIM CAROUSEL (DITAMPILKAN DI ATAS DENGAN STATUS ONLINE) */}
         <div className="pt-2 border-t border-border/50">
-          <div className="flex items-center justify-between mb-1.5">
-            <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-              <Users size={10} /> Anggota Tim Tanabrew
-            </p>
-            <span className="text-[9px] text-muted-foreground">Geser &rarr;</span>
-          </div>
-
-          <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-none">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
             {teamMembers.map((member) => {
               const isMe = member.uid === currentUser?.uid;
               const roleBadge = getRoleBadge(member.role);
@@ -337,11 +351,11 @@ const Obrolan = () => {
                     triggerHaptic(10);
                     setShowAllMembersModal(true);
                   }}
-                  className="flex flex-col items-center gap-1 shrink-0 w-14 text-center cursor-pointer group"
+                  className="flex flex-col items-center gap-0.5 shrink-0 w-13 text-center cursor-pointer group"
                 >
                   <div className="relative">
                     <div
-                      className={`h-11 w-11 rounded-full overflow-hidden flex items-center justify-center font-bold text-xs shadow-xs transition-transform group-active:scale-95 ${
+                      className={`h-10 w-10 rounded-full overflow-hidden flex items-center justify-center font-bold text-xs shadow-xs transition-transform group-active:scale-95 ${
                         isOnline
                           ? "ring-2 ring-emerald-500 bg-emerald-500/10 text-emerald-600"
                           : "ring-1 ring-border bg-muted/60 text-muted-foreground opacity-75"
@@ -357,17 +371,15 @@ const Obrolan = () => {
                         getInitials(member.name, member.email)
                       )}
                     </div>
-
-                    {/* Badge Online / Offline */}
                     <span
-                      className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-card ${
+                      className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-card ${
                         isOnline ? "bg-emerald-500 ring-1 ring-emerald-500/30 animate-pulse" : "bg-muted-foreground/40"
                       }`}
                       title={isOnline ? "Online" : "Offline"}
                     />
                   </div>
 
-                  <span className="text-[9px] font-bold text-foreground truncate w-full leading-tight">
+                  <span className="text-[9px] font-bold text-foreground truncate w-full leading-tight mt-0.5">
                     {isMe ? "Saya" : member.name.split(" ")[0]}
                   </span>
                   <span className={`text-[7px] font-bold px-1 py-0.1 rounded-full border uppercase ${roleBadge.class}`}>
@@ -380,116 +392,118 @@ const Obrolan = () => {
         </div>
       </div>
 
-      {/* 3. AREA FEED PESAN GRUP (HANYA BAGIAN INI YANG SCROLL) */}
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden space-y-3 pr-1 py-2 scroll-smooth">
-        {messages.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-border bg-card/60 p-8 text-center space-y-2 my-8 shadow-xs">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-              <Sparkles size={22} />
+      {/* 3. GROUP CHAT FEED CONTAINER */}
+      <div className="flex-1 min-h-0 rounded-2xl border border-border bg-card/60 backdrop-blur-sm flex flex-col overflow-hidden shadow-sm">
+        {/* Messages Feed */}
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden space-y-3 p-3.5 sm:p-4 scroll-smooth">
+          {messages.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border bg-card/80 p-8 text-center space-y-2 my-auto shadow-xs">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <Sparkles size={22} />
+              </div>
+              <h3 className="text-sm font-bold text-foreground">Ruang Koordinasi Tim Tanabrew</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed max-w-sm mx-auto">
+                Ketik pesan di bawah untuk memulai koordinasi antar staf, barista, admin, dan owner.
+              </p>
             </div>
-            <h3 className="text-sm font-bold text-foreground">Belum Ada Percakapan</h3>
-            <p className="text-xs text-muted-foreground leading-relaxed max-w-xs mx-auto">
-              Ketik pesan di bawah untuk memulai koordinasi. Pesan otomatis memicu notifikasi Web Push ke seluruh perangkat rekan kerja.
-            </p>
-          </div>
-        ) : (
-          messages.map((msg, index) => {
-            const isMe =
-              msg.sender_uid === currentUser?.uid ||
-              (msg.sender_name && userProfile?.name && msg.sender_name === userProfile.name) ||
-              (currentUser?.email && msg.sender_name === currentUser.email.split("@")[0]);
-            const roleBadge = getRoleBadge(msg.sender_role);
+          ) : (
+            messages.map((msg, index) => {
+              const isMe =
+                msg.sender_uid === currentUser?.uid ||
+                (msg.sender_name && userProfile?.name && msg.sender_name === userProfile.name);
+              const roleBadge = getRoleBadge(msg.sender_role);
 
-            return (
-              <div
-                key={msg.id || index}
-                className={`flex items-end gap-2 ${isMe ? "justify-end" : "justify-start"}`}
-              >
-                {!isMe && (
-                  <div className="h-8 w-8 rounded-full bg-primary/10 border border-primary/20 overflow-hidden flex items-center justify-center font-bold text-[10px] text-primary shrink-0 mb-1">
-                    {msg.sender_photo ? (
-                      <img
-                        src={msg.sender_photo}
-                        alt={msg.sender_name}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      getInitials(msg.sender_name)
-                    )}
-                  </div>
-                )}
-
-                <div className={`max-w-[80%] space-y-1 ${isMe ? "items-end text-right" : "items-start text-left"}`}>
+              return (
+                <div
+                  key={msg.id || index}
+                  className={`flex items-end gap-2 ${isMe ? "justify-end" : "justify-start"}`}
+                >
                   {!isMe && (
-                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground px-1">
-                      <span className="font-bold text-foreground truncate max-w-[130px]">{msg.sender_name}</span>
-                      <span className={`px-1.5 py-0.2 rounded-full text-[8px] font-bold border uppercase ${roleBadge.class}`}>
-                        {roleBadge.label}
-                      </span>
+                    <div className="h-7 w-7 rounded-full bg-primary/10 border border-primary/20 overflow-hidden flex items-center justify-center font-bold text-[10px] text-primary shrink-0 mb-1">
+                      {msg.sender_photo ? (
+                        <img
+                          src={msg.sender_photo}
+                          alt={msg.sender_name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        getInitials(msg.sender_name)
+                      )}
                     </div>
                   )}
 
-                  <div
-                    className={`p-3 rounded-2xl text-xs leading-relaxed break-words shadow-xs ${
-                      isMe
-                        ? "bg-primary text-primary-foreground rounded-br-xs font-medium"
-                        : "bg-card border border-border text-foreground rounded-bl-xs"
-                    }`}
-                  >
-                    <p className="whitespace-pre-wrap">{msg.message}</p>
-                    <div className="flex items-center justify-end gap-1 mt-1">
-                      <span
-                        className={`text-[9px] ${
-                          isMe ? "text-primary-foreground/75" : "text-muted-foreground"
-                        }`}
-                      >
-                        {formatMessageTime(msg.created_at)}
-                      </span>
-                      {isMe && <CheckCheck size={12} className="text-primary-foreground/75" />}
+                  <div className={`max-w-[85%] sm:max-w-[75%] space-y-1 ${isMe ? "items-end text-right" : "items-start text-left"}`}>
+                    {!isMe && (
+                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground px-1">
+                        <span className="font-bold text-foreground truncate max-w-[140px]">{msg.sender_name}</span>
+                        <span className={`px-1.5 py-0.2 rounded-full text-[8px] font-bold border uppercase ${roleBadge.class}`}>
+                          {roleBadge.label}
+                        </span>
+                      </div>
+                    )}
+
+                    <div
+                      className={`p-3 rounded-2xl text-xs leading-relaxed break-words shadow-xs ${
+                        isMe
+                          ? "bg-primary text-primary-foreground rounded-br-xs font-medium"
+                          : "bg-card border border-border text-foreground rounded-bl-xs"
+                      }`}
+                    >
+                      <p className="whitespace-pre-wrap">{msg.message}</p>
+                      <div className="flex items-center justify-end gap-1 mt-1">
+                        <span
+                          className={`text-[9px] ${
+                            isMe ? "text-primary-foreground/75" : "text-muted-foreground"
+                          }`}
+                        >
+                          {formatMessageTime(msg.created_at)}
+                        </span>
+                        {isMe && <CheckCheck size={12} className="text-primary-foreground/75" />}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })
-        )}
-        <div ref={messagesEndRef} />
-      </div>
+              );
+            })
+          )}
+          <div ref={messagesEndRef} />
+        </div>
 
-      {/* 4. FORM INPUT PESAN (DENGAN PERLINDUNGAN ANTI-ZOOM FONT 16PX) */}
-      <div className="fixed bottom-16 left-0 right-0 z-40 bg-background/90 backdrop-blur-md border-t border-border p-3">
-        <form
-          onSubmit={handleSendMessage}
-          className="mx-auto max-w-lg flex items-center gap-2"
-        >
-          <input
-            type="text"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            placeholder="Tulis pesan untuk tim..."
-            disabled={sending}
-            style={{ fontSize: "16px" }}
-            className="flex-1 rounded-2xl border border-input bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring shadow-xs"
-          />
-          <button
-            type="submit"
-            disabled={sending || !inputText.trim()}
-            className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 shrink-0"
-            title="Kirim Pesan"
+        {/* 4. PINNED BOTTOM INPUT BOX (Docks flush to the bottom) */}
+        <div className="shrink-0 border-t border-border bg-card p-2.5 sm:p-3">
+          <form
+            onSubmit={handleSendMessage}
+            className="flex items-center gap-2"
           >
-            {sending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-          </button>
-        </form>
+            <input
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder="Tulis pesan untuk tim..."
+              disabled={sending}
+              style={{ fontSize: "16px" }}
+              className="flex-1 rounded-xl border border-input bg-background px-4 py-2.5 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring shadow-xs"
+            />
+            <button
+              type="submit"
+              disabled={sending || !inputText.trim()}
+              className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 shrink-0 cursor-pointer"
+              title="Kirim Pesan"
+            >
+              {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+            </button>
+          </form>
+        </div>
       </div>
 
-      {/* 5. MODAL DAFTAR LENGKAP ANGGOTA TIM (STATUS DETAIL ONLINE & TERAKHIR AKTIF) */}
+      {/* 5. MODAL DAFTAR LENGKAP ANGGOTA TIM */}
       {showAllMembersModal && (
         <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in"
           onClick={() => setShowAllMembersModal(false)}
         >
           <div
-            className="bg-card w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6 border border-border shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200"
+            className="bg-card w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6 border border-border shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200 text-foreground"
             style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -502,12 +516,13 @@ const Obrolan = () => {
                 <Users size={18} className="text-primary" />
                 <div>
                   <h3 className="text-sm font-bold text-foreground">Anggota Tim Tanabrew</h3>
-                  <p className="text-[11px] text-muted-foreground">Daftar staf & status kehadiran Tanabrew</p>
+                  <p className="text-[11px] text-muted-foreground">Daftar staf & kehadiran tim</p>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setShowAllMembersModal(false)}
-                className="p-1 rounded-full text-muted-foreground hover:bg-muted"
+                className="p-1 rounded-full text-muted-foreground hover:bg-muted cursor-pointer"
               >
                 <X size={16} />
               </button>
@@ -573,7 +588,7 @@ const Obrolan = () => {
             <button
               type="button"
               onClick={() => setShowAllMembersModal(false)}
-              className="w-full rounded-2xl bg-muted py-3 text-xs font-bold text-foreground hover:bg-muted/80 transition-colors"
+              className="w-full rounded-xl bg-muted py-2.5 text-xs font-bold text-foreground hover:bg-muted/80 transition-colors cursor-pointer"
             >
               Tutup
             </button>

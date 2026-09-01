@@ -249,6 +249,11 @@ const Riwayat = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
 
+  const isOwner = userProfile?.role === "owner";
+  const isDev = userProfile?.role === "webdev";
+  const isOwnerOrDev = isOwner || isDev;
+  const isAdmin = userProfile?.role === "admin" || isOwnerOrDev;
+
   const initialTab = useMemo<ActiveTab>(() => {
     const paramTab = searchParams.get("tab") as ActiveTab | null;
     if (paramTab === "invoice" || paramTab === "stok" || paramTab === "aktivitas") {
@@ -446,9 +451,6 @@ const Riwayat = () => {
     };
   }, [products, reportInvoices]);
 
-  const isOwner = userProfile?.role === "owner" || userProfile?.role === "webdev";
-  const isAdmin = userProfile?.role === "admin" || isOwner;
-  const isWebdev = userProfile?.role === "webdev";
   const navigate = useNavigate();
 
   const handleSafeRefresh = useCallback(() => {
@@ -963,7 +965,7 @@ const Riwayat = () => {
       <div className="flex items-center justify-between border-b border-border pb-3">
         <div className="flex items-center gap-2">
           <Receipt size={18} className="text-primary" />
-          <h2 className="text-sm font-bold text-foreground">Detail Dokumen Faktur</h2>
+          <h2 className="text-sm font-bold text-foreground">Detail Dokumen Invoice</h2>
         </div>
         {showClose && (
           <button 
@@ -991,7 +993,7 @@ const Riwayat = () => {
           </div>
         </div>
 
-        <h3 className="text-center text-sm font-black text-primary mb-3 uppercase tracking-wider">FAKTUR / INVOICE</h3>
+        <h3 className="text-center text-sm font-black text-primary mb-3 uppercase tracking-wider">INVOICE</h3>
 
         <div className="overflow-x-auto">
           <table className="w-full text-xs mb-3">
@@ -1075,7 +1077,7 @@ const Riwayat = () => {
           </button>
         )}
 
-        {(isOwner || (!invoice.is_printed && invoice.status !== "LUNAS")) && (
+        {(isOwnerOrDev || (!invoice.is_printed && invoice.status !== "LUNAS")) && (
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -1084,7 +1086,7 @@ const Riwayat = () => {
             >
               <Edit size={14} /> Edit Invoice
             </button>
-            {isOwner && (
+            {isOwnerOrDev && (
               <button
                 type="button"
                 onClick={() => {
@@ -1398,37 +1400,78 @@ const Riwayat = () => {
                           </span>
                         </div>
 
-                        {/* Quick action buttons for mobile/tablet */}
-                        <div className="grid grid-cols-3 gap-2 pt-1 lg:hidden">
+                        {/* Quick action buttons for all screens (Mobile, Tablet, Laptop, Desktop) */}
+                        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/50">
                           <button
+                            type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedInvoice(invoice);
                             }}
-                            className="inline-flex items-center justify-center gap-1 rounded-lg bg-muted px-2 py-1.5 text-xs font-semibold text-muted-foreground"
+                            className="inline-flex items-center justify-center gap-1 rounded-lg bg-muted/80 hover:bg-muted px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors cursor-pointer"
                           >
                             <Eye size={13} /> Detail
                           </button>
                           <button
+                            type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               handlePrintInvoice(invoice);
                             }}
                             disabled={!isAdmin}
-                            className="inline-flex items-center justify-center gap-1 rounded-lg bg-primary px-2 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+                            className="inline-flex items-center justify-center gap-1 rounded-lg bg-primary hover:bg-primary/90 px-2.5 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50 transition-colors cursor-pointer"
                           >
                             <Printer size={13} /> Cetak
                           </button>
                           <button
+                            type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleSendWhatsAppInvoice(invoice, true);
                             }}
                             disabled={!isAdmin || sendingWaInvoiceId === invoice.id}
-                            className="inline-flex items-center justify-center gap-1 rounded-lg bg-emerald-600 px-2 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                            className="inline-flex items-center justify-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1.5 text-xs font-semibold text-white disabled:opacity-50 transition-colors cursor-pointer"
                           >
                             <Smartphone size={13} /> WA
                           </button>
+                          {(isOwnerOrDev || (!invoice.is_printed && invoice.status !== "LUNAS")) && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/cetak-invoice?edit=${invoice.id}`);
+                              }}
+                              className="inline-flex items-center justify-center gap-1 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/15 px-2 py-1.5 text-xs font-semibold text-primary transition-colors cursor-pointer"
+                            >
+                              <Edit size={13} /> Edit
+                            </button>
+                          )}
+                          {isOwnerOrDev && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedInvoice(null);
+                                setDeleteTarget(invoice);
+                              }}
+                              className="inline-flex items-center justify-center gap-1 rounded-lg border border-destructive/30 bg-destructive/5 hover:bg-destructive/15 px-2 py-1.5 text-xs font-semibold text-destructive transition-colors cursor-pointer"
+                            >
+                              <Trash2 size={13} /> Hapus
+                            </button>
+                          )}
+                          {isAdmin && invoice.status === "BELUM LUNAS" && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPaymentTarget(invoice);
+                              }}
+                              disabled={payingInvoiceId === invoice.id}
+                              className="inline-flex items-center justify-center gap-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 hover:bg-emerald-500/25 px-2 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 disabled:opacity-50 transition-colors cursor-pointer ml-auto"
+                            >
+                              ✓ Lunas
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -1455,7 +1498,7 @@ const Riwayat = () => {
                 <div className="rounded-2xl border border-dashed border-border bg-card/50 p-12 text-center text-muted-foreground">
                   <Receipt size={36} className="mx-auto mb-2 text-muted-foreground/50" />
                   <p className="font-semibold text-sm">Pilih invoice di sebelah kiri</p>
-                  <p className="text-xs text-muted-foreground mt-1">Rincian faktur & aksi dokumen akan langsung tampil di sini.</p>
+                  <p className="text-xs text-muted-foreground mt-1">Rincian invoice & aksi dokumen akan langsung tampil di sini.</p>
                 </div>
               )}
             </div>
