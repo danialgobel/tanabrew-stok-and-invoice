@@ -73,14 +73,12 @@ const Beranda = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
-  const swipeStartX = useRef<number | null>(null);
   const [modal, setModal] = useState<"jogja" | "lombok" | null>(null);
   const [summaryModal, setSummaryModal] = useState<SummaryModalType | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [dismissedActivityIds, setDismissedActivityIds] = useState<string[]>([]);
-  const [closingActivity, setClosingActivity] = useState<{ activity: ActivityLog; direction: "left" | "right"; offset: number } | null>(null);
-  const [dragOffset, setDragOffset] = useState(0);
+  const [tickerIndex, setTickerIndex] = useState(0);
   const [adminInvoices, setAdminInvoices] = useState<Invoice[]>([]);
   const [dashboardInvoices, setDashboardInvoices] = useState<Invoice[]>([]);
   const [loadingDashboard, setLoadingDashboard] = useState(true);
@@ -135,11 +133,16 @@ const Beranda = () => {
 
     return activityLogs.filter((activity) => activity.id && !dismissedSet.has(activity.id));
   }, [activityLogs, dismissedActivityIds, profileDismissedActivityIds, userProfile?.last_seen_activity_id]);
-  const visibleActivityCards = newActivities.slice(0, 5);
-  const topActivity = newActivities[0];
-  const showActivityStack = newActivities.length > 0 || Boolean(closingActivity);
-  const activityCountLabel = newActivities.length > 0 ? `${newActivities.length} aktivitas baru` : "Menutup aktivitas";
-  const showHistoryHint = activityLogs.length >= 10;
+
+  useEffect(() => {
+    if (newActivities.length <= 1) return;
+    const interval = setInterval(() => {
+      setTickerIndex((prev) => (prev + 1) % newActivities.length);
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [newActivities.length]);
+
+  const currentTickerActivity = newActivities[tickerIndex % newActivities.length] || newActivities[0];
   const notificationInfo = useMemo(() => {
     switch (notificationStatus) {
       case "granted":
@@ -229,8 +232,7 @@ const Beranda = () => {
 
   useEffect(() => {
     setDismissedActivityIds([]);
-    setClosingActivity(null);
-    setDragOffset(0);
+    setTickerIndex(0);
     setNotificationStatus(getNotificationPermissionState());
   }, [currentUser?.uid]);
 
@@ -567,8 +569,8 @@ const Beranda = () => {
     }
   }, [currentUser, syncCurrentNotificationIdentity, toast, userProfile, announcementTitle, announcementMessage]);
 
-  const handleDismissActivity = async (activity: ActivityLog, direction: "left" | "right" = "right") => {
-    if (!currentUser || !activity.id || closingActivity) return;
+  const handleDismissActivity = async (activity: ActivityLog) => {
+    if (!currentUser || !activity.id) return;
 
     const remainingActivities = newActivities.filter((item) => item.id !== activity.id);
     const updatePayload: Record<string, unknown> = {
@@ -581,13 +583,7 @@ const Beranda = () => {
     }
 
     const activityId = activity.id;
-    const closeOffset = dragOffset;
-    setClosingActivity({ activity, direction, offset: closeOffset });
-    setDragOffset(0);
     setDismissedActivityIds((prev) => (prev.includes(activityId) ? prev : [...prev, activityId]));
-    window.setTimeout(() => {
-      setClosingActivity((current) => (current?.activity.id === activityId ? null : current));
-    }, 260);
 
     try {
       await updateDoc(doc(db, "users", currentUser.uid), updatePayload);
@@ -595,35 +591,6 @@ const Beranda = () => {
       setDismissedActivityIds((prev) => prev.filter((id) => id !== activityId));
       toast({ title: "Error", description: "Gagal menutup notifikasi, silakan coba lagi.", variant: "destructive" });
     }
-  };
-
-  const handleActivityPointerDown = (event: React.PointerEvent<HTMLDivElement>, activity: ActivityLog) => {
-    if (activity.id !== topActivity?.id || closingActivity) return;
-    swipeStartX.current = event.clientX;
-    setDragOffset(0);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-
-  const handleActivityPointerMove = (event: React.PointerEvent<HTMLDivElement>, activity: ActivityLog) => {
-    if (activity.id !== topActivity?.id || swipeStartX.current === null || closingActivity) return;
-
-    const nextOffset = event.clientX - swipeStartX.current;
-    setDragOffset(Math.max(-110, Math.min(110, nextOffset)));
-  };
-
-  const handleActivityPointerEnd = (activity: ActivityLog) => {
-    if (activity.id !== topActivity?.id || swipeStartX.current === null || closingActivity) return;
-
-    const direction = dragOffset < 0 ? "left" : "right";
-    const shouldDismiss = Math.abs(dragOffset) >= 70;
-    swipeStartX.current = null;
-
-    if (shouldDismiss) {
-      void handleDismissActivity(activity, direction);
-      return;
-    }
-
-    setDragOffset(0);
   };
 
   const cards = [
@@ -699,6 +666,56 @@ const Beranda = () => {
             Akun
           </button>
         </div>
+
+        {/* Kapsul Ticker Aktivitas Terbaru (Ultra-Compact 1 Baris) */}
+        {newActivities.length > 0 && currentTickerActivity && (
+          <div className="tanabrew-card-enter mb-4 rounded-xl border border-emerald-500/25 bg-emerald-50/70 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 px-3.5 py-2 transition-all flex items-center justify-between gap-2.5 shadow-sm">
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic(10);
+                navigate("/riwayat");
+              }}
+              className="flex items-center gap-2.5 min-w-0 flex-1 text-left select-none cursor-pointer group"
+            >
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+
+              <div className="min-w-0 flex-1 truncate text-xs">
+                <span className="font-bold text-emerald-800 dark:text-emerald-300 mr-1.5">
+                  {actionLabel(currentTickerActivity.action)}:
+                </span>
+                <span className="text-foreground/90 font-medium truncate">
+                  {currentTickerActivity.description || "Ada pembaruan data."}
+                </span>
+                <span className="text-muted-foreground/60 text-[10px] ml-1.5 hidden sm:inline">
+                  • {currentTickerActivity.user_name || "User"}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1 shrink-0 text-emerald-700 dark:text-emerald-400 font-semibold text-[11px] group-hover:translate-x-0.5 transition-transform">
+                <span>Riwayat</span>
+                <ArrowRight size={12} />
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                triggerHaptic(5);
+                void handleDismissActivity(currentTickerActivity);
+              }}
+              className="rounded-lg p-1 text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors shrink-0"
+              title="Tutup aktivitas ini"
+              aria-label="Tutup"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
 
         {/* Ringkasan Cepat Hari Ini (Today's Quick Overview) */}
         <div className="tanabrew-card-enter grid grid-cols-3 gap-2.5 mb-6">
@@ -824,107 +841,6 @@ const Beranda = () => {
           </div>
         )}
 
-        {showActivityStack && (
-          <div className="tanabrew-card-enter rounded-xl border border-primary/25 bg-primary/5 p-4 mb-4 shadow-sm">
-            <div className="mb-3 flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-bold text-primary">Aktivitas Terbaru</p>
-                <p className="text-xs text-muted-foreground">{activityCountLabel}</p>
-              </div>
-              {showHistoryHint && (
-                <button
-                  onClick={() => navigate("/riwayat")}
-                  className="text-xs font-semibold text-primary hover:underline"
-                >
-                  Lihat semua di Riwayat
-                </button>
-              )}
-            </div>
-
-            <div className="tanabrew-activity-stack">
-              {closingActivity && (
-                <div
-                  key={`closing-${closingActivity.activity.id}`}
-                  className={`tanabrew-activity-card tanabrew-activity-card-front tanabrew-activity-card-close-${closingActivity.direction}`}
-                  style={{
-                    zIndex: visibleActivityCards.length + 2,
-                    "--tanabrew-activity-drag-x": `${closingActivity.offset}px`,
-                    "--tanabrew-activity-drag-rotate": `${closingActivity.offset / 28}deg`,
-                  } as CSSProperties}
-                  aria-hidden="true"
-                >
-                  <p className="pr-8 text-sm font-semibold text-foreground">
-                    {closingActivity.activity.description || "Ada aktivitas baru."}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                    <span>{closingActivity.activity.user_name || "Tidak diketahui"}</span>
-                    <span>-</span>
-                    <span>{actionLabel(closingActivity.activity.action)}</span>
-                    <span>-</span>
-                    <span>Baru saja</span>
-                  </div>
-                </div>
-              )}
-
-              {visibleActivityCards.map((activity, index) => {
-                const isFront = index === 0;
-                const canInteract = isFront && !closingActivity;
-                const rotate = index === 1 ? -2 : index === 2 ? 2 : index === 3 ? -1 : 1;
-                const translateY = index * 8;
-                const scale = 1 - index * 0.035;
-                const opacity = 1 - index * 0.14;
-                const activeDragOffset = canInteract ? dragOffset : 0;
-                const frontTransform = `translateX(${activeDragOffset}px) rotate(${activeDragOffset / 28}deg)`;
-                const backTransform = `translateY(${translateY}px) rotate(${rotate}deg) scale(${scale})`;
-
-                return (
-                  <div
-                    key={activity.id}
-                    className={`tanabrew-activity-card ${isFront ? "tanabrew-activity-card-front" : ""}`}
-                    style={{
-                      zIndex: visibleActivityCards.length - index,
-                      opacity,
-                      transform: isFront ? frontTransform : backTransform,
-                    }}
-                    onPointerDown={(event) => handleActivityPointerDown(event, activity)}
-                    onPointerMove={(event) => handleActivityPointerMove(event, activity)}
-                    onPointerUp={() => handleActivityPointerEnd(activity)}
-                    onPointerCancel={() => {
-                      swipeStartX.current = null;
-                      setDragOffset(0);
-                    }}
-                    aria-hidden={!isFront || Boolean(closingActivity)}
-                  >
-                    {canInteract && (
-                      <button
-                        onClick={() => handleDismissActivity(activity)}
-                        className="absolute right-2 top-2 rounded-full p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                        aria-label="Tutup notifikasi"
-                      >
-                        <X size={16} />
-                      </button>
-                    )}
-
-                    <p className="pr-8 text-sm font-semibold text-foreground">
-                      {activity.description || "Ada aktivitas baru."}
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                      <span>{activity.user_name || "Tidak diketahui"}</span>
-                      <span>-</span>
-                      <span>{actionLabel(activity.action)}</span>
-                      <span>-</span>
-                      <span>Baru saja</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <p className="mt-3 text-center text-xs text-muted-foreground">
-              Geser atau tutup untuk melihat aktivitas berikutnya
-            </p>
-          </div>
-        )}
 
         {isAdmin && (
           <div className="tanabrew-card-enter rounded-xl border border-border bg-card p-4 mb-6" style={{ animationDelay: "70ms" }}>
