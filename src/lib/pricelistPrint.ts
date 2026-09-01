@@ -53,8 +53,8 @@ const pricelistShellHtml = (bodyHtml: string) => {
   <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Outfit:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     @page { 
-      size: A4; 
-      margin: 0; /* Zero page margin to allow full-bleed printing edge-to-edge */
+      size: 210mm 297mm; 
+      margin: 0 !important; /* Zero page margin for full-bleed printing */
     }
     
     * { 
@@ -62,30 +62,47 @@ const pricelistShellHtml = (bodyHtml: string) => {
     }
     
     html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      background-color: #edf4f0;
+      margin: 0 !important;
+      padding: 0 !important;
+      background-color: #edf4f0 !important;
       color: #1b5e20;
       font-family: 'Outfit', 'Poppins', sans-serif;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-      overflow: hidden;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Screen Preview Styles */
+    @media screen {
+      body {
+        background-color: #d2ddd4;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+        overflow-y: auto;
+        padding-bottom: 40px;
+      }
+      .pricelist-container {
+        margin: 20px auto 0;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+      }
     }
 
     /* Web Preview Only Toolbar */
     .print-toolbar {
+      width: 100%;
       position: sticky;
       top: 0;
       z-index: 9999;
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 12px;
-      padding: 12px 20px;
+      padding: 12px 24px;
       background: #ffffff;
       border-bottom: 1px solid #c8e6c9;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
     }
     
     .back-button {
@@ -94,7 +111,7 @@ const pricelistShellHtml = (bodyHtml: string) => {
       border-radius: 8px;
       background: #2e7d32;
       color: #fff;
-      padding: 0 16px;
+      padding: 0 18px;
       font-size: 14px;
       font-weight: 700;
       cursor: pointer;
@@ -111,25 +128,34 @@ const pricelistShellHtml = (bodyHtml: string) => {
       color: #556f5a;
     }
 
-    /* Container for the pricelist sheet */
+    /* Container for the pricelist sheet - Fixed Standard A4 Canvas */
     .pricelist-container {
       position: relative;
-      width: 100%;
-      height: 100%;
-      padding: 16mm 18mm 16mm 18mm; /* Acts as the paper margins */
+      width: 210mm;
+      min-width: 210mm;
+      max-width: 210mm;
+      height: 297mm;
+      min-height: 297mm;
+      max-height: 297mm;
+      padding: 16mm 18mm 16mm 18mm;
       box-sizing: border-box;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       z-index: 10;
+      background-color: #edf4f0;
+      overflow: hidden;
+      page-break-inside: avoid;
+      page-break-after: avoid;
     }
 
-    /* SVG watermarked leaf background covering the page */
+    /* SVG watermarked leaf background covering the full A4 canvas */
     .bg-pattern {
       position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
+      top: 0;
+      left: 0;
+      width: 210mm;
+      height: 297mm;
       z-index: -1;
       pointer-events: none;
     }
@@ -319,11 +345,27 @@ const pricelistShellHtml = (bodyHtml: string) => {
         display: none !important; 
       }
       html, body {
-        background-color: #edf4f0;
+        width: 210mm !important;
+        height: 297mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background-color: #edf4f0 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        overflow: hidden !important;
       }
       .pricelist-container {
-        padding: 16mm 18mm 16mm 18mm;
-        height: 100vh;
+        width: 210mm !important;
+        min-width: 210mm !important;
+        max-width: 210mm !important;
+        height: 297mm !important;
+        min-height: 297mm !important;
+        max-height: 297mm !important;
+        padding: 16mm 18mm 16mm 18mm !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        page-break-inside: avoid !important;
+        page-break-after: avoid !important;
       }
     }
   </style>
@@ -387,7 +429,7 @@ export const printPricelist = ({ categories, stockLocation, printedBy, roleLabel
   const pageHtml = `
     <div class="pricelist-container">
       <!-- Watermarked Leaf SVG Background (Accurate Monstera outline leaves pattern) -->
-      <svg class="bg-pattern" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1130">
+      <svg class="bg-pattern" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1131" preserveAspectRatio="none">
         <!-- Solid light mint background -->
         <rect width="100%" height="100%" fill="#edf4f0" />
         
