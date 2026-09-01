@@ -2,7 +2,7 @@ import { useProducts } from "@/hooks/useProducts";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { arrayUnion, collection, doc, limit, onSnapshot, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
-import { Bell, LogOut, X, TrendingUp, DollarSign, ShoppingBag, Award, User as UserIcon, Calendar, ArrowRight } from "lucide-react";
+import { Bell, LogOut, X, TrendingUp, DollarSign, ShoppingBag, Award, User as UserIcon, Calendar, ArrowRight, CheckCircle2, AlertCircle, Package, Receipt, ChevronRight, Sparkles } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from "recharts";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
@@ -64,6 +64,8 @@ const stockState = (total: number) => {
 };
 
 type SummaryModalType = "lunas" | "belum_lunas" | "stok_aman" | "stok_menipis" | "stok_habis";
+type OverviewModalType = "omzet" | "transaksi" | "terjual" | null;
+type StockModalType = "total_produk" | "total_stok" | "jogja" | "lombok" | null;
 
 const hasWelcomeAnimationFlag = () => sessionStorage.getItem("showWelcomeAnimation") === "true";
 
@@ -73,8 +75,10 @@ const Beranda = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
-  const [modal, setModal] = useState<"jogja" | "lombok" | null>(null);
+  const [modal, setModal] = useState<StockModalType>(null);
   const [summaryModal, setSummaryModal] = useState<SummaryModalType | null>(null);
+  const [overviewModal, setOverviewModal] = useState<OverviewModalType>(null);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [dismissedActivityIds, setDismissedActivityIds] = useState<string[]>([]);
@@ -124,15 +128,16 @@ const Beranda = () => {
     () => (Array.isArray(userProfile?.dismissed_activity_ids) ? userProfile.dismissed_activity_ids : []),
     [userProfile?.dismissed_activity_ids],
   );
-  const newActivities = useMemo(() => {
-    const dismissedSet = new Set([
-      ...profileDismissedActivityIds,
-      ...dismissedActivityIds,
-      ...(userProfile?.last_seen_activity_id ? [userProfile.last_seen_activity_id] : []),
-    ]);
 
+  const dismissedSet = useMemo(() => new Set([
+    ...profileDismissedActivityIds,
+    ...dismissedActivityIds,
+    ...(userProfile?.last_seen_activity_id ? [userProfile.last_seen_activity_id] : []),
+  ]), [profileDismissedActivityIds, dismissedActivityIds, userProfile?.last_seen_activity_id]);
+
+  const newActivities = useMemo(() => {
     return activityLogs.filter((activity) => activity.id && !dismissedSet.has(activity.id));
-  }, [activityLogs, dismissedActivityIds, profileDismissedActivityIds, userProfile?.last_seen_activity_id]);
+  }, [activityLogs, dismissedSet]);
 
   const demoActivities: ActivityLog[] = useMemo(
     () => [
@@ -160,9 +165,11 @@ const Beranda = () => {
 
   const displayActivities = useMemo(() => {
     if (newActivities.length > 0) return newActivities;
-    if (activityLogs.length > 0) return activityLogs;
-    return demoActivities;
-  }, [newActivities, activityLogs, demoActivities]);
+    const remainingLogs = activityLogs.filter((act) => act.id && !dismissedSet.has(act.id));
+    if (remainingLogs.length > 0) return remainingLogs;
+    const remainingDemo = demoActivities.filter((act) => !dismissedSet.has(act.id));
+    return remainingDemo;
+  }, [newActivities, activityLogs, demoActivities, dismissedSet]);
 
   useEffect(() => {
     if (displayActivities.length <= 1) return;
@@ -328,6 +335,53 @@ const Beranda = () => {
     );
 
     return { revenue, count, itemsSold };
+  }, [dashboardInvoices]);
+
+  const todayDetails = useMemo(() => {
+    const now = new Date();
+    const todayYear = now.getFullYear();
+    const todayMonth = now.getMonth();
+    const todayDate = now.getDate();
+
+    const invoicesToday = dashboardInvoices.filter((inv) => {
+      const time = getInvoiceDateValue(inv);
+      if (!time) return false;
+      const d = new Date(time);
+      return d.getFullYear() === todayYear && d.getMonth() === todayMonth && d.getDate() === todayDate;
+    });
+
+    const lunasInvoices = invoicesToday.filter((inv) => inv.status === "LUNAS");
+    const belumLunasInvoices = invoicesToday.filter((inv) => inv.status !== "LUNAS");
+
+    const omzetLunas = lunasInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
+    const omzetBelumLunas = belumLunasInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
+    const totalOmzet = omzetLunas + omzetBelumLunas;
+    const avgOmzet = invoicesToday.length > 0 ? totalOmzet / invoicesToday.length : 0;
+
+    const soldItemsMap: Record<string, { nama: string; qty: number; total: number }> = {};
+    invoicesToday.forEach((inv) => {
+      (inv.items || []).forEach((item) => {
+        const key = item.nama_barang || "Produk";
+        if (!soldItemsMap[key]) {
+          soldItemsMap[key] = { nama: key, qty: 0, total: 0 };
+        }
+        soldItemsMap[key].qty += (item.jumlah || 0);
+        soldItemsMap[key].total += (item.subtotal || ((item.harga || 0) * (item.jumlah || 0)));
+      });
+    });
+
+    const soldItemsList = Object.values(soldItemsMap).sort((a, b) => b.qty - a.qty);
+
+    return {
+      invoicesToday,
+      lunasInvoices,
+      belumLunasInvoices,
+      omzetLunas,
+      omzetBelumLunas,
+      totalOmzet,
+      avgOmzet,
+      soldItemsList,
+    };
   }, [dashboardInvoices]);
 
   const chartRevenueData = useMemo(() => {
@@ -600,39 +654,40 @@ const Beranda = () => {
   }, [currentUser, syncCurrentNotificationIdentity, toast, userProfile, announcementTitle, announcementMessage]);
 
   const handleDismissActivity = async (activity: ActivityLog) => {
-    if (!currentUser || !activity.id) return;
-
-    const remainingActivities = newActivities.filter((item) => item.id !== activity.id);
-    const updatePayload: Record<string, unknown> = {
-      dismissed_activity_ids: arrayUnion(activity.id),
-    };
-
-    if (remainingActivities.length === 0) {
-      updatePayload.last_seen_activity_id = activity.id;
-      updatePayload.last_seen_activity_at = serverTimestamp();
-    }
-
+    if (!activity.id) return;
     const activityId = activity.id;
+    triggerHaptic(10);
     setDismissedActivityIds((prev) => (prev.includes(activityId) ? prev : [...prev, activityId]));
 
-    try {
-      await updateDoc(doc(db, "users", currentUser.uid), updatePayload);
-    } catch {
-      setDismissedActivityIds((prev) => prev.filter((id) => id !== activityId));
-      toast({ title: "Error", description: "Gagal menutup notifikasi, silakan coba lagi.", variant: "destructive" });
+    if (currentUser && !activityId.startsWith("demo-")) {
+      try {
+        const remainingActivities = newActivities.filter((item) => item.id !== activity.id);
+        const updatePayload: Record<string, unknown> = {
+          dismissed_activity_ids: arrayUnion(activity.id),
+        };
+
+        if (remainingActivities.length === 0) {
+          updatePayload.last_seen_activity_id = activity.id;
+          updatePayload.last_seen_activity_at = serverTimestamp();
+        }
+
+        await updateDoc(doc(db, "users", currentUser.uid), updatePayload);
+      } catch (err) {
+        console.warn("Failed to persist dismissed activity in firestore", err);
+      }
     }
   };
 
   const cards = [
-    { label: "Total Produk", value: totalProduk, clickable: false },
-    { label: "Total Stok", value: totalStok, clickable: false },
+    { label: "Total Produk", value: totalProduk, clickable: true, key: "total_produk" as const },
+    { label: "Total Stok", value: totalStok, clickable: true, key: "total_stok" as const },
     { label: "Stok Jogja", value: stokJogja, clickable: true, key: "jogja" as const },
     { label: "Stok Lombok", value: stokLombok, clickable: true, key: "lombok" as const },
   ];
 
   return (
     <>
-      <PullToRefresh onRefresh={handleSafeRefresh} disabled={Boolean(modal || summaryModal)} />
+      <PullToRefresh onRefresh={handleSafeRefresh} disabled={Boolean(modal || summaryModal || overviewModal || profileModalOpen)} />
 
       {showWelcomeAnimation && (
         <WelcomeAnimation name={displayName} role={userProfile?.role} onFinish={handleWelcomeFinish} />
@@ -656,7 +711,13 @@ const Beranda = () => {
         </div>
 
         {/* Header Profil Pengguna */}
-        <div className="tanabrew-card-enter bg-card rounded-2xl border border-border p-4 mb-4 flex items-center justify-between gap-3 shadow-sm">
+        <div 
+          onClick={() => {
+            triggerHaptic(10);
+            setProfileModalOpen(true);
+          }}
+          className="tanabrew-card-enter bg-card rounded-2xl border border-border p-4 mb-4 flex items-center justify-between gap-3 shadow-sm cursor-pointer hover:border-primary/40 active:scale-[0.99] transition-all"
+        >
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-sm border border-primary/20 shrink-0 overflow-hidden">
               {userProfile?.photo_url ? (
@@ -686,7 +747,9 @@ const Beranda = () => {
             </div>
           </div>
           <button
-            onClick={() => {
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
               triggerHaptic(10);
               navigate("/akun");
             }}
@@ -738,38 +801,67 @@ const Beranda = () => {
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                triggerHaptic(5);
+                e.preventDefault();
                 void handleDismissActivity(currentTickerActivity);
               }}
-              className="rounded-lg p-1 text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors shrink-0"
+              className="relative z-20 rounded-lg p-1.5 text-muted-foreground/70 hover:text-foreground hover:bg-muted active:scale-90 transition-all shrink-0 cursor-pointer"
               title="Tutup aktivitas ini"
-              aria-label="Tutup"
+              aria-label="Tutup aktivitas"
             >
-              <X size={14} />
+              <X size={15} />
             </button>
           </div>
         )}
 
         {/* Ringkasan Cepat Hari Ini (Today's Quick Overview) */}
         <div className="tanabrew-card-enter grid grid-cols-3 gap-2.5 mb-6">
-          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-1 shadow-sm">
-            <div className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
-              <DollarSign size={13} />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Omzet Hari Ini</span>
+          <div 
+            onClick={() => {
+              triggerHaptic(10);
+              setOverviewModal("omzet");
+            }}
+            className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 p-3 space-y-1 shadow-sm cursor-pointer active:scale-95 transition-all select-none group"
+          >
+            <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-400">
+              <div className="flex items-center gap-1">
+                <DollarSign size={13} />
+                <span className="text-[10px] font-bold uppercase tracking-wider">Omzet</span>
+              </div>
+              <ChevronRight size={12} className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
             </div>
             <p className="text-xs sm:text-sm font-bold text-foreground truncate">Rp {fmt(todayOverview.revenue)}</p>
           </div>
-          <div className="rounded-2xl border border-blue-500/20 bg-blue-500/5 p-3 space-y-1 shadow-sm">
-            <div className="flex items-center gap-1 text-blue-700 dark:text-blue-400">
-              <TrendingUp size={13} />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Transaksi</span>
+
+          <div 
+            onClick={() => {
+              triggerHaptic(10);
+              setOverviewModal("transaksi");
+            }}
+            className="rounded-2xl border border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10 p-3 space-y-1 shadow-sm cursor-pointer active:scale-95 transition-all select-none group"
+          >
+            <div className="flex items-center justify-between text-blue-700 dark:text-blue-400">
+              <div className="flex items-center gap-1">
+                <TrendingUp size={13} />
+                <span className="text-[10px] font-bold uppercase tracking-wider">Transaksi</span>
+              </div>
+              <ChevronRight size={12} className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
             </div>
             <p className="text-xs sm:text-sm font-bold text-foreground">{todayOverview.count} Transaksi</p>
           </div>
-          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-3 space-y-1 shadow-sm">
-            <div className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
-              <ShoppingBag size={13} />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Terjual</span>
+
+          <div 
+            onClick={() => {
+              triggerHaptic(10);
+              setOverviewModal("terjual");
+            }}
+            className="rounded-2xl border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 p-3 space-y-1 shadow-sm cursor-pointer active:scale-95 transition-all select-none group"
+          >
+            <div className="flex items-center justify-between text-amber-700 dark:text-amber-400">
+              <div className="flex items-center gap-1">
+                <ShoppingBag size={13} />
+                <span className="text-[10px] font-bold uppercase tracking-wider">Terjual</span>
+              </div>
+              <ChevronRight size={12} className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
             </div>
             <p className="text-xs sm:text-sm font-bold text-foreground">{todayOverview.itemsSold} Pcs</p>
           </div>
@@ -1113,9 +1205,12 @@ const Beranda = () => {
             <button
               key={c.label}
               disabled={!c.clickable}
-              onClick={() => c.clickable && c.key && setModal(c.key)}
-              className={`tanabrew-card-enter rounded-xl bg-card border border-border p-4 text-center transition-shadow ${
-                c.clickable ? "cursor-pointer active:shadow-md hover:border-primary/40" : "cursor-default"
+              onClick={() => {
+                triggerHaptic(10);
+                if (c.clickable && c.key) setModal(c.key);
+              }}
+              className={`tanabrew-card-enter rounded-xl bg-card border border-border p-4 text-center transition-all ${
+                c.clickable ? "cursor-pointer active:scale-95 active:shadow-md hover:border-primary/40 select-none" : "cursor-default"
               }`}
             >
               <p className="text-2xl font-bold text-primary">{loading ? "..." : c.value}</p>
@@ -1174,32 +1269,270 @@ const Beranda = () => {
           </div>
         </div>
 
-        {modal && (
-          <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-foreground/40" onClick={() => setModal(null)}>
+        {/* MODAL DETAIL PROFIL PENGGUNA */}
+        {profileModalOpen && (
+          <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-foreground/40" onClick={() => setProfileModalOpen(false)}>
             <div 
-              className="bg-card w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-5 pb-12 sm:pb-5 max-h-[70vh] overflow-y-auto tanabrew-card-enter" 
+              className="bg-card w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-5 pb-10 sm:pb-5 max-h-[85vh] overflow-y-auto tanabrew-card-enter animate-in fade-in slide-in-from-bottom-4 duration-300"
               style={{ paddingBottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-primary">
-                  Stok {modal === "jogja" ? "Jogja" : "Lombok"}
+              <div className="flex items-center justify-between mb-4 border-b border-border pb-2">
+                <h3 className="text-lg font-bold text-primary flex items-center gap-2">
+                  <UserIcon size={18} />
+                  Profil Pengguna
                 </h3>
-                <button onClick={() => setModal(null)} className="p-1 rounded-full hover:bg-muted">
+                <button onClick={() => setProfileModalOpen(false)} className="p-1 rounded-full hover:bg-muted" aria-label="Tutup">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex flex-col items-center text-center p-4 bg-muted/30 rounded-2xl border border-border mb-4">
+                <div className="h-20 w-20 rounded-full border-2 border-primary/30 p-0.5 mb-3 overflow-hidden bg-primary/10 flex items-center justify-center text-primary text-2xl font-bold shadow-sm">
+                  {userProfile?.photo_url ? (
+                    <img src={userProfile.photo_url} alt={displayName} className="h-full w-full object-cover rounded-full" />
+                  ) : (
+                    displayName.slice(0, 2).toUpperCase()
+                  )}
+                </div>
+                <h4 className="text-base font-bold text-foreground">{displayName}</h4>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase mt-1">
+                  {roleLabel}
+                </div>
+                {currentUser?.email && (
+                  <p className="text-xs text-muted-foreground mt-2">{currentUser.email}</p>
+                )}
+              </div>
+
+              <div className="space-y-2 mb-4 text-xs">
+                <div className="flex justify-between items-center p-3 rounded-xl bg-muted/40 border border-border">
+                  <span className="text-muted-foreground font-medium">Status Notifikasi</span>
+                  <span className={`font-bold px-2 py-0.5 rounded-full ${
+                    notificationStatus === "granted" ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-yellow-500/15 text-yellow-700"
+                  }`}>
+                    {notificationStatus === "granted" ? "✓ Aktif" : "Belum Aktif"}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center p-3 rounded-xl bg-muted/40 border border-border">
+                  <span className="text-muted-foreground font-medium">ID Pengguna</span>
+                  <span className="font-mono text-[11px] text-foreground/80 truncate max-w-[180px]">{currentUser?.uid || "-"}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProfileModalOpen(false);
+                    navigate("/akun");
+                  }}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary text-primary-foreground py-2.5 px-3 text-xs font-bold hover:opacity-90 transition-opacity"
+                >
+                  <UserIcon size={14} />
+                  Buka Akun
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProfileModalOpen(false)}
+                  className="rounded-xl border border-border bg-muted py-2.5 px-3 text-xs font-bold text-muted-foreground hover:bg-muted/80 transition-colors"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL RINCIAN HARI INI (OMZET / TRANSAKSI / TERJUAL) */}
+        {overviewModal && (
+          <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-foreground/40" onClick={() => setOverviewModal(null)}>
+            <div 
+              className="bg-card w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-5 pb-10 sm:pb-5 max-h-[85vh] overflow-y-auto tanabrew-card-enter animate-in fade-in slide-in-from-bottom-4 duration-300"
+              style={{ paddingBottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4 border-b border-border pb-2">
+                <h3 className="text-lg font-bold text-primary flex items-center gap-2">
+                  {overviewModal === "omzet" && <><DollarSign size={18} /> Rincian Omzet Hari Ini</>}
+                  {overviewModal === "transaksi" && <><TrendingUp size={18} /> Daftar Transaksi Hari Ini</>}
+                  {overviewModal === "terjual" && <><ShoppingBag size={18} /> Produk Terjual Hari Ini</>}
+                </h3>
+                <button onClick={() => setOverviewModal(null)} className="p-1 rounded-full hover:bg-muted" aria-label="Tutup">
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Konten Omzet */}
+              {overviewModal === "omzet" && (
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-center">
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Total Pendapatan Hari Ini</p>
+                    <p className="text-2xl font-black text-emerald-700 dark:text-emerald-400 mt-1">Rp {fmt(todayDetails.totalOmzet)}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/15">
+                      <p className="text-muted-foreground text-[11px]">Sudah Lunas ({todayDetails.lunasInvoices.length})</p>
+                      <p className="font-bold text-emerald-600 dark:text-emerald-400 text-sm mt-0.5">Rp {fmt(todayDetails.omzetLunas)}</p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-destructive/5 border border-destructive/15">
+                      <p className="text-muted-foreground text-[11px]">Belum Lunas ({todayDetails.belumLunasInvoices.length})</p>
+                      <p className="font-bold text-destructive text-sm mt-0.5">Rp {fmt(todayDetails.omzetBelumLunas)}</p>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-muted/40 border border-border text-xs space-y-1.5">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Total Transaksi</span>
+                      <span className="font-bold text-foreground">{todayDetails.invoicesToday.length} Invoice</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Rata-rata per Transaksi</span>
+                      <span className="font-bold text-foreground">Rp {fmt(Math.round(todayDetails.avgOmzet))}</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOverviewModal(null);
+                      navigate("/riwayat?tab=invoice", { state: { tab: "invoice" } });
+                    }}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-2.5 px-4 text-xs font-bold hover:opacity-90 transition-opacity"
+                  >
+                    <span>Lihat Semua Invoice di Riwayat</span>
+                    <ArrowRight size={13} />
+                  </button>
+                </div>
+              )}
+
+              {/* Konten Transaksi */}
+              {overviewModal === "transaksi" && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between bg-muted/50 p-3 rounded-xl border border-border text-xs">
+                    <span className="text-muted-foreground">Total Invoice Hari Ini:</span>
+                    <span className="font-bold text-foreground">{todayDetails.invoicesToday.length} Transaksi</span>
+                  </div>
+
+                  {todayDetails.invoicesToday.length === 0 ? (
+                    <p className="text-center text-muted-foreground text-sm py-8">Belum ada transaksi hari ini.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-1">
+                      {todayDetails.invoicesToday.map((inv) => (
+                        <div key={inv.id} className="p-3 rounded-xl border border-border bg-muted/20 text-xs space-y-1.5">
+                          <div className="flex justify-between items-start gap-2">
+                            <span className="font-bold text-primary truncate max-w-[65%]">{inv.no_invoice || "-"}</span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              inv.status === "LUNAS" ? "bg-primary/15 text-primary" : "bg-destructive/15 text-destructive"
+                            }`}>
+                              {inv.status || "-"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-muted-foreground">
+                            <span className="truncate max-w-[60%]">Customer: <strong className="text-foreground">{inv.customer || "-"}</strong></span>
+                            <span className="font-bold text-foreground">Rp {fmt(inv.total || 0)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOverviewModal(null);
+                      navigate("/riwayat?tab=invoice", { state: { tab: "invoice" } });
+                    }}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-2.5 px-4 text-xs font-bold hover:opacity-90 transition-opacity"
+                  >
+                    <span>Buka Riwayat Transaksi</span>
+                    <ArrowRight size={13} />
+                  </button>
+                </div>
+              )}
+
+              {/* Konten Terjual */}
+              {overviewModal === "terjual" && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between bg-amber-500/10 p-3 rounded-xl border border-amber-500/20 text-xs">
+                    <span className="text-amber-800 dark:text-amber-400 font-medium">Total Kuantitas Terjual:</span>
+                    <span className="font-bold text-amber-900 dark:text-amber-300 text-sm">{todayOverview.itemsSold} Pcs</span>
+                  </div>
+
+                  {todayDetails.soldItemsList.length === 0 ? (
+                    <p className="text-center text-muted-foreground text-sm py-8">Belum ada barang terjual hari ini.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-1">
+                      {todayDetails.soldItemsList.map((item, idx) => (
+                        <div key={`${item.nama}-${idx}`} className="flex justify-between items-center p-3 rounded-xl border border-border bg-muted/20 text-xs">
+                          <div className="min-w-0 flex-1 pr-2">
+                            <p className="font-bold text-foreground truncate">{item.nama}</p>
+                            <p className="text-[11px] text-muted-foreground">Total: Rp {fmt(item.total)}</p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <span className="inline-block font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg">
+                              {item.qty} pcs
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOverviewModal(null);
+                      navigate("/riwayat?tab=stok", { state: { tab: "stok" } });
+                    }}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-2.5 px-4 text-xs font-bold hover:opacity-90 transition-opacity"
+                  >
+                    <span>Cek Mutasi Stok di Riwayat</span>
+                    <ArrowRight size={13} />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* MODAL RINCIAN STOK INVENTARIS */}
+        {modal && (
+          <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-foreground/40" onClick={() => setModal(null)}>
+            <div 
+              className="bg-card w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-5 pb-12 sm:pb-5 max-h-[75vh] overflow-y-auto tanabrew-card-enter animate-in fade-in slide-in-from-bottom-4 duration-300" 
+              style={{ paddingBottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4 border-b border-border pb-2">
+                <h3 className="text-lg font-bold text-primary flex items-center gap-2">
+                  <Package size={18} />
+                  {modal === "total_produk" && `Total Produk (${totalProduk})`}
+                  {modal === "total_stok" && `Total Semua Stok (${totalStok} Pcs)`}
+                  {modal === "jogja" && `Stok Cabang Jogja (${stokJogja} Pcs)`}
+                  {modal === "lombok" && `Stok Cabang Lombok (${stokLombok} Pcs)`}
+                </h3>
+                <button onClick={() => setModal(null)} className="p-1 rounded-full hover:bg-muted" aria-label="Tutup">
                   <X size={20} />
                 </button>
               </div>
               <div className="space-y-2">
                 {products.map((p) => (
-                  <div key={p.id} className="flex justify-between items-center px-3 py-2 rounded-lg bg-muted">
-                    <span className="text-sm">{p.nama_barang}</span>
-                    <span className="text-sm font-semibold text-primary">
-                      {modal === "jogja" ? p.stok_jogja : p.stok_lombok}
+                  <div key={p.id} className="flex justify-between items-center px-3 py-2.5 rounded-xl bg-muted/40 border border-border">
+                    <div className="min-w-0 flex-1 pr-2">
+                      <span className="text-xs font-bold text-foreground block truncate">{p.nama_barang}</span>
+                      <span className="text-[10px] text-muted-foreground">Harga: Rp {fmt(p.harga || 0)}</span>
+                    </div>
+                    <span className="text-xs font-bold text-primary shrink-0 bg-primary/10 px-2.5 py-1 rounded-lg">
+                      {modal === "total_produk" && `Rp ${fmt(p.harga || 0)}`}
+                      {modal === "total_stok" && `${p.total_stok || 0} Pcs`}
+                      {modal === "jogja" && `${p.stok_jogja || 0} Pcs`}
+                      {modal === "lombok" && `${p.stok_lombok || 0} Pcs`}
                     </span>
                   </div>
                 ))}
                 {products.length === 0 && (
-                  <p className="text-center text-muted-foreground text-sm py-4">Belum ada data</p>
+                  <p className="text-center text-muted-foreground text-sm py-4">Belum ada data produk.</p>
                 )}
               </div>
             </div>
