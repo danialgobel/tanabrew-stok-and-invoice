@@ -20,7 +20,6 @@ import {
   Image as ImageIcon,
   Save,
   ExternalLink,
-  Sparkles,
   RefreshCw,
   CheckCircle2,
 } from "lucide-react";
@@ -70,8 +69,8 @@ export default function PriceListManagerModal({
 
     if (!file.type.startsWith("image/")) {
       toast({
-        title: "File Tidak Valid",
-        description: "Harap pilih file gambar (JPG, PNG, WEBP).",
+        title: "File tidak valid",
+        description: "Pilih file gambar (JPG, PNG, atau WEBP).",
         variant: "destructive",
       });
       return;
@@ -84,20 +83,19 @@ export default function PriceListManagerModal({
       // Fast client-side image compression (instant)
       const dataUrl = await processAndCompressImage(file);
       setNewImagePreview(dataUrl);
-      triggerHaptic(25);
+      triggerHaptic(20);
       toast({
-        title: "Gambar Berhasil Dimuat",
-        description: "Klik 'Simpan Gambar Baru' di bawah untuk menerapkan ke publik.",
+        title: "Gambar dipilih",
+        description: "Klik Simpan Gambar untuk menerapkan ke halaman publik.",
       });
     } catch (err: any) {
       toast({
-        title: "Gagal Memproses Gambar",
+        title: "Gagal memproses gambar",
         description: err.message || "Terjadi kesalahan saat memproses gambar.",
         variant: "destructive",
       });
     } finally {
       setProcessing(false);
-      // reset file input so selecting same file again still fires onChange
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
@@ -110,16 +108,16 @@ export default function PriceListManagerModal({
     try {
       await savePriceListSettings(newImagePreview, userProfile?.name || "Owner");
       setCurrentImage(newImagePreview);
-      triggerHaptic(30);
+      triggerHaptic(25);
 
       toast({
-        title: "Gambar Price List Berhasil Diperbarui! 🎉",
-        description: "Pelanggan yang memindai QR code akan langsung melihat gambar daftar harga terbaru.",
+        title: "Price list diperbarui",
+        description: "Gambar daftar harga berhasil disimpan.",
       });
       onOpenChange(false);
     } catch (err: any) {
       toast({
-        title: "Gagal Menyimpan",
+        title: "Gagal menyimpan",
         description: err.message || "Pastikan koneksi internet stabil.",
         variant: "destructive",
       });
@@ -132,35 +130,30 @@ export default function PriceListManagerModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md p-5 sm:p-6 rounded-3xl max-h-[92vh] overflow-y-auto">
         <DialogHeader className="space-y-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                <Sparkles size={18} />
-              </div>
-              <DialogTitle className="text-base font-bold text-foreground">
-                Ganti Gambar Price List
-              </DialogTitle>
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+              <ImageIcon size={18} />
             </div>
-            <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-              Rahasia 5-Tap
-            </span>
+            <DialogTitle className="text-base font-bold text-foreground">
+              Pengaturan Price List
+            </DialogTitle>
           </div>
           <DialogDescription className="text-xs text-muted-foreground">
-            Unggah gambar flyer daftar harga baru untuk mengganti gambar di halaman publik dan QR Code ID Card.
+            Unggah gambar flyer daftar harga baru untuk mengganti tampilan di halaman publik dan QR Code ID Card.
           </DialogDescription>
         </DialogHeader>
 
         {loading ? (
           <div className="py-12 flex flex-col items-center justify-center gap-2 text-xs text-muted-foreground">
             <RefreshCw size={20} className="animate-spin text-primary" />
-            <span>Memuat data price list...</span>
+            <span>Memuat data...</span>
           </div>
         ) : (
           <div className="space-y-4 pt-2">
             {/* Image Preview Box */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                   <ImageIcon size={14} className="text-primary" />
                   <span>Gambar Daftar Harga Saat Ini:</span>
                 </label>
@@ -212,7 +205,7 @@ export default function PriceListManagerModal({
                   className="w-full py-2.5 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-bold hover:bg-primary/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <Upload size={15} className={processing ? "animate-spin" : ""} />
-                  {processing ? "Memproses Gambar Cepat..." : "Pilih / Ganti Gambar dari HP atau Laptop"}
+                  {processing ? "Memproses gambar..." : "Pilih Gambar Baru"}
                 </button>
               </div>
             </div>
@@ -240,7 +233,7 @@ export default function PriceListManagerModal({
                 className="w-2/3 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 shadow-sm transition-all"
               >
                 <Save size={14} />
-                {saving ? "Menyimpan ke Database..." : "Simpan Gambar Baru"}
+                {saving ? "Menyimpan..." : "Simpan Gambar"}
               </button>
             </div>
           </div>

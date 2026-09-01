@@ -10,7 +10,7 @@ export const useProducts = () => {
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "products"), (snap) => {
       const data = snap.docs
-        .filter((doc) => !doc.id.startsWith("__config_") && !doc.data().is_system_config)
+        .filter((doc) => doc.id !== "config_pricelist" && !doc.data().is_system_config)
         .map((doc) => ({ id: doc.id, ...doc.data() } as Product));
       setProducts(data);
       setLoading(false);

@@ -115,12 +115,8 @@ const Beranda = () => {
     setLogoClickCount((prev) => {
       const next = prev + 1;
       if (next >= 5) {
-        triggerHaptic(30);
+        triggerHaptic(20);
         setShowPriceListModal(true);
-        toast({
-          title: "Pengaturan Price List Terbuka ☕",
-          description: "Panel kontrol rahasia daftar harga aktif.",
-        });
         return 0;
       }
       return next;

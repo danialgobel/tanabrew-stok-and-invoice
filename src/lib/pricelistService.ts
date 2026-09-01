@@ -14,7 +14,7 @@ export const DEFAULT_PRICELIST_SETTINGS: PriceListSettings = {
   image_url: DEFAULT_PRICELIST_IMAGE,
 };
 
-const DOC_REF = () => doc(db, "products", "__config_pricelist__");
+const DOC_REF = () => doc(db, "products", "config_pricelist");
 
 /**
  * Fetch current price list settings from Firestore (with default fallback)
