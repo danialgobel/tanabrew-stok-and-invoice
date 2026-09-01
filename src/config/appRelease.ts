@@ -46,20 +46,14 @@ export const CURRENT_RELEASE: AppReleaseInfo = {
       badgeColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
     },
     {
+      title: "Penyelarasan Alur Kerja Desktop & Mobile",
+      desc: "Menjamin form dan alur kerja di Desktop 100% konsisten dan identik dengan versi Mobile, dengan optimasi layout layar yang luas, rapi, dan responsif.",
+      badge: "Peningkatan",
+      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+    },
+    {
       title: "Tata Letak Khusus Layar Desktop (Desktop Mode)",
-      desc: "Saat dibuka di PC / Laptop, Tanabrew bertransformasi menjadi Dashboard POS modern dengan Left Sidebar Navigation permanen, multi-kolom grid 12 kolom di Beranda, split-screen kasir, dan master-detail split pane di riwayat.",
-      badge: "Baru",
-      badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-    },
-    {
-      title: "Katalog Produk Kartu Visual POS (Square Style Touch Tiles)",
-      desc: "Halaman Cetak Invoice kini dilengkapi katalog kartu produk visual dengan tombol filter kategori instan, pencarian cepat, badge stok live Jogja/Lombok, dan tap cepat untuk memasukkan kopi ke keranjang kasir.",
-      badge: "Baru",
-      badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-    },
-    {
-      title: "Master-Detail Split Pane di Halaman Riwayat",
-      desc: "Pada layar desktop, halaman Riwayat terbagi menjadi 2 panel: Daftar transaksi invoice di kolom kiri dan Pratinjau Dokumen Invoice instan di kolom kanan lengkap dengan tombol Cetak, WhatsApp, Tandai Lunas, Edit, dan Hapus.",
+      desc: "Saat dibuka di PC / Laptop, Tanabrew bertransformasi dengan Left Sidebar Navigation permanen, multi-kolom grid 12 kolom di Beranda, dan card list responsif di Riwayat.",
       badge: "Baru",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },

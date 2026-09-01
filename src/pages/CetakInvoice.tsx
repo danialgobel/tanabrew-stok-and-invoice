@@ -7,9 +7,9 @@ import { createInvoiceWithNumberAndStock, updateInvoiceWithStock } from "@/lib/i
 import { sendTanabrewNotification } from "@/lib/notificationSender";
 import { useProducts } from "@/hooks/useProducts";
 import { useAuth } from "@/context/AuthContext";
-import type { Product, Invoice, InvoiceItem } from "@/types";
+import type { Invoice, InvoiceItem } from "@/types";
+import { Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Search, ShoppingBag, Check, Coffee, Layers, Grid, List, Minus, Sparkles, Tag, Receipt, FileText, Package } from "lucide-react";
 import { Skeleton } from "@/components/Skeleton";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { triggerHaptic } from "@/lib/haptics";
@@ -187,76 +187,6 @@ const CetakInvoice = () => {
     });
   };
 
-  const [posMode, setPosMode] = useState<"catalog" | "manual">("catalog");
-  const [catalogCategory, setCatalogCategory] = useState<string>("Semua");
-  const [catalogSearch, setCatalogSearch] = useState<string>("");
-
-  const categories = useMemo(() => {
-    const set = new Set<string>();
-    products.forEach((p) => {
-      if (p.kategori) set.add(p.kategori);
-    });
-    return ["Semua", ...Array.from(set)];
-  }, [products]);
-
-  const filteredCatalogProducts = useMemo(() => {
-    return products.filter((p) => {
-      const matchCat = catalogCategory === "Semua" || p.kategori === catalogCategory;
-      const matchSearch = !catalogSearch.trim() || p.nama_barang.toLowerCase().includes(catalogSearch.toLowerCase().trim());
-      return matchCat && matchSearch;
-    });
-  }, [products, catalogCategory, catalogSearch]);
-
-  const handleAddProductFromCatalog = (product: Product) => {
-    triggerHaptic(12);
-    setItems((prev) => {
-      const existingIdx = prev.findIndex((item) => item.nama_barang === product.nama_barang);
-      if (existingIdx >= 0) {
-        const updated = [...prev];
-        const currentQty = updated[existingIdx].jumlah || 1;
-        const newQty = currentQty + 1;
-        const price = updated[existingIdx].harga || product.harga || 0;
-        updated[existingIdx] = {
-          ...updated[existingIdx],
-          jumlah: newQty,
-          subtotal: newQty * price,
-        };
-        return updated;
-      }
-
-      // If the only row is empty, replace it
-      if (prev.length === 1 && !prev[0].nama_barang && (!prev[0].harga || prev[0].harga === 0)) {
-        return [{
-          product_id: product.id || "",
-          nama_barang: product.nama_barang,
-          harga: product.harga || 0,
-          jumlah: 1,
-          subtotal: product.harga || 0,
-        }];
-      }
-
-      return [
-        ...prev,
-        {
-          product_id: product.id || "",
-          nama_barang: product.nama_barang,
-          harga: product.harga || 0,
-          jumlah: 1,
-          subtotal: product.harga || 0,
-        },
-      ];
-    });
-  };
-
-  const handleQuickCash = (amount: number | "exact") => {
-    triggerHaptic(10);
-    if (amount === "exact") {
-      setJumlahDibayar(total > 0 ? total : 0);
-    } else {
-      setJumlahDibayar(amount);
-    }
-  };
-
   const updateItem = (idx: number, field: string, value: string | number) => {
     setItems((prev) => {
       const next = [...prev];
@@ -276,52 +206,13 @@ const CetakInvoice = () => {
     });
   };
 
-  const handleIncrementQty = (idx: number) => {
-    triggerHaptic(8);
-    setItems((prev) => {
-      const next = [...prev];
-      const newQty = (next[idx].jumlah || 1) + 1;
-      next[idx] = {
-        ...next[idx],
-        jumlah: newQty,
-        subtotal: newQty * (next[idx].harga || 0),
-      };
-      return next;
-    });
-  };
-
-  const handleDecrementQty = (idx: number) => {
-    triggerHaptic(8);
-    setItems((prev) => {
-      const next = [...prev];
-      const curQty = next[idx].jumlah || 1;
-      if (curQty <= 1) {
-        if (next.length > 1) {
-          return next.filter((_, i) => i !== idx);
-        }
-        return [{ nama_barang: "", harga: 0, jumlah: 1, subtotal: 0 }];
-      }
-      const newQty = curQty - 1;
-      next[idx] = {
-        ...next[idx],
-        jumlah: newQty,
-        subtotal: newQty * (next[idx].harga || 0),
-      };
-      return next;
-    });
-  };
-
   const addItem = () => {
     triggerHaptic(10);
     setItems([...items, { nama_barang: "", harga: 0, jumlah: 1, subtotal: 0 }]);
   };
   const removeItem = (idx: number) => {
     triggerHaptic(10);
-    if (items.length > 1) {
-      setItems(items.filter((_, i) => i !== idx));
-    } else {
-      setItems([{ nama_barang: "", harga: 0, jumlah: 1, subtotal: 0 }]);
-    }
+    if (items.length > 1) setItems(items.filter((_, i) => i !== idx));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -658,7 +549,7 @@ const CetakInvoice = () => {
 
   if (saved) {
     return (
-      <div className="px-4 pb-28 sm:pb-32 pt-6 max-w-lg mx-auto">
+      <div className="px-4 sm:px-6 lg:px-8 pb-28 sm:pb-32 pt-6 lg:pt-8 max-w-lg lg:max-w-3xl mx-auto">
         {actionNotice && (
           <AnimatedNotification
             key={actionNotice.id}
@@ -774,7 +665,7 @@ const CetakInvoice = () => {
   }
 
   return (
-    <div className="mx-auto w-full max-w-lg lg:max-w-7xl px-4 sm:px-6 lg:px-8 pb-28 sm:pb-32 pt-4 lg:pt-8">
+    <div className="mx-auto w-full max-w-lg lg:max-w-3xl overflow-x-hidden px-4 sm:px-6 lg:px-8 pb-28 sm:pb-32 pt-6 lg:pt-8">
       {actionNotice && (
         <AnimatedNotification
           key={actionNotice.id}
@@ -783,392 +674,153 @@ const CetakInvoice = () => {
         />
       )}
 
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-bold text-primary">
-            {isEditMode ? `Edit Invoice (${noInvoice})` : "Kasir & Cetak Invoice"}
-          </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Pilih gudang pengeluaran stok, masukkan data pelanggan dan item transaksi.
-          </p>
-        </div>
-      </div>
+      <h1 className="text-lg font-bold text-primary mb-4">
+        {isEditMode ? `Edit Invoice (${noInvoice})` : "Cetak Invoice"}
+      </h1>
 
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: POS Catalog & Item Management (Desktop 7 Cols) */}
-        <div className="lg:col-span-7 space-y-4">
-          {/* Customer & Location Card */}
-          <div className="bg-card rounded-2xl border border-border p-4 sm:p-5 space-y-3.5 shadow-sm">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-muted-foreground">Tanggal Transaksi</label>
-                <input 
-                  type="date" 
-                  value={tanggal} 
-                  onChange={(e) => setTanggal(e.target.value)}
-                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" 
-                  required 
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-muted-foreground">Lokasi Gudang Pengeluaran</label>
-                <select
-                  value={stockLocation}
-                  onChange={(e) => setStockLocation(e.target.value as StockLocation)}
-                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring font-medium"
-                >
-                  <option value="Jogja">Gudang Jogja</option>
-                  <option value="Lombok">Gudang Lombok</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="relative">
-              <label className="mb-1 block text-xs font-semibold text-muted-foreground">Nama Pelanggan / Customer</label>
-              <input 
-                placeholder="Contoh: Bpk. Ahmad / Kedai Kopi Selaras" 
-                value={customer} 
-                onChange={(e) => setCustomer(e.target.value)}
-                onFocus={() => setShowSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                className="w-full rounded-xl border border-input bg-background px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" 
-                required 
-              />
-              {showSuggestions && filteredCustomers.length > 0 && (
-                <div className="absolute left-0 right-0 z-50 mt-1 max-h-48 overflow-y-auto rounded-xl border border-border bg-popover p-1 shadow-lg">
-                  <div className="px-2 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Customer Sering Dihubungi</div>
-                  {filteredCustomers.map((name) => (
-                    <button
-                      key={name}
-                      type="button"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        setCustomer(name);
-                        setShowSuggestions(false);
-                      }}
-                      className="flex w-full items-center rounded-lg px-2.5 py-2 text-sm text-foreground hover:bg-accent hover:text-accent-foreground text-left transition-colors cursor-pointer"
-                    >
-                      {name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+      <form onSubmit={handleSubmit} className="max-w-full space-y-3">
+        <div className="max-w-full bg-card rounded-xl border border-border p-4 space-y-3">
+          <input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)}
+            className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" required />
+          <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5">
+            <p className="text-sm font-semibold text-primary">Nomor invoice akan dibuat otomatis saat invoice disimpan.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Format: INV/TNB/YYYY/MM/0001</p>
           </div>
-
-          {/* POS Mode Switcher & Catalog Grid */}
-          <div className="bg-card rounded-2xl border border-border p-4 sm:p-5 space-y-4 shadow-sm">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPosMode("catalog")}
-                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
-                    posMode === "catalog"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-muted text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <Grid size={14} /> Katalog Kartu POS
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPosMode("manual")}
-                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
-                    posMode === "manual"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-muted text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <List size={14} /> Form Baris Manual
-                </button>
-              </div>
-              <span className="text-xs text-muted-foreground font-semibold">{items.filter(i => i.nama_barang).length} Item Dipilih</span>
-            </div>
-
-            {/* Catalog Mode */}
-            {posMode === "catalog" && (
-              <div className="space-y-3">
-                {/* Search & Category Filter Chips */}
-                <div className="space-y-2">
-                  <div className="relative">
-                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <input
-                      type="text"
-                      placeholder="Cari biji kopi / produk..."
-                      value={catalogSearch}
-                      onChange={(e) => setCatalogSearch(e.target.value)}
-                      className="w-full rounded-xl border border-input bg-background pl-9 pr-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
-                  </div>
-                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
-                    {categories.map((cat) => (
-                      <button
-                        key={cat}
-                        type="button"
-                        onClick={() => {
-                          triggerHaptic(8);
-                          setCatalogCategory(cat);
-                        }}
-                        className={`shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer ${
-                          catalogCategory === cat
-                            ? "bg-primary/15 text-primary border border-primary/30 shadow-xs"
-                            : "bg-muted/60 text-muted-foreground hover:bg-muted"
-                        }`}
-                      >
-                        {cat}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Catalog Grid Cards */}
-                {loadingProducts ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                    <Skeleton className="h-24 rounded-xl" />
-                    <Skeleton className="h-24 rounded-xl" />
-                    <Skeleton className="h-24 rounded-xl" />
-                  </div>
-                ) : filteredCatalogProducts.length === 0 ? (
-                  <p className="rounded-xl bg-muted/40 p-6 text-center text-xs text-muted-foreground">
-                    Tidak ada produk sesuai pencarian.
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-[380px] overflow-y-auto scrollbar-thin p-0.5">
-                    {filteredCatalogProducts.map((prod) => {
-                      const stockVal = stockLocation === "Jogja" ? prod.stok_jogja : prod.stok_lombok;
-                      const isLow = (stockVal || 0) <= 5;
-                      const isOut = (stockVal || 0) <= 0;
-                      const inCart = items.find((i) => i.nama_barang === prod.nama_barang);
-
-                      return (
-                        <div
-                          key={prod.id}
-                          onClick={() => handleAddProductFromCatalog(prod)}
-                          className={`group relative rounded-xl border p-3 text-left transition-all cursor-pointer active:scale-95 select-none ${
-                            inCart
-                              ? "border-primary bg-primary/5 shadow-sm"
-                              : "border-border bg-card hover:border-primary/40 hover:bg-muted/30"
-                          }`}
-                        >
-                          {inCart && (
-                            <span className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold shadow-xs">
-                              {inCart.jumlah}
-                            </span>
-                          )}
-                          <p className="font-bold text-xs text-foreground line-clamp-2 pr-5 leading-tight">
-                            {prod.nama_barang}
-                          </p>
-                          <p className="text-xs font-black text-primary mt-1.5">
-                            Rp {fmt(prod.harga || 0)}
-                          </p>
-                          <div className="mt-2 flex items-center justify-between text-[10px]">
-                            <span className={`font-semibold rounded-md px-1.5 py-0.5 ${
-                              isOut 
-                                ? "bg-destructive/15 text-destructive" 
-                                : isLow 
-                                ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" 
-                                : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-                            }`}>
-                              Stok: {stockVal || 0}
-                            </span>
-                            <span className="text-primary font-bold opacity-80 group-hover:opacity-100">+ Tambah</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Selected Items Cart List */}
-            <div className="border-t border-border pt-3 space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <ShoppingBag size={13} /> Rincian Keranjang ({items.filter(i => i.nama_barang).length})
-              </h3>
-
-              <div className="space-y-2 max-h-[300px] overflow-y-auto scrollbar-thin">
-                {items.map((item, idx) => (
-                  <div key={idx} className="rounded-xl border border-border/70 bg-muted/20 p-3 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        {posMode === "manual" ? (
-                          <select
-                            value={item.nama_barang}
-                            onChange={(e) => updateItem(idx, "nama_barang", e.target.value)}
-                            className="w-full truncate rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring font-medium"
-                          >
-                            <option value="">Pilih Produk Kopi</option>
-                            {products.map((p) => (
-                              <option key={p.id} value={p.nama_barang}>
-                                {p.nama_barang} (Stok: {stockLocation === "Jogja" ? p.stok_jogja : p.stok_lombok})
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <p className="text-xs font-bold text-foreground truncate">{item.nama_barang || "Pilih produk dari katalog..."}</p>
-                        )}
-                      </div>
-                      <button 
-                        type="button" 
-                        onClick={() => removeItem(idx)} 
-                        className="shrink-0 p-1 text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
-                        title="Hapus baris"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-2 text-xs">
-                      <div className="flex items-center gap-1.5">
-                        <label className="text-[11px] text-muted-foreground">Harga:</label>
-                        <input 
-                          type="number" 
-                          value={item.harga || ""} 
-                          onChange={(e) => updateItem(idx, "harga", Number(e.target.value))}
-                          placeholder="0"
-                          className="w-24 rounded-lg border border-input bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring font-mono" 
-                        />
-                      </div>
-
-                      {/* Qty Stepper */}
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handleDecrementQty(idx)}
-                          className="flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-card hover:bg-muted text-foreground transition-colors cursor-pointer"
-                        >
-                          <Minus size={12} />
-                        </button>
-                        <span className="w-7 text-center font-bold text-xs">{item.jumlah || 1}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleIncrementQty(idx)}
-                          className="flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-card hover:bg-muted text-foreground transition-colors cursor-pointer"
-                        >
-                          <Plus size={12} />
-                        </button>
-                      </div>
-
-                      <div className="text-right min-w-[70px]">
-                        <span className="font-bold text-primary text-xs">Rp {fmt(item.subtotal)}</span>
-                      </div>
-                    </div>
-                  </div>
+          <div className="relative">
+            <input 
+              placeholder="Customer" 
+              value={customer} 
+              onChange={(e) => setCustomer(e.target.value)}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" 
+              required 
+            />
+            {showSuggestions && filteredCustomers.length > 0 && (
+              <div className="absolute left-0 right-0 z-50 mt-1 max-h-48 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-md">
+                <div className="px-2 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase">Customer Sering Ditulis</div>
+                {filteredCustomers.map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setCustomer(name);
+                      setShowSuggestions(false);
+                    }}
+                    className="flex w-full items-center rounded-md px-2 py-2 text-sm text-foreground hover:bg-accent hover:text-accent-foreground text-left"
+                  >
+                    {name}
+                  </button>
                 ))}
               </div>
-
-              {posMode === "manual" && (
-                <button 
-                  type="button" 
-                  onClick={addItem} 
-                  className="inline-flex items-center gap-1.5 text-xs text-primary font-bold hover:underline cursor-pointer pt-1"
-                >
-                  <Plus size={15} /> Tambah Baris Manual
-                </button>
-              )}
-            </div>
+            )}
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">Lokasi Stok Keluar</label>
+            <select
+              value={stockLocation}
+              onChange={(e) => setStockLocation(e.target.value as StockLocation)}
+              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="Jogja">Jogja</option>
+              <option value="Lombok">Lombok</option>
+            </select>
           </div>
         </div>
 
-        {/* Right Column: POS Payment & Checkout Summary (Desktop 5 Cols) */}
-        <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-6">
-          <div className="bg-card rounded-2xl border border-border p-5 space-y-4 shadow-sm">
-            <h2 className="text-sm font-bold text-foreground border-b border-border pb-3 flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <Receipt size={16} className="text-primary" /> Struk Pembayaran
-              </span>
-              <span className="text-[10px] uppercase font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
-                POS Kasir
-              </span>
-            </h2>
-
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Subtotal ({items.filter(i => i.nama_barang).length} Item)</span>
-                <span className="font-bold text-foreground">Rp {fmt(subtotal)}</span>
-              </div>
-
-              <div>
-                <label className="text-xs text-muted-foreground block mb-1">Diskon / Potongan Harga (Rp)</label>
-                <input 
-                  type="number" 
-                  value={diskon || ""} 
-                  onChange={(e) => setDiskon(Number(e.target.value))}
-                  placeholder="0"
-                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring font-mono" 
-                />
-              </div>
-
-              <div className="border-t border-border/80 pt-2.5 flex justify-between items-baseline">
-                <span className="font-bold text-foreground">Total Pembayaran</span>
-                <span className="font-black text-primary text-xl">Rp {fmt(total)}</span>
-              </div>
-
-              {/* Quick Cash Buttons */}
-              <div className="space-y-1.5 pt-1">
-                <label className="text-xs text-muted-foreground block font-semibold">Pecahan Uang Cepat (Quick Cash)</label>
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => handleQuickCash("exact")}
-                    className="rounded-lg border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary py-1.5 font-bold transition-all cursor-pointer text-center"
+        {/* Items */}
+        <div className="max-w-full overflow-hidden bg-card rounded-xl border border-border p-4 space-y-4">
+          <h2 className="text-sm font-semibold text-primary">Item</h2>
+          {loadingProducts && (
+            <div className="space-y-2 rounded-lg bg-primary/5 p-3">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          )}
+          {items.map((item, idx) => (
+            <div key={idx} className="max-w-full space-y-2 overflow-hidden border-b border-border pb-3 last:border-0">
+              <div className="flex min-w-0 items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <select
+                    value={item.nama_barang}
+                    onChange={(e) => updateItem(idx, "nama_barang", e.target.value)}
+                    className="w-full min-w-0 max-w-full truncate rounded-lg border border-input bg-background px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-ring sm:text-sm"
                   >
-                    Uang Pas
+                    <option value="">Pilih Barang</option>
+                    {products.map((p) => (
+                      <option key={p.id} value={p.nama_barang}>
+                        {p.nama_barang} - Stok {stockLocation}: {stockLocation === "Jogja" ? p.stok_jogja : p.stok_lombok}
+                      </option>
+                    ))}
+                  </select>
+                  {item.nama_barang && (
+                    <p className="mt-1 break-words text-xs text-muted-foreground">{item.nama_barang}</p>
+                  )}
+                </div>
+                {items.length > 1 && (
+                  <button type="button" onClick={() => removeItem(idx)} className="shrink-0 p-2 text-destructive hover:bg-muted rounded-lg">
+                    <Trash2 size={16} />
                   </button>
-                  {[50000, 100000, 200000, 500000].map((val) => (
-                    <button
-                      key={val}
-                      type="button"
-                      onClick={() => handleQuickCash(val)}
-                      className="rounded-lg border border-border bg-muted/40 hover:bg-muted py-1.5 font-semibold text-foreground transition-all cursor-pointer text-center text-[11px]"
-                    >
-                      {val >= 1000 ? `${val / 1000}k` : val}
-                    </button>
-                  ))}
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div>
+                  <label className="text-xs text-muted-foreground">Harga</label>
+                  <input type="number" value={item.harga || ""} onChange={(e) => updateItem(idx, "harga", Number(e.target.value))}
+                    className="w-full rounded-lg border border-input bg-background px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Jumlah</label>
+                  <input type="number" value={item.jumlah || ""} onChange={(e) => updateItem(idx, "jumlah", Number(e.target.value))}
+                    className="w-full rounded-lg border border-input bg-background px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" min={1} />
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <label className="text-xs text-muted-foreground">Subtotal</label>
+                  <p className="break-words rounded-lg bg-primary/5 px-2 py-2 text-sm font-medium text-primary">Rp {fmt(item.subtotal)}</p>
                 </div>
               </div>
-
-              <div>
-                <label className="text-xs text-muted-foreground block mb-1">Jumlah Uang Diterima (Rp)</label>
-                <input 
-                  type="number" 
-                  value={jumlahDibayar || ""} 
-                  onChange={(e) => setJumlahDibayar(Number(e.target.value))}
-                  placeholder="0"
-                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring font-mono font-bold" 
-                />
-              </div>
-
-              <div className="flex justify-between text-sm rounded-xl bg-muted/40 p-2.5">
-                <span className="text-muted-foreground font-medium">{sisa <= 0 ? "Kembalian Kasir" : "Sisa Piutang"}</span>
-                <span className={`font-black text-base ${sisa <= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}>
-                  Rp {fmt(Math.abs(sisa))}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-xs text-muted-foreground">Status Pelunasan</span>
-                <span className={`rounded-lg px-2.5 py-1 text-xs font-bold ${
-                  status === "LUNAS" 
-                    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30" 
-                    : "bg-destructive/15 text-destructive border border-destructive/30"
-                }`}>
-                  {status}
-                </span>
-              </div>
             </div>
+          ))}
+          <button type="button" onClick={addItem} className="flex items-center gap-1 text-sm text-primary font-medium">
+            <Plus size={16} /> Tambah Item
+          </button>
+        </div>
 
-            <button 
-              type="submit" 
-              disabled={saving || loadingProducts}
-              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl py-3.5 text-sm font-bold shadow-md shadow-primary/25 transition-all cursor-pointer disabled:opacity-50 active:scale-95 flex items-center justify-center gap-2"
-            >
-              {saving ? "Menyimpan Invoice..." : loadingProducts ? "Memuat Produk..." : "Simpan & Cetak Invoice"}
-            </button>
+        {/* Payment */}
+        <div className="bg-card rounded-xl border border-border p-4 space-y-3">
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Subtotal</span>
+            <span className="font-bold text-primary">Rp {fmt(subtotal)}</span>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Diskon</label>
+            <input type="number" value={diskon || ""} onChange={(e) => setDiskon(Number(e.target.value))}
+              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Total</span>
+            <span className="font-bold text-primary">Rp {fmt(total)}</span>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Jumlah Dibayar</label>
+            <input type="number" value={jumlahDibayar || ""} onChange={(e) => setJumlahDibayar(Number(e.target.value))}
+              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Sisa</span>
+            <span className="font-medium">Rp {fmt(sisa)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Status</span>
+            <span className={`font-bold ${status === "LUNAS" ? "text-primary" : "text-destructive"}`}>{status}</span>
           </div>
         </div>
+
+        <button type="submit" disabled={saving || loadingProducts}
+          className="w-full bg-primary text-primary-foreground rounded-lg py-3 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
+          {saving ? "Menyimpan Invoice..." : loadingProducts ? "Memuat Produk..." : "Simpan & Lihat Invoice"}
+        </button>
       </form>
     </div>
   );
