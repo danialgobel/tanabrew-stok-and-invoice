@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import WhatsAppSettingsModal from "@/components/WhatsAppSettingsModal";
+import { CURRENT_RELEASE } from "@/config/appRelease";
+import { openAppChangelogModal } from "@/components/AppUpdateAnnouncementModal";
 import { triggerHaptic, isHapticEnabled, setHapticEnabled } from "@/lib/haptics";
 import {
   getNotificationPermissionState,
@@ -646,13 +648,21 @@ const Akun = () => {
       )}
 
       {/* 6. INFO SISTEM & LOGOUT */}
-      <div className="rounded-3xl border border-border bg-card p-4 space-y-2 text-xs shadow-sm">
+      <div className="rounded-3xl border border-border bg-card p-4 space-y-2.5 text-xs shadow-sm">
         <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 px-1">
           <Info size={13} /> Informasi Sistem
         </h2>
-        <div className="flex justify-between text-muted-foreground pt-1 px-1">
-          <span>Versi Aplikasi</span>
-          <span className="font-mono font-bold text-foreground">Tanabrew v2.4.0 (Stable)</span>
+        <div 
+          onClick={() => openAppChangelogModal()}
+          className="flex justify-between items-center text-muted-foreground pt-1 px-1 py-1 rounded-xl hover:bg-muted/40 cursor-pointer transition-colors"
+        >
+          <div className="flex items-center gap-1.5">
+            <span>Versi Aplikasi</span>
+            <span className="text-[10px] bg-primary/10 text-primary font-bold px-1.5 py-0.5 rounded-md">
+              Lihat Pembaruan
+            </span>
+          </div>
+          <span className="font-mono font-bold text-foreground">Tanabrew {CURRENT_RELEASE.versionLabel} (Stable)</span>
         </div>
         <div className="flex justify-between text-muted-foreground px-1">
           <span>Database Realtime</span>

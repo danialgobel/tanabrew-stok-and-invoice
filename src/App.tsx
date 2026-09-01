@@ -24,6 +24,7 @@ const queryClient = new QueryClient();
 
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import { AppUpdateAnnouncementModal } from "@/components/AppUpdateAnnouncementModal";
 
 const ProtectedPage = ({ children }: { children: ReactNode }) => (
   <ProtectedRoute>{children}</ProtectedRoute>
@@ -90,6 +91,7 @@ const AppRoutes = () => {
       </div>
       {showBottomNav && <BottomNav />}
       {!isPublicMenu && <PWAInstallPrompt />}
+      <AppUpdateAnnouncementModal />
     </>
   );
 };
