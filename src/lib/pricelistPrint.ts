@@ -35,71 +35,96 @@ const formatPrice = (priceVal: string | number) => {
   if (!isNaN(num) && priceVal !== "") {
     const formatted = new Intl.NumberFormat("id-ID", {
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(num);
     return `Rp.${formatted}.00`;
   }
   return String(priceVal);
 };
 
-const pricelistShellHtml = (bodyHtml: string, isB2B: boolean) => {
-  const docTitle = isB2B ? "Tanabrew Price List B2B" : "Tanabrew Price List";
-
+const pricelistShellHtml = (bodyHtml: string) => {
   return `<!doctype html>
-<html lang="id">
+<html>
 <head>
   <meta charset="utf-8">
-  <title>${docTitle}</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tanabrew Price List</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Outfit:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     @page { 
-      size: auto; 
-      margin: 0mm !important; 
+      size: A4; 
+      margin: 0; /* Zero page margin to allow full-bleed printing edge-to-edge */
     }
     
     * { 
       box-sizing: border-box; 
-      margin: 0;
-      padding: 0;
     }
     
     html, body {
-      width: 100% !important;
-      height: 100% !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      background-color: #edf4f0 !important;
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #edf4f0;
       color: #1b5e20;
       font-family: 'Outfit', 'Poppins', sans-serif;
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-      -webkit-font-smoothing: antialiased;
-      overflow: hidden !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      overflow: hidden;
     }
 
-    /* Container for the pricelist sheet - 1 Single Full Bleed Page */
+    /* Web Preview Only Toolbar */
+    .print-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      background: #ffffff;
+      border-bottom: 1px solid #c8e6c9;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    
+    .back-button {
+      min-height: 38px;
+      border: 0;
+      border-radius: 8px;
+      background: #2e7d32;
+      color: #fff;
+      padding: 0 16px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: 'Outfit', sans-serif;
+      transition: background 0.2s;
+    }
+    
+    .back-button:hover {
+      background: #1b5e20;
+    }
+    
+    .back-note {
+      font-size: 12px;
+      color: #556f5a;
+    }
+
+    /* Container for the pricelist sheet */
     .pricelist-container {
       position: relative;
       width: 100%;
-      height: 100vh;
-      max-height: 100vh;
-      padding: 12mm 14mm 10mm 14mm;
+      height: 100%;
+      padding: 16mm 18mm 16mm 18mm; /* Acts as the paper margins */
       box-sizing: border-box;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       z-index: 10;
-      background-color: #edf4f0;
-      overflow: hidden;
-      page-break-inside: avoid !important;
-      page-break-after: avoid !important;
-      page-break-before: avoid !important;
     }
 
-    /* SVG watermarked leaf background covering 100% full bleed */
+    /* SVG watermarked leaf background covering the page */
     .bg-pattern {
       position: absolute;
       inset: 0;
@@ -109,28 +134,28 @@ const pricelistShellHtml = (bodyHtml: string, isB2B: boolean) => {
       pointer-events: none;
     }
 
-    /* Header styling matching the brand layout */
+    /* Header styling matching the image layout */
     .header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 14px;
-      padding-bottom: 4px;
-      height: 70px;
+      margin-bottom: 30px;
+      padding-bottom: 10px;
+      height: 80px; /* Restrict height to prevent layout push */
     }
 
     .header-left {
       display: flex;
       align-items: center;
-      overflow: visible;
+      overflow: visible; /* Let negative margins overflow safely */
     }
 
     .header-left img {
-      height: 190px !important;
+      height: 210px !important; /* Scale up image to make internal graphic large */
       width: auto !important;
-      margin-top: -60px !important;
-      margin-bottom: -60px !important;
-      margin-left: -44px !important;
+      margin-top: -65px !important; /* Crop top blank space */
+      margin-bottom: -65px !important; /* Crop bottom blank space */
+      margin-left: -50px !important; /* Shift left to collapse left blank space */
       object-fit: contain !important;
       display: block !important;
     }
@@ -142,7 +167,7 @@ const pricelistShellHtml = (bodyHtml: string, isB2B: boolean) => {
     .header-right h1 {
       margin: 0;
       font-family: 'Outfit', sans-serif;
-      font-size: 36px;
+      font-size: 40px;
       font-weight: 800;
       color: #1b5e20;
       letter-spacing: 2px;
@@ -152,15 +177,14 @@ const pricelistShellHtml = (bodyHtml: string, isB2B: boolean) => {
     /* Content split by vertical separator */
     .content-section {
       position: relative;
-      margin-top: 4px;
+      margin-top: 10px;
       flex-grow: 1;
-      overflow: hidden;
     }
     
     .vertical-divider {
       position: absolute;
       left: 71.5%;
-      top: 30px;
+      top: 36px;
       bottom: 0;
       width: 2.5px;
       background-color: #1b5e20;
@@ -171,9 +195,9 @@ const pricelistShellHtml = (bodyHtml: string, isB2B: boolean) => {
       display: flex;
       justify-content: space-between;
       font-weight: 800;
-      font-size: 18px;
+      font-size: 20px;
       color: #1b5e20;
-      margin-bottom: 14px;
+      margin-bottom: 20px;
       font-family: 'Outfit', sans-serif;
       letter-spacing: 1px;
     }
@@ -190,16 +214,16 @@ const pricelistShellHtml = (bodyHtml: string, isB2B: boolean) => {
 
     /* Categories / Criteria layout */
     .category-group {
-      margin-bottom: 14px;
+      margin-bottom: 24px;
       page-break-inside: avoid;
     }
     
     .category-title {
       font-family: 'Outfit', sans-serif;
       font-weight: 800;
-      font-size: 17px !important;
+      font-size: 19px !important; /* Prominent category header, larger than product text */
       color: #1b5e20;
-      margin: 14px 0 10px 0;
+      margin: 25px 0 16px 0;
       letter-spacing: 0.5px;
       text-transform: uppercase;
     }
@@ -208,7 +232,7 @@ const pricelistShellHtml = (bodyHtml: string, isB2B: boolean) => {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 10px;
+      margin-bottom: 15px;
       page-break-inside: avoid;
     }
     
@@ -219,17 +243,17 @@ const pricelistShellHtml = (bodyHtml: string, isB2B: boolean) => {
     .product-name {
       font-family: 'Outfit', sans-serif;
       font-weight: 700;
-      font-size: 12.5px !important;
+      font-size: 13.5px !important;
       color: #1b5e20;
       line-height: 1.25;
     }
     
     .product-desc {
       font-family: 'Poppins', sans-serif;
-      font-size: 9.5px !important;
+      font-size: 10.5px !important;
       color: #556f5a;
-      margin-top: 2px;
-      line-height: 1.35;
+      margin-top: 3px;
+      line-height: 1.4;
       font-weight: 400;
     }
     
@@ -238,7 +262,7 @@ const pricelistShellHtml = (bodyHtml: string, isB2B: boolean) => {
       text-align: right;
       font-family: 'Outfit', sans-serif;
       font-weight: 600;
-      font-size: 12.5px !important;
+      font-size: 13.5px !important;
       color: #1b5e20;
       padding-top: 1px;
       white-space: nowrap;
@@ -250,8 +274,8 @@ const pricelistShellHtml = (bodyHtml: string, isB2B: boolean) => {
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
-      padding-top: 8px;
-      margin-top: 14px;
+      padding-top: 15px;
+      margin-top: 30px;
       font-family: 'Outfit', sans-serif;
       page-break-inside: avoid;
     }
@@ -259,29 +283,29 @@ const pricelistShellHtml = (bodyHtml: string, isB2B: boolean) => {
     .contacts {
       display: flex;
       flex-direction: column;
-      gap: 5px;
+      gap: 8px;
     }
     
     .contact-item {
       display: flex;
       align-items: center;
-      font-size: 11.5px;
+      font-size: 12.5px;
       font-weight: 700;
       color: #1b5e20;
       line-height: 1;
     }
     
     .contact-icon {
-      width: 14px;
-      height: 14px;
-      margin-right: 6px;
+      width: 16px;
+      height: 16px;
+      margin-right: 8px;
       color: #1b5e20;
       flex-shrink: 0;
     }
 
     .trademark {
       font-family: 'Dancing Script', cursive;
-      font-size: 19px;
+      font-size: 21px;
       color: #1b5e20;
       font-weight: 700;
       letter-spacing: 0.5px;
@@ -289,35 +313,27 @@ const pricelistShellHtml = (bodyHtml: string, isB2B: boolean) => {
       padding-bottom: 2px;
     }
 
-    /* Print settings - 1 Single Page Strict */
+    /* Print settings */
     @media print {
+      .no-print { 
+        display: none !important; 
+      }
       html, body {
-        width: 100% !important;
-        height: 100% !important;
-        max-height: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        background-color: #edf4f0 !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-        overflow: hidden !important;
+        background-color: #edf4f0;
       }
       .pricelist-container {
-        width: 100% !important;
-        height: 100vh !important;
-        max-height: 100vh !important;
-        padding: 12mm 14mm 10mm 14mm !important;
-        margin: 0 !important;
-        box-shadow: none !important;
-        page-break-inside: avoid !important;
-        page-break-after: avoid !important;
-        page-break-before: avoid !important;
-        overflow: hidden !important;
+        padding: 16mm 18mm 16mm 18mm;
+        height: 100vh;
       }
     }
   </style>
 </head>
 <body>
+  <div class="print-toolbar no-print">
+    <button type="button" class="back-button" onclick="window.close()">&larr; Kembali ke Tanabrew</button>
+    <span class="back-note">Gunakan dialog cetak browser untuk menyimpan PDF berkualitas tinggi (Save as PDF) or print langsung.</span>
+  </div>
+
   ${bodyHtml}
 
   <script>
@@ -329,28 +345,23 @@ const pricelistShellHtml = (bodyHtml: string, isB2B: boolean) => {
         } catch (error) {
           console.error(error);
         }
-      }, 400);
+      }, 500);
     });
   <\/script>
 </body>
 </html>`;
 };
 
-export const printPricelist = (
-  { categories, stockLocation, printedBy, roleLabel, priceMode = "normal" }: PrintPricelistInput,
-  reportWindow?: PricelistWindow,
-) => {
+export const printPricelist = ({ categories, stockLocation, printedBy, roleLabel, priceMode = "normal" }: PrintPricelistInput, reportWindow?: PricelistWindow) => {
   const isB2B = priceMode === "b2b";
   // Build category blocks
   const categoriesHtml = categories
-    .filter((cat) => cat.items && cat.items.length > 0)
-    .map((cat) => {
+    .filter(cat => cat.items && cat.items.length > 0)
+    .map(cat => {
       const itemsHtml = cat.items
-        .map((item) => {
+        .map(item => {
           const displayPrice = isB2B
-            ? item.harga_b2b !== undefined && item.harga_b2b !== ""
-              ? item.harga_b2b
-              : item.harga
+            ? (item.harga_b2b !== undefined && item.harga_b2b !== "" ? item.harga_b2b : item.harga)
             : item.harga;
           return `
           <div class="product-row">
@@ -376,7 +387,7 @@ export const printPricelist = (
   const pageHtml = `
     <div class="pricelist-container">
       <!-- Watermarked Leaf SVG Background (Accurate Monstera outline leaves pattern) -->
-      <svg class="bg-pattern" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1130" preserveAspectRatio="none">
+      <svg class="bg-pattern" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1130">
         <!-- Solid light mint background -->
         <rect width="100%" height="100%" fill="#edf4f0" />
         
@@ -410,11 +421,11 @@ export const printPricelist = (
         <div class="header">
           <!-- Perfectly Integrated Official High-Resolution Logo from image 2 -->
           <div class="header-left">
-            <img src="/logo-pricelist.png" style="height: 190px !important; width: auto !important; margin-top: -60px !important; margin-bottom: -60px !important; margin-left: -44px !important; display: block !important; object-fit: contain !important;" />
+            <img src="/logo-pricelist.png" style="height: 210px !important; width: auto !important; margin-top: -65px !important; margin-bottom: -65px !important; margin-left: -50px !important; display: block !important; object-fit: contain !important;" />
           </div>
           <div class="header-right">
             <h1>PRICE LIST</h1>
-            ${isB2B ? `<div style="margin-top:4px;display:inline-block;background:#1565c0;color:#fff;font-family:'Outfit',sans-serif;font-size:12px;font-weight:800;letter-spacing:2px;padding:2px 10px;border-radius:20px;">B2B</div>` : ""}
+            ${isB2B ? `<div style="margin-top:6px;display:inline-block;background:#1565c0;color:#fff;font-family:'Outfit',sans-serif;font-size:13px;font-weight:800;letter-spacing:2px;padding:3px 12px;border-radius:20px;">B2B</div>` : ""}
           </div>
         </div>
 
@@ -463,11 +474,11 @@ export const printPricelist = (
     </div>
   `;
 
-  const html = pricelistShellHtml(pageHtml, isB2B);
-
+  const html = pricelistShellHtml(pageHtml);
+  
   const popup = reportWindow || window.open("", "_blank");
   if (!popup) return false;
-
+  
   popup.document.open();
   popup.document.write(html);
   popup.document.close();
