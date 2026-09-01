@@ -81,7 +81,14 @@ const Beranda = () => {
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
-  const [dismissedActivityIds, setDismissedActivityIds] = useState<string[]>([]);
+  const [dismissedActivityIds, setDismissedActivityIds] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem("tanabrew_dismissed_activity_ids");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
   const [tickerIndex, setTickerIndex] = useState(0);
   const [adminInvoices, setAdminInvoices] = useState<Invoice[]>([]);
   const [dashboardInvoices, setDashboardInvoices] = useState<Invoice[]>([]);
@@ -268,7 +275,12 @@ const Beranda = () => {
   }, [shouldShowWelcomeFromRoute]);
 
   useEffect(() => {
-    setDismissedActivityIds([]);
+    try {
+      const stored = localStorage.getItem("tanabrew_dismissed_activity_ids");
+      if (stored) {
+        setDismissedActivityIds(JSON.parse(stored));
+      }
+    } catch {}
     setTickerIndex(0);
     setNotificationStatus(getNotificationPermissionState());
   }, [currentUser?.uid]);
@@ -657,7 +669,13 @@ const Beranda = () => {
     if (!activity.id) return;
     const activityId = activity.id;
     triggerHaptic(10);
-    setDismissedActivityIds((prev) => (prev.includes(activityId) ? prev : [...prev, activityId]));
+    setDismissedActivityIds((prev) => {
+      const next = prev.includes(activityId) ? prev : [...prev, activityId];
+      try {
+        localStorage.setItem("tanabrew_dismissed_activity_ids", JSON.stringify(next.slice(-100)));
+      } catch {}
+      return next;
+    });
 
     if (currentUser && !activityId.startsWith("demo-")) {
       try {
