@@ -319,6 +319,73 @@ export const Obrolan = () => {
     };
   }, [currentUser?.uid]);
 
+  // Fetch team chat data from Admin SDK backend (bypasses Firestore client permissions)
+  const fetchChatData = useCallback(async (isSilent = false) => {
+    if (!currentUser) return;
+    if (!isSilent) setRefreshing(true);
+
+    try {
+      const token = await currentUser.getIdToken();
+      const res = await fetch("/api/team-chat", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();
+      if (data.success) {
+        if (Array.isArray(data.users) && data.users.length > 0) {
+          const sorted = sortTeamMembersRef.current(data.users);
+          setTeamMembers(sorted);
+        }
+        if (Array.isArray(data.messages)) {
+          setMessages((prev) => {
+            const serverIds = new Set(data.messages.map((m: any) => m.id));
+            const pendingOptimistic = prev.filter((m) => m.id?.startsWith("temp-") && !serverIds.has(m.id));
+            const combined = [...data.messages, ...pendingOptimistic];
+            combined.sort((a, b) => {
+              const timeA = a.created_at?.toDate
+                ? a.created_at.toDate().getTime()
+                : a.created_at?._seconds
+                ? a.created_at._seconds * 1000
+                : a.created_at
+                ? new Date(a.created_at).getTime()
+                : Date.now();
+              const timeB = b.created_at?.toDate
+                ? b.created_at.toDate().getTime()
+                : b.created_at?._seconds
+                ? b.created_at._seconds * 1000
+                : b.created_at
+                ? new Date(b.created_at).getTime()
+                : Date.now();
+              return timeA - timeB;
+            });
+            return combined;
+          });
+        }
+      }
+    } catch (err) {
+      console.warn("fetchChatData notice:", err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [currentUser]);
+
+  // Initial and periodic sync via serverless API (Admin SDK backed)
+  useEffect(() => {
+    if (!currentUser) return;
+    void fetchChatData(false);
+
+    const interval = setInterval(() => {
+      void fetchChatData(true);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [currentUser, fetchChatData]);
+
   // Scroll to bottom when message arrives
   useEffect(() => {
     if (messages.length > 0) {
@@ -327,41 +394,8 @@ export const Obrolan = () => {
   }, [messages.length]);
 
   const handleRefresh = async () => {
-    setRefreshing(true);
     triggerHaptic(10);
-    try {
-      const snap = await getDocs(collection(db, "users"));
-      if (!snap.empty) {
-        const members: TeamMember[] = snap.docs.map((d) => {
-          const data = d.data();
-          const lastActive = data.last_active_at?.toDate
-            ? data.last_active_at.toDate()
-            : data.last_active_at
-            ? new Date(data.last_active_at)
-            : null;
-          const isOnline = lastActive ? Date.now() - lastActive.getTime() < 10 * 60 * 1000 : false;
-          return {
-            uid: d.id,
-            name: data.name || data.email?.split("@")[0] || "Anggota Tim",
-            email: data.email || "",
-            role: data.role || "staff",
-            photo_url: data.photo_url || "",
-            last_active_at: data.last_active_at,
-            is_online: isOnline || (currentUser && d.id === currentUser.uid),
-          } as TeamMember;
-        });
-        const sorted = sortTeamMembers(members);
-        setTeamMembers(sorted);
-        sessionStorage.setItem("tanabrew_cached_team_members", JSON.stringify(sorted));
-      } else {
-        await discoverFallbackMembers();
-      }
-    } catch (err) {
-      console.warn("Manual refresh using fallback:", err);
-      await discoverFallbackMembers();
-    } finally {
-      setRefreshing(false);
-    }
+    await fetchChatData(false);
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -371,12 +405,32 @@ export const Obrolan = () => {
 
     setSending(true);
     triggerHaptic(15);
-    setInputText("");
 
     const isDirect = Boolean(activeRecipient);
     const conversationId = isDirect && activeRecipient
       ? [currentUser.uid, activeRecipient.uid].sort().join("_")
       : undefined;
+
+    // Optimistic message addition for instant UI appearance (0ms delay)
+    const optimisticMsg: TeamMessage = {
+      id: `temp-${Date.now()}`,
+      sender_uid: currentUser.uid,
+      sender_name: userProfile?.name || currentUser.displayName || currentUser.email?.split("@")[0] || "Saya",
+      sender_role: userProfile?.role || "staff",
+      sender_photo: userProfile?.photo_url || "",
+      message: text,
+      created_at: new Date(),
+      recipient_uid: activeRecipient?.uid,
+      recipient_name: activeRecipient?.name,
+      recipient_role: activeRecipient?.role,
+      conversation_id: conversationId,
+    };
+
+    setMessages((prev) => [...prev, optimisticMsg]);
+    setInputText("");
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 50);
 
     const messageData: Record<string, any> = {
       sender_uid: currentUser.uid,
@@ -426,6 +480,7 @@ export const Obrolan = () => {
 
         if (apiRes.ok) {
           apiSucceeded = true;
+          void fetchChatData(true);
         } else if (!clientDocId) {
           const errJson = await apiRes.json().catch(() => ({}));
           throw new Error(errJson.error || "Gagal menyimpan pesan ke server.");

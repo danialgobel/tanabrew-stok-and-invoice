@@ -15,12 +15,18 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.1.2",
-  versionLabel: "v3.1.2",
+  version: "3.1.3",
+  versionLabel: "v3.1.3",
   releaseDate: "3 September 2026",
   title: "Pembaruan Stabilitas & Hotfix Realtime (3 September 2026)",
-  subtitle: "Resolusi Tuntas Assertion Firestore, Pengiriman Pesan Resilien, dan Stabilisasi Tab Riwayat",
+  subtitle: "Resolusi Tuntas Assertion Firestore, Pengiriman Pesan Resilien, dan Sinkronisasi Instan Obrolan",
   highlights: [
+    {
+      title: "Instant Feed & Sinkronisasi Obrolan Tim (Optimistic UI & Admin Sync)",
+      desc: "Pesan yang dikirim kini langsung muncul seketika di layar obrolan (0ms delay) dan tersinkronisasi otomatis dua arah melalui Serverless Admin API sehingga seluruh pesan grup dan obrolan privat tampil konsisten.",
+      badge: "Perbaikan",
+      badgeColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
+    },
     {
       title: "Resolusi Tuntas Assertion Error Firestore (ca9 / b815)",
       desc: "Mengeliminasi siklus churn/loop unmount-mount listener pada Firestore Web SDK dengan mengunci lifecycle listener dan memisahkan sync kehadiran (presence), mencegah crash assertion internal pada obrolan dan riwayat.",
