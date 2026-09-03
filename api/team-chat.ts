@@ -190,6 +190,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method === "POST") {
     const body = parseBody(req.body);
     const messageText = (body?.message as string || "").trim();
+    const notifyOnly = Boolean(body?.notifyOnly);
+    const recipientUid = (body?.recipientUid as string || "").trim();
+    const recipientName = (body?.recipientName as string || "").trim();
+    const conversationId = (body?.conversationId as string || "").trim();
 
     if (!messageText) {
       return res.status(400).json({ success: false, error: "Pesan tidak boleh kosong." });
@@ -200,15 +204,30 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       const senderRole = user.userData?.role || "staff";
       const senderPhoto = user.userData?.photo_url || "";
 
-      // 1. Save to team_messages collection
-      const docRef = await db.collection("team_messages").add({
-        sender_uid: user.uid,
-        sender_name: senderName,
-        sender_role: senderRole,
-        sender_photo: senderPhoto,
-        message: messageText,
-        created_at: FieldValue.serverTimestamp(),
-      });
+      let savedMessageId = (body?.existingMessageId as string || "").trim();
+
+      // 1. Save to team_messages collection ONLY if not notifyOnly
+      if (!notifyOnly) {
+        const messagePayload: Record<string, any> = {
+          sender_uid: user.uid,
+          sender_name: senderName,
+          sender_role: senderRole,
+          sender_photo: senderPhoto,
+          message: messageText,
+          created_at: FieldValue.serverTimestamp(),
+        };
+
+        if (recipientUid) {
+          messagePayload.recipient_uid = recipientUid;
+          messagePayload.recipient_name = recipientName || "Rekan Tim";
+        }
+        if (conversationId) {
+          messagePayload.conversation_id = conversationId;
+        }
+
+        const docRef = await db.collection("team_messages").add(messagePayload);
+        savedMessageId = docRef.id;
+      }
 
       // 2. Update user's last_active_at
       await db.collection("users").doc(user.uid).set(
@@ -229,33 +248,50 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
             ? `${origin}/api/user-avatar?uid=${user.uid}&name=${encodeURIComponent(senderName)}`
             : `https://ui-avatars.com/api/?name=${encodeURIComponent(senderName)}&background=2E7D32&color=fff&size=192&bold=true`;
 
+          const isDirect = Boolean(recipientUid);
+          const notifTitle = isDirect
+            ? `[Pesan Pribadi] ${senderName} (${senderRole.toUpperCase()})`
+            : `[Pesan Tim] ${senderName} (${senderRole.toUpperCase()})`;
+
+          const notificationPayload: Record<string, any> = {
+            app_id: appId,
+            target_channel: "push",
+            headings: { en: notifTitle },
+            contents: { en: messageText.length > 90 ? `${messageText.slice(0, 90)}...` : messageText },
+            url: origin ? `${origin}/obrolan` : "/obrolan",
+            chrome_web_icon: avatarUrl,
+            large_icon: avatarUrl,
+            chrome_web_image: avatarUrl,
+            big_picture: avatarUrl,
+            ios_attachments: { avatar: avatarUrl },
+            data: { 
+              type: isDirect ? "DIRECT_CHAT_MESSAGE" : "TEAM_CHAT_MESSAGE",
+              senderUid: user.uid,
+              recipientUid: recipientUid || null,
+              conversationId: conversationId || null,
+            },
+          };
+
+          if (isDirect) {
+            notificationPayload.include_aliases = { external_id: [recipientUid] };
+          } else {
+            notificationPayload.included_segments = ["Total Subscriptions"];
+          }
+
           await fetch("https://api.onesignal.com/notifications", {
             method: "POST",
             headers: {
               Authorization: `Key ${restApiKey}`,
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-              app_id: appId,
-              target_channel: "push",
-              headings: { en: `[Pesan Tim] ${senderName} (${senderRole.toUpperCase()})` },
-              contents: { en: messageText.length > 90 ? `${messageText.slice(0, 90)}...` : messageText },
-              url: origin ? `${origin}/obrolan` : "/obrolan",
-              chrome_web_icon: avatarUrl,
-              large_icon: avatarUrl,
-              chrome_web_image: avatarUrl,
-              big_picture: avatarUrl,
-              ios_attachments: { avatar: avatarUrl },
-              included_segments: ["Total Subscriptions"],
-              data: { type: "TEAM_CHAT_MESSAGE" },
-            }),
+            body: JSON.stringify(notificationPayload),
           });
         } catch (notifErr) {
           console.warn("[Team Chat Notif Warning]", notifErr);
         }
       }
 
-      return res.status(200).json({ success: true, messageId: docRef.id });
+      return res.status(200).json({ success: true, messageId: savedMessageId || "ok" });
     } catch (err: any) {
       console.error("[Team Chat POST Error]", err);
       return res.status(500).json({ success: false, error: err.message || "Gagal mengirim pesan" });

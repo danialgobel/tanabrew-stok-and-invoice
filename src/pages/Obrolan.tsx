@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
 import { collection, query, orderBy, limit, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, getDocs } from "firebase/firestore";
@@ -15,6 +15,7 @@ import {
   CheckCheck,
   RefreshCw,
   X,
+  UserCheck,
 } from "lucide-react";
 import type { UserProfile } from "@/context/AuthContext";
 
@@ -29,6 +30,10 @@ interface TeamMessage {
   sender_role: string;
   sender_photo?: string;
   message: string;
+  recipient_uid?: string;
+  recipient_name?: string;
+  recipient_role?: string;
+  conversation_id?: string;
   created_at?: any;
 }
 
@@ -37,12 +42,24 @@ export const Obrolan = () => {
   const { toast } = useToast();
 
   const [messages, setMessages] = useState<TeamMessage[]>([]);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = sessionStorage.getItem("tanabrew_cached_team_members");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {}
+    }
+    return [];
+  });
   const [inputText, setInputText] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showAllMembersModal, setShowAllMembersModal] = useState(false);
+  const [activeRecipient, setActiveRecipient] = useState<TeamMember | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -68,7 +85,110 @@ export const Obrolan = () => {
     });
   }, [currentUser]);
 
-  // 1. Direct realtime listeners for Firestore (Instant loading & 0 delay)
+  // Fallback discovery to fetch members from Admin API or activity logs/invoices
+  const discoverFallbackMembers = useCallback(async () => {
+    const memberMap = new Map<string, TeamMember>();
+
+    // Add current user first
+    if (currentUser) {
+      memberMap.set(currentUser.uid, {
+        uid: currentUser.uid,
+        name: userProfile?.name || currentUser.displayName || currentUser.email?.split("@")[0] || "Saya",
+        email: userProfile?.email || currentUser.email || "",
+        role: userProfile?.role || "staff",
+        photo_url: userProfile?.photo_url || "",
+        is_online: true,
+      });
+    }
+
+    // Tier 1: Try /api/admin-users (Admin SDK)
+    if (currentUser) {
+      try {
+        const token = await currentUser.getIdToken();
+        const res = await fetch("/api/admin-users", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.users) && data.users.length > 0) {
+            data.users.forEach((u: any) => {
+              const uid = u.id || u.uid;
+              if (uid) {
+                memberMap.set(uid, {
+                  uid,
+                  name: u.name || u.email?.split("@")[0] || "Anggota Tim",
+                  email: u.email || "",
+                  role: u.role || "staff",
+                  photo_url: u.photo_url || "",
+                  last_active_at: u.last_active_at || null,
+                  is_online: uid === currentUser.uid || Boolean(u.is_online),
+                });
+              }
+            });
+          }
+        }
+      } catch {}
+    }
+
+    // Tier 2: Aggregate from recent activity_logs & invoices if memberMap is still small
+    if (memberMap.size <= 1) {
+      try {
+        const [logsSnap, invSnap] = await Promise.allSettled([
+          getDocs(query(collection(db, "activity_logs"), orderBy("created_at", "desc"), limit(40))),
+          getDocs(query(collection(db, "invoices"), orderBy("created_at", "desc"), limit(40))),
+        ]);
+
+        if (logsSnap.status === "fulfilled") {
+          logsSnap.value.docs.forEach((d) => {
+            const data = d.data();
+            const uid = data.user?.uid || data.user_id;
+            const name = data.user?.name || data.user_name;
+            const role = data.user?.role || data.user_role || "staff";
+            if (uid && !memberMap.has(uid)) {
+              memberMap.set(uid, {
+                uid,
+                name: name || "Anggota Tim",
+                email: "",
+                role,
+                photo_url: "",
+                is_online: false,
+              });
+            }
+          });
+        }
+
+        if (invSnap.status === "fulfilled") {
+          invSnap.value.docs.forEach((d) => {
+            const data = d.data();
+            const uid = data.dibuat_oleh_uid;
+            const name = data.dibuat_oleh;
+            const role = data.dibuat_oleh_role || "staff";
+            if (uid && !memberMap.has(uid)) {
+              memberMap.set(uid, {
+                uid,
+                name: name || "Staff Kasir",
+                email: "",
+                role,
+                photo_url: "",
+                is_online: false,
+              });
+            }
+          });
+        }
+      } catch {}
+    }
+
+    const list = Array.from(memberMap.values());
+    if (list.length > 0) {
+      const sorted = sortTeamMembers(list);
+      setTeamMembers(sorted);
+      try {
+        sessionStorage.setItem("tanabrew_cached_team_members", JSON.stringify(sorted));
+      } catch {}
+    }
+  }, [currentUser, sortTeamMembers, userProfile]);
+
+  // Direct realtime listeners for Firestore
   useEffect(() => {
     setLoading(true);
 
@@ -79,10 +199,34 @@ export const Obrolan = () => {
       }).catch(() => {});
     }
 
+    // Seed self immediately so UI is never blank
+    if (currentUser) {
+      setTeamMembers((prev) => {
+        if (prev.some((m) => m.uid === currentUser.uid)) return prev;
+        return [
+          {
+            uid: currentUser.uid,
+            name: userProfile?.name || currentUser.displayName || currentUser.email?.split("@")[0] || "Saya",
+            email: userProfile?.email || currentUser.email || "",
+            role: userProfile?.role || "staff",
+            photo_url: userProfile?.photo_url || "",
+            is_online: true,
+          },
+          ...prev,
+        ];
+      });
+    }
+
     // Realtime users / team members subscription
     const unsubUsers = onSnapshot(
       collection(db, "users"),
       (snap) => {
+        if (snap.empty) {
+          void discoverFallbackMembers();
+          setLoading(false);
+          return;
+        }
+
         const members: TeamMember[] = snap.docs.map((d) => {
           const data = d.data();
           const lastActive = data.last_active_at?.toDate
@@ -103,11 +247,16 @@ export const Obrolan = () => {
           } as TeamMember;
         });
 
-        setTeamMembers(sortTeamMembers(members));
+        const sorted = sortTeamMembers(members);
+        setTeamMembers(sorted);
+        try {
+          sessionStorage.setItem("tanabrew_cached_team_members", JSON.stringify(sorted));
+        } catch {}
         setLoading(false);
       },
       (err) => {
-        console.warn("Users realtime listener error:", err);
+        console.warn("Users realtime listener notice (using resilient fallback):", err);
+        void discoverFallbackMembers();
         setLoading(false);
       }
     );
@@ -121,13 +270,29 @@ export const Obrolan = () => {
         snapshot.forEach((d) => {
           msgs.push({ id: d.id, ...d.data() } as TeamMessage);
         });
+
+        // Ensure safe sort by created_at even during pending server timestamp
+        msgs.sort((a, b) => {
+          const timeA = a.created_at?.toDate
+            ? a.created_at.toDate().getTime()
+            : a.created_at
+            ? new Date(a.created_at).getTime()
+            : Date.now();
+          const timeB = b.created_at?.toDate
+            ? b.created_at.toDate().getTime()
+            : b.created_at
+            ? new Date(b.created_at).getTime()
+            : Date.now();
+          return timeA - timeB;
+        });
+
         setMessages(msgs);
         setTimeout(() => {
           messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
         }, 50);
       },
       (err) => {
-        console.warn("Messages realtime listener error:", err);
+        console.warn("Messages realtime listener notice:", err);
       }
     );
 
@@ -135,7 +300,7 @@ export const Obrolan = () => {
       unsubUsers();
       unsubMessages();
     };
-  }, [currentUser, sortTeamMembers]);
+  }, [currentUser, discoverFallbackMembers, sortTeamMembers, userProfile]);
 
   // Scroll to bottom when message arrives
   useEffect(() => {
@@ -144,107 +309,7 @@ export const Obrolan = () => {
     }
   }, [messages.length]);
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    triggerHaptic(10);
-    try {
-      const snap = await getDocs(collection(db, "users"));
-      const members: TeamMember[] = snap.docs.map((d) => {
-        const data = d.data();
-        const lastActive = data.last_active_at?.toDate
-          ? data.last_active_at.toDate()
-          : data.last_active_at
-          ? new Date(data.last_active_at)
-          : null;
-        const isOnline = lastActive ? Date.now() - lastActive.getTime() < 10 * 60 * 1000 : false;
-        return {
-          uid: d.id,
-          name: data.name || data.email?.split("@")[0] || "Anggota Tim",
-          email: data.email || "",
-          role: data.role || "staff",
-          photo_url: data.photo_url || "",
-          last_active_at: data.last_active_at,
-          is_online: isOnline || (currentUser && d.id === currentUser.uid),
-        } as TeamMember;
-      });
-      setTeamMembers(sortTeamMembers(members));
-    } catch (err) {
-      console.warn("Manual refresh error:", err);
-    } finally {
-      setRefreshing(false);
-    }
-  };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const text = inputText.trim();
-    if (!text || !currentUser || sending) return;
-
-    setSending(true);
-    triggerHaptic(15);
-    setInputText("");
-
-    try {
-      await addDoc(collection(db, "team_messages"), {
-        sender_uid: currentUser.uid,
-        sender_name: userProfile?.name || currentUser.displayName || currentUser.email?.split("@")[0] || "Saya",
-        sender_role: userProfile?.role || "staff",
-        sender_photo: userProfile?.photo_url || "",
-        message: text,
-        created_at: serverTimestamp(),
-      });
-
-      // Update user presence
-      void updateDoc(doc(db, "users", currentUser.uid), {
-        last_active_at: serverTimestamp(),
-      }).catch(() => {});
-
-      // Background push notification trigger
-      void currentUser.getIdToken().then((token) => {
-        fetch("/api/team-chat", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ message: text, notifyOnly: true }),
-        }).catch(() => {});
-      });
-
-      triggerHaptic(20);
-    } catch (err: any) {
-      toast({
-        title: "Gagal Mengirim Pesan",
-        description: err.message || "Periksa koneksi internet Anda.",
-        variant: "destructive",
-      });
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const getInitials = (name?: string, email?: string) => {
-    const text = name || email || "U";
-    return text
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
-  const getRoleBadge = (role?: string) => {
-    switch (role) {
-      case "owner":
-        return { label: "Owner", class: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" };
-      case "webdev":
-        return { label: "Dev", class: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20" };
-      case "admin":
-        return { label: "Admin", class: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20" };
-      default:
-        return { label: "Staff", class: "bg-muted text-muted-foreground border-border" };
-    }
-  };
 
   const formatMessageTime = (timestamp: any) => {
     if (!timestamp) return "";
@@ -336,27 +401,59 @@ export const Obrolan = () => {
           </div>
         </div>
 
-        {/* 2. ANGGOTA TIM CAROUSEL (DITAMPILKAN DI ATAS DENGAN STATUS ONLINE) */}
+        {/* 2. ANGGOTA TIM CAROUSEL (DITAMPILKAN DI ATAS DENGAN STATUS ONLINE & PEMILIHAN OBROLAN) */}
         <div className="pt-2 border-t border-border/50">
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {/* Grup Tim Utama Tile */}
+            <div
+              onClick={() => {
+                triggerHaptic(10);
+                setActiveRecipient(null);
+              }}
+              className="flex flex-col items-center gap-0.5 shrink-0 w-13 text-center cursor-pointer group"
+            >
+              <div
+                className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-xs shadow-xs transition-transform group-active:scale-95 ${
+                  !activeRecipient
+                    ? "ring-2 ring-primary bg-primary text-primary-foreground shadow-md shadow-primary/25"
+                    : "ring-1 ring-border bg-muted/60 text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                <Users size={17} />
+              </div>
+              <span className="text-[9px] font-bold text-foreground truncate w-full leading-tight mt-0.5">
+                Grup Tim
+              </span>
+              <span className="text-[7px] font-bold px-1 py-0.1 rounded-full border uppercase bg-muted text-muted-foreground border-border">
+                Umum
+              </span>
+            </div>
+
             {teamMembers.map((member) => {
               const isMe = member.uid === currentUser?.uid;
               const roleBadge = getRoleBadge(member.role);
               const isOnline = Boolean(member.is_online || isMe);
+              const isSelected = activeRecipient?.uid === member.uid;
 
               return (
                 <div
                   key={member.uid}
                   onClick={() => {
                     triggerHaptic(10);
-                    setShowAllMembersModal(true);
+                    if (isMe) {
+                      setActiveRecipient(null);
+                    } else {
+                      setActiveRecipient(member);
+                    }
                   }}
                   className="flex flex-col items-center gap-0.5 shrink-0 w-13 text-center cursor-pointer group"
                 >
                   <div className="relative">
                     <div
                       className={`h-10 w-10 rounded-full overflow-hidden flex items-center justify-center font-bold text-xs shadow-xs transition-transform group-active:scale-95 ${
-                        isOnline
+                        isSelected
+                          ? "ring-2 ring-primary bg-primary/10 text-primary shadow-md shadow-primary/25 scale-105"
+                          : isOnline
                           ? "ring-2 ring-emerald-500 bg-emerald-500/10 text-emerald-600"
                           : "ring-1 ring-border bg-muted/60 text-muted-foreground opacity-75"
                       }`}
@@ -379,7 +476,9 @@ export const Obrolan = () => {
                     />
                   </div>
 
-                  <span className="text-[9px] font-bold text-foreground truncate w-full leading-tight mt-0.5">
+                  <span className={`text-[9px] truncate w-full leading-tight mt-0.5 ${
+                    isSelected ? "font-black text-primary" : "font-bold text-foreground"
+                  }`}>
                     {isMe ? "Saya" : member.name.split(" ")[0]}
                   </span>
                   <span className={`text-[7px] font-bold px-1 py-0.1 rounded-full border uppercase ${roleBadge.class}`}>
@@ -392,22 +491,51 @@ export const Obrolan = () => {
         </div>
       </div>
 
-      {/* 3. GROUP CHAT FEED CONTAINER */}
+      {/* RECIPIENT MODE BANNER (IF DIRECT CONVERSATION ACTIVE) */}
+      {activeRecipient && (
+        <div className="shrink-0 flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 px-3 py-1.5 mb-2 text-xs shadow-xs animate-in fade-in">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+            <p className="truncate text-foreground font-semibold text-[11px] sm:text-xs">
+              Koordinasi Pribadi: <span className="font-bold text-primary">{activeRecipient.name}</span>{" "}
+              <span className="text-[10px] text-muted-foreground">({getRoleBadge(activeRecipient.role).label})</span>
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic(8);
+              setActiveRecipient(null);
+            }}
+            className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1 shrink-0 ml-2 cursor-pointer"
+          >
+            ✕ Kembali ke Grup
+          </button>
+        </div>
+      )}
+
+      {/* 3. GROUP / DIRECT CHAT FEED CONTAINER */}
       <div className="flex-1 min-h-0 rounded-2xl border border-border bg-card/60 backdrop-blur-sm flex flex-col overflow-hidden shadow-sm">
         {/* Messages Feed */}
         <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden space-y-3 p-3.5 sm:p-4 scroll-smooth">
-          {messages.length === 0 ? (
+          {displayedMessages.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-card/80 p-8 text-center space-y-2 my-auto shadow-xs">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                <Sparkles size={22} />
+                {activeRecipient ? <MessageSquare size={22} /> : <Sparkles size={22} />}
               </div>
-              <h3 className="text-sm font-bold text-foreground">Ruang Koordinasi Tim Tanabrew</h3>
+              <h3 className="text-sm font-bold text-foreground">
+                {activeRecipient
+                  ? `Koordinasi dengan ${activeRecipient.name}`
+                  : "Ruang Koordinasi Tim Tanabrew"}
+              </h3>
               <p className="text-xs text-muted-foreground leading-relaxed max-w-sm mx-auto">
-                Ketik pesan di bawah untuk memulai koordinasi antar staf, barista, admin, dan owner.
+                {activeRecipient
+                  ? `Belum ada pesan obrolan langsung dengan ${activeRecipient.name.split(" ")[0]}. Tulis pesan di bawah untuk memulai koordinasi.`
+                  : "Ketik pesan di bawah untuk memulai koordinasi antar staf, barista, admin, dan owner."}
               </p>
             </div>
           ) : (
-            messages.map((msg, index) => {
+            displayedMessages.map((msg, index) => {
               const isMe =
                 msg.sender_uid === currentUser?.uid ||
                 (msg.sender_name && userProfile?.name && msg.sender_name === userProfile.name);
@@ -479,7 +607,11 @@ export const Obrolan = () => {
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder="Tulis pesan untuk tim..."
+              placeholder={
+                activeRecipient
+                  ? `Pesan pribadi untuk ${activeRecipient.name.split(" ")[0]}...`
+                  : "Tulis pesan untuk tim..."
+              }
               disabled={sending}
               style={{ fontSize: "16px" }}
               className="flex-1 rounded-xl border border-input bg-background px-4 py-2.5 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring shadow-xs"
@@ -516,7 +648,7 @@ export const Obrolan = () => {
                 <Users size={18} className="text-primary" />
                 <div>
                   <h3 className="text-sm font-bold text-foreground">Anggota Tim Tanabrew</h3>
-                  <p className="text-[11px] text-muted-foreground">Daftar staf & kehadiran tim</p>
+                  <p className="text-[11px] text-muted-foreground">Pilih anggota untuk koordinasi langsung</p>
                 </div>
               </div>
               <button
@@ -528,18 +660,56 @@ export const Obrolan = () => {
               </button>
             </div>
 
+            {/* Opsi Kembali ke Grup */}
+            <div
+              onClick={() => {
+                triggerHaptic(10);
+                setActiveRecipient(null);
+                setShowAllMembersModal(false);
+              }}
+              className="flex items-center justify-between p-2.5 rounded-xl border border-border/70 hover:bg-muted/50 cursor-pointer transition-colors"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
+                  <Users size={16} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-foreground">Semua Tim (Grup Koordinasi)</p>
+                  <p className="text-[10px] text-muted-foreground">Obrolan terbuka untuk semua staf</p>
+                </div>
+              </div>
+              {!activeRecipient && (
+                <span className="text-[10px] font-bold text-primary px-2 py-0.5 rounded-full bg-primary/10">Aktif</span>
+              )}
+            </div>
+
             <div className="divide-y divide-border/60">
               {teamMembers.map((member) => {
                 const isMe = member.uid === currentUser?.uid;
                 const roleBadge = getRoleBadge(member.role);
                 const isOnline = Boolean(member.is_online || isMe);
+                const isSelected = activeRecipient?.uid === member.uid;
 
                 return (
-                  <div key={member.uid} className="flex items-center justify-between py-3">
+                  <div
+                    key={member.uid}
+                    onClick={() => {
+                      triggerHaptic(10);
+                      if (isMe) {
+                        setActiveRecipient(null);
+                      } else {
+                        setActiveRecipient(member);
+                      }
+                      setShowAllMembersModal(false);
+                    }}
+                    className={`flex items-center justify-between py-2.5 px-1 rounded-lg transition-colors cursor-pointer ${
+                      isSelected ? "bg-primary/10" : "hover:bg-muted/40"
+                    }`}
+                  >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="relative shrink-0">
                         <div
-                          className={`h-11 w-11 rounded-full overflow-hidden flex items-center justify-center font-bold text-xs ${
+                          className={`h-10 w-10 rounded-full overflow-hidden flex items-center justify-center font-bold text-xs ${
                             isOnline
                               ? "ring-2 ring-emerald-500 bg-emerald-500/10 text-emerald-600"
                               : "ring-1 ring-border bg-muted/60 text-muted-foreground"
@@ -552,7 +722,7 @@ export const Obrolan = () => {
                           )}
                         </div>
                         <span
-                          className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-card ${
+                          className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-card ${
                             isOnline ? "bg-emerald-500" : "bg-muted-foreground/40"
                           }`}
                         />
@@ -567,18 +737,25 @@ export const Obrolan = () => {
                             {roleBadge.label}
                           </span>
                         </div>
-                        <p className="text-[11px] text-muted-foreground truncate">{member.email}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{member.email || "Anggota Tanabrew"}</p>
                       </div>
                     </div>
 
-                    <div className="text-right shrink-0 pl-2">
+                    <div className="text-right shrink-0 pl-2 flex items-center gap-2">
                       <span
-                        className={`inline-flex items-center gap-1 text-[10px] font-bold ${
+                        className={`inline-flex items-center gap-1 text-[9px] font-bold ${
                           isOnline ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"
                         }`}
                       >
                         {isOnline ? "Online" : formatLastActive(member.last_active_at)}
                       </span>
+                      {!isMe && (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                          isSelected ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"
+                        }`}>
+                          {isSelected ? "Aktif" : "Chat"}
+                        </span>
+                      )}
                     </div>
                   </div>
                 );

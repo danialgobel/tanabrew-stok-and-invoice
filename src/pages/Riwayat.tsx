@@ -337,6 +337,7 @@ const Riwayat = () => {
   const [reportEndDate, setReportEndDate] = useState(todayInputValue());
   const [loadingReport, setLoadingReport] = useState<ReportType | null>(null);
   const [sendingWaInvoiceId, setSendingWaInvoiceId] = useState<string | null>(null);
+  const [printingInvoiceId, setPrintingInvoiceId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!actionNotice) return;
@@ -383,14 +384,14 @@ const Riwayat = () => {
 
       try {
         const invoiceQuery = reset || !invoiceCursor
-          ? query(collection(db, "invoices"), orderBy("created_at", "desc"), firestoreLimit(20))
-          : query(collection(db, "invoices"), orderBy("created_at", "desc"), startAfter(invoiceCursor), firestoreLimit(20));
+          ? query(collection(db, "invoices"), orderBy("created_at", "desc"), firestoreLimit(60))
+          : query(collection(db, "invoices"), orderBy("created_at", "desc"), startAfter(invoiceCursor), firestoreLimit(60));
         const snap = await getDocs(invoiceQuery);
         const data = snap.docs.map((invoiceDoc) => ({ id: invoiceDoc.id, ...invoiceDoc.data() } as Invoice));
 
         setInvoices((prev) => (reset ? data : [...prev, ...data]));
         setInvoiceCursor(snap.docs[snap.docs.length - 1] || null);
-        setHasMoreInvoices(snap.docs.length === 20);
+        setHasMoreInvoices(snap.docs.length === 60);
       } catch {
         setInvoiceError(true);
         toast({ title: "Error", description: "Gagal memuat riwayat invoice.", variant: "destructive" });
@@ -407,11 +408,11 @@ const Riwayat = () => {
   }, []);
 
   useEffect(() => {
+    const q = query(collection(db, "activity_logs"), orderBy("created_at", "desc"), firestoreLimit(80));
     const unsubscribe = onSnapshot(
-      collection(db, "activity_logs"),
+      q,
       (snap) => {
         const data = snap.docs.map((logDoc) => ({ id: logDoc.id, ...logDoc.data() } as ActivityLog));
-        data.sort((a, b) => getDateValue(b.created_at) - getDateValue(a.created_at));
         setActivityLogs(data);
         setLoadingLogs(false);
       },
@@ -425,11 +426,11 @@ const Riwayat = () => {
   }, [toast]);
 
   useEffect(() => {
+    const q = query(collection(db, "stock_movements"), orderBy("created_at", "desc"), firestoreLimit(80));
     const unsubscribe = onSnapshot(
-      collection(db, "stock_movements"),
+      q,
       (snap) => {
         const data = snap.docs.map((movementDoc) => ({ id: movementDoc.id, ...movementDoc.data() } as StockMovement));
-        data.sort((a, b) => getDateValue(b.created_at) - getDateValue(a.created_at));
         setStockMovements(data);
         setLoadingStockMovements(false);
       },
@@ -480,8 +481,9 @@ const Riwayat = () => {
   const navigate = useNavigate();
 
   const handleSafeRefresh = useCallback(() => {
-    window.setTimeout(() => window.location.reload(), 320);
-  }, []);
+    triggerHaptic(10);
+    void loadInvoices(true);
+  }, [loadInvoices]);
 
   const resetInvoiceFilters = () => {
     setSearchTerm("");
@@ -922,6 +924,7 @@ const Riwayat = () => {
   };
 
   const handlePrintInvoice = async (invoice: Invoice) => {
+    if (!invoice.id || printingInvoiceId) return;
     if (!currentUser || !userProfile) {
       toast({ title: "Error", description: "Data user belum siap, silakan coba lagi.", variant: "destructive" });
       return;
@@ -932,40 +935,48 @@ const Riwayat = () => {
       return;
     }
 
-    const popup = window.open("", "_blank");
-    if (popup) {
-      popup.document.open();
-      popup.document.write(buildInvoicePrintHtml(invoice, true));
-      popup.document.close();
-    } else {
-      const iframe = document.createElement("iframe");
-      iframe.style.position = "fixed";
-      iframe.style.left = "-9999px";
-      iframe.style.top = "0";
-      iframe.style.width = "1px";
-      iframe.style.height = "1px";
-      iframe.style.opacity = "0";
-      document.body.appendChild(iframe);
+    setPrintingInvoiceId(invoice.id);
+    try {
+      const popup = window.open("", "_blank");
+      if (popup) {
+        popup.document.open();
+        popup.document.write(buildInvoicePrintHtml(invoice, true));
+        popup.document.close();
+      } else {
+        const iframe = document.createElement("iframe");
+        iframe.style.position = "fixed";
+        iframe.style.left = "-9999px";
+        iframe.style.top = "0";
+        iframe.style.width = "1px";
+        iframe.style.height = "1px";
+        iframe.style.opacity = "0";
+        document.body.appendChild(iframe);
 
-      const idoc = iframe.contentWindow?.document;
-      if (!idoc) {
-        document.body.removeChild(iframe);
-        toast({ title: "Error", description: "Gagal membuka cetak ulang", variant: "destructive" });
-        return;
+        const idoc = iframe.contentWindow?.document;
+        if (!idoc) {
+          document.body.removeChild(iframe);
+          toast({ title: "Error", description: "Gagal membuka cetak ulang", variant: "destructive" });
+          return;
+        }
+
+        idoc.open();
+        idoc.write(buildInvoicePrintHtml(invoice, false));
+        idoc.close();
+
+        setTimeout(() => {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+          setTimeout(() => document.body.removeChild(iframe), 1000);
+        }, 700);
       }
 
-      idoc.open();
-      idoc.write(buildInvoicePrintHtml(invoice, false));
-      idoc.close();
-
-      setTimeout(() => {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-        setTimeout(() => document.body.removeChild(iframe), 1000);
-      }, 700);
+      await updateInvoicePrintStatus(invoice);
+    } catch (err) {
+      console.warn("Print error:", err);
+      toast({ title: "Error", description: "Gagal memproses cetak ulang invoice.", variant: "destructive" });
+    } finally {
+      setPrintingInvoiceId(null);
     }
-
-    await updateInvoicePrintStatus(invoice);
   };
 
   const tabs = [
@@ -1078,10 +1089,10 @@ const Riwayat = () => {
           <button
             type="button"
             onClick={() => handlePrintInvoice(invoice)}
-            disabled={!isAdmin}
+            disabled={!isAdmin || printingInvoiceId === invoice.id}
             className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2.5 text-xs font-bold text-primary-foreground shadow-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            <Printer size={15} /> Cetak Ulang PDF
+            <Printer size={15} /> {printingInvoiceId === invoice.id ? "Menyiapkan..." : "Cetak Ulang PDF"}
           </button>
           <button
             type="button"
@@ -1442,10 +1453,10 @@ const Riwayat = () => {
                               e.stopPropagation();
                               handlePrintInvoice(invoice);
                             }}
-                            disabled={!isAdmin}
+                            disabled={!isAdmin || printingInvoiceId === invoice.id}
                             className="inline-flex items-center justify-center gap-1 rounded-lg bg-primary hover:bg-primary/90 px-2.5 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50 transition-colors cursor-pointer"
                           >
-                            <Printer size={13} /> Cetak
+                            <Printer size={13} /> {printingInvoiceId === invoice.id ? "..." : "Cetak"}
                           </button>
                           <button
                             type="button"

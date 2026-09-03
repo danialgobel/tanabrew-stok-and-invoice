@@ -15,12 +15,48 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.0.6",
-  versionLabel: "v3.0.6",
-  releaseDate: "2 September 2026",
-  title: "Perbaikan Tuntas: Popup Invoice HP (Portal) & User Discovery Developer Center",
-  subtitle: "Bottom Sheet Dokumen Invoice di HP Tampil Seketika & Akun Tim Developer Center Dimuat 100% Lengkap",
+  version: "3.1.0",
+  versionLabel: "v3.1.0",
+  releaseDate: "3 September 2026",
+  title: "Stabilitas Obrolan Tim, Koordinasi Langsung, & Akselerasi Riwayat Transaksi",
+  subtitle: "Discovery Anggota Tim Anti Blank Screen, Obrolan Langsung Antar-Staf, Eliminasi Dobel Pesan, dan Tombol Cetak Responsif Bebas Lag",
   highlights: [
+    {
+      title: "Ruang Obrolan Tim & Koordinasi Langsung Antar-Anggota",
+      desc: "Kini staf, barista, admin, dan owner dapat memilih anggota tim langsung dari carousel atau modal tim untuk berkoordinasi secara privat, atau kembali ke grup koordinasi umum tim hanya dengan 1 tap.",
+      badge: "Fitur",
+      badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
+    },
+    {
+      title: "Bulletproof Member Discovery (Anti Layar Kosong)",
+      desc: "Menyempurnakan penemuan anggota tim di tab Obrolan dengan multi-tier discovery (akun aktif, Firestore listeners, dan agregasi log aktivitas) sehingga seluruh anggota tim selalu tampil lengkap dengan indikator status online yang akurat.",
+      badge: "Perbaikan",
+      badgeColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
+    },
+    {
+      title: "Eliminasi Bug Duplikasi Pesan (Double Write Fix)",
+      desc: "Memperbaiki sinkronisasi pengiriman pesan antara Firestore client dan Serverless API, memastikan setiap pesan hanya tercatat tepat 1 kali tanpa duplikasi pesan di riwayat obrolan.",
+      badge: "Perbaikan",
+      badgeColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
+    },
+    {
+      title: "Akselerasi & Bounded Listener Tab Riwayat",
+      desc: "Pemuatan mutasi stok dan log aktivitas di Riwayat kini dibatasi pada 80 catatan terbaru dengan pengurutan Firestore terindeks, melipatgandakan performa rendering dan menghemat memori perangkat.",
+      badge: "Peningkatan",
+      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+    },
+    {
+      title: "Proteksi Dobel Klik Cetak & Pull-to-Refresh Halus",
+      desc: "Tombol Cetak Ulang PDF kini dilengkapi pengunci status loading guna mencegah klik berulang yang tidak disengaja, dan gestur tarik-layar (pull-to-refresh) di Riwayat memperbarui data secara instan tanpa reload browser penuh.",
+      badge: "Peningkatan",
+      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+    },
+    {
+      title: "Keandalan State Loading Tombol Transaksi",
+      desc: "Seluruh handler form di Cetak Invoice dan Update Stok dilindungi blok finally yang menjamin status loading tombol selalu kembali normal sekalipun terjadi kendala jaringan.",
+      badge: "Peningkatan",
+      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+    },
     {
       title: "Fix Tuntas: Popup Dokumen Invoice di HP (React Portal)",
       desc: "Memperbaiki masalah CSS containing block di HP dengan merender modal langsung ke root dokumen via React Portal. Menekan kartu atau tombol Detail di HP kini memunculkan bottom sheet rincian invoice secara seketika dan halus tanpa layar kosong/blur.",

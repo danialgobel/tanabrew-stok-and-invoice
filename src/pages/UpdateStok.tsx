@@ -503,8 +503,9 @@ const UpdateStok = () => {
       setHighlightEditForm(false);
     } catch {
       toast({ title: "Error", description: "Gagal menyimpan", variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const handleEdit = (p: Product) => {

@@ -309,8 +309,9 @@ const CetakInvoice = () => {
     } catch (error) {
       const description = error instanceof Error && error.message ? error.message : "Gagal menyimpan";
       toast({ title: "Error", description, variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const updatePrintStatus = async () => {
