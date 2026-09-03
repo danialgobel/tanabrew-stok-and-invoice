@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from "react";
-import { AlertTriangle, RotateCcw } from "lucide-react";
+import { AlertTriangle, RotateCcw, Home } from "lucide-react";
 
 interface Props {
   children: ReactNode;
@@ -25,11 +25,23 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   private handleReload = () => {
-    window.location.reload();
+    try {
+      window.location.reload();
+    } catch {
+      window.location.href = "/";
+    }
   };
 
   private handleReset = () => {
-    this.setState({ hasError: false, error: null });
+    try {
+      this.setState({ hasError: false, error: null });
+    } catch {
+      window.location.href = "/";
+    }
+  };
+
+  private handleGoHome = () => {
+    window.location.href = "/";
   };
 
   public render() {
@@ -51,20 +63,29 @@ export class ErrorBoundary extends Component<Props, State> {
                 {this.state.error.message}
               </div>
             )}
-            <div className="flex gap-2 pt-2">
+            <div className="flex flex-col gap-2 pt-2">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={this.handleReload}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition-all cursor-pointer shadow-sm"
+                >
+                  <RotateCcw size={14} /> Muat Ulang Halaman
+                </button>
+                <button
+                  type="button"
+                  onClick={this.handleReset}
+                  className="inline-flex items-center justify-center rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted transition-all cursor-pointer"
+                >
+                  Coba Lagi
+                </button>
+              </div>
               <button
                 type="button"
-                onClick={this.handleReload}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition-all cursor-pointer shadow-sm"
+                onClick={this.handleGoHome}
+                className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl border border-border bg-muted/20 px-3 py-2 text-xs font-medium text-foreground hover:bg-muted/50 transition-all cursor-pointer"
               >
-                <RotateCcw size={14} /> Muat Ulang Halaman
-              </button>
-              <button
-                type="button"
-                onClick={this.handleReset}
-                className="inline-flex items-center justify-center rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted transition-all cursor-pointer"
-              >
-                Coba Lagi
+                <Home size={13} /> Kembali ke Beranda
               </button>
             </div>
           </div>

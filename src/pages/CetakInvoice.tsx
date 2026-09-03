@@ -363,7 +363,7 @@ const CetakInvoice = () => {
       no_invoice: noInvoice,
       tanggal,
       customer,
-      items: invoiceItems,
+      items,
       subtotal,
       diskon,
       total,

@@ -15,12 +15,24 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.1.0",
-  versionLabel: "v3.1.0",
+  version: "3.1.1",
+  versionLabel: "v3.1.1",
   releaseDate: "3 September 2026",
-  title: "Stabilitas Obrolan Tim, Koordinasi Langsung, & Akselerasi Riwayat Transaksi",
-  subtitle: "Discovery Anggota Tim Anti Blank Screen, Obrolan Langsung Antar-Staf, Eliminasi Dobel Pesan, dan Tombol Cetak Responsif Bebas Lag",
+  title: "Hotfix Obrolan Tim & Resiliensi Pemulihan Layar Crash",
+  subtitle: "Perbaikan Fungsi handleRefresh di /obrolan dan Tombol Navigasi Pemulihan Darurat Error Boundary",
   highlights: [
+    {
+      title: "Fix Runtime Error Obrolan Tim (handleRefresh)",
+      desc: "Memperbaiki kendala pemanggilan fungsi pembaruan status anggota tim di tab /obrolan sehingga halaman dimuat secara instan tanpa memicu layar kendala rendering.",
+      badge: "Perbaikan",
+      badgeColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
+    },
+    {
+      title: "Resiliensi Pemulihan Layar Crash (Error Boundary)",
+      desc: "Menyempurnakan mekanisme pemulihan crash dengan proteksi loop re-render dan menambahkan tombol instan 'Kembali ke Beranda' agar pengguna tidak pernah terjebak saat terjadi kendala data.",
+      badge: "Peningkatan",
+      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+    },
     {
       title: "Ruang Obrolan Tim & Koordinasi Langsung Antar-Anggota",
       desc: "Kini staf, barista, admin, dan owner dapat memilih anggota tim langsung dari carousel atau modal tim untuk berkoordinasi secara privat, atau kembali ke grup koordinasi umum tim hanya dengan 1 tap.",

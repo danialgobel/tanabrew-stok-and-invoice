@@ -1,7 +1,7 @@
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-type ActivityAction = "CREATE_PRODUCT" | "UPDATE_PRODUCT" | "DELETE_PRODUCT" | "CREATE_INVOICE" | "PRINT_INVOICE" | "UPDATE_PAYMENT_STATUS" | "OWNER_ANNOUNCEMENT";
+type ActivityAction = "CREATE_PRODUCT" | "UPDATE_PRODUCT" | "DELETE_PRODUCT" | "CREATE_INVOICE" | "PRINT_INVOICE" | "UPDATE_PAYMENT_STATUS" | "OWNER_ANNOUNCEMENT" | "TRANSFER_STOCK";
 type ActivityTargetType = "product" | "invoice" | "notification";
 
 interface ActivityLogUser {

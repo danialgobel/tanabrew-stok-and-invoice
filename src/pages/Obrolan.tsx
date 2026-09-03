@@ -21,6 +21,7 @@ import type { UserProfile } from "@/context/AuthContext";
 
 interface TeamMember extends UserProfile {
   is_online?: boolean;
+  last_active_at?: any;
 }
 
 interface TeamMessage {
@@ -309,7 +310,161 @@ export const Obrolan = () => {
     }
   }, [messages.length]);
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    triggerHaptic(10);
+    try {
+      const snap = await getDocs(collection(db, "users"));
+      if (!snap.empty) {
+        const members: TeamMember[] = snap.docs.map((d) => {
+          const data = d.data();
+          const lastActive = data.last_active_at?.toDate
+            ? data.last_active_at.toDate()
+            : data.last_active_at
+            ? new Date(data.last_active_at)
+            : null;
+          const isOnline = lastActive ? Date.now() - lastActive.getTime() < 10 * 60 * 1000 : false;
+          return {
+            uid: d.id,
+            name: data.name || data.email?.split("@")[0] || "Anggota Tim",
+            email: data.email || "",
+            role: data.role || "staff",
+            photo_url: data.photo_url || "",
+            last_active_at: data.last_active_at,
+            is_online: isOnline || (currentUser && d.id === currentUser.uid),
+          } as TeamMember;
+        });
+        const sorted = sortTeamMembers(members);
+        setTeamMembers(sorted);
+        sessionStorage.setItem("tanabrew_cached_team_members", JSON.stringify(sorted));
+      } else {
+        await discoverFallbackMembers();
+      }
+    } catch (err) {
+      console.warn("Manual refresh using fallback:", err);
+      await discoverFallbackMembers();
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = inputText.trim();
+    if (!text || !currentUser || sending) return;
+
+    setSending(true);
+    triggerHaptic(15);
+    setInputText("");
+
+    const isDirect = Boolean(activeRecipient);
+    const conversationId = isDirect && activeRecipient
+      ? [currentUser.uid, activeRecipient.uid].sort().join("_")
+      : undefined;
+
+    const messageData: Record<string, any> = {
+      sender_uid: currentUser.uid,
+      sender_name: userProfile?.name || currentUser.displayName || currentUser.email?.split("@")[0] || "Saya",
+      sender_role: userProfile?.role || "staff",
+      sender_photo: userProfile?.photo_url || "",
+      message: text,
+      created_at: serverTimestamp(),
+    };
+
+    if (isDirect && activeRecipient) {
+      messageData.recipient_uid = activeRecipient.uid;
+      messageData.recipient_name = activeRecipient.name;
+      messageData.recipient_role = activeRecipient.role;
+      messageData.conversation_id = conversationId;
+    }
+
+    try {
+      // 1. Try writing directly to Firestore client
+      let clientDocId: string | null = null;
+      try {
+        const docRef = await addDoc(collection(db, "team_messages"), messageData);
+        clientDocId = docRef.id;
+      } catch (clientWriteErr) {
+        console.warn("Direct Firestore write notice (falling back to Serverless API):", clientWriteErr);
+      }
+
+      // Update user presence
+      void updateDoc(doc(db, "users", currentUser.uid), {
+        last_active_at: serverTimestamp(),
+      }).catch(() => {});
+
+      // 2. Dispatch push notification or perform fallback write via API
+      const token = await currentUser.getIdToken();
+      await fetch("/api/team-chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          message: text,
+          notifyOnly: Boolean(clientDocId),
+          existingMessageId: clientDocId,
+          recipientUid: activeRecipient?.uid,
+          recipientName: activeRecipient?.name,
+          conversationId,
+        }),
+      }).catch((apiErr) => {
+        console.warn("Push notification dispatch warning:", apiErr);
+      });
+
+      triggerHaptic(20);
+    } catch (err: any) {
+      toast({
+        title: "Gagal Mengirim Pesan",
+        description: err.message || "Periksa koneksi internet Anda.",
+        variant: "destructive",
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const displayedMessages = useMemo(() => {
+    if (!activeRecipient) {
+      // Mode grup: tampilkan pesan publik (tanpa recipient_uid)
+      return messages.filter((m) => !m.recipient_uid);
+    }
+    // Mode pesan pribadi (DM): tampilkan pesan antara currentUser dan activeRecipient
+    return messages.filter((m) => {
+      if (m.conversation_id) {
+        const targetConvId = [currentUser?.uid, activeRecipient.uid].sort().join("_");
+        return m.conversation_id === targetConvId;
+      }
+      return (
+        (m.sender_uid === currentUser?.uid && m.recipient_uid === activeRecipient.uid) ||
+        (m.sender_uid === activeRecipient.uid && m.recipient_uid === currentUser?.uid)
+      );
+    });
+  }, [activeRecipient, currentUser?.uid, messages]);
+
+  const getInitials = (name?: string, email?: string) => {
+    const text = name || email || "U";
+    return text
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const getRoleBadge = (role?: string) => {
+    switch (role) {
+      case "owner":
+        return { label: "Owner", class: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" };
+      case "webdev":
+        return { label: "Dev", class: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20" };
+      case "admin":
+        return { label: "Admin", class: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20" };
+      default:
+        return { label: "Staff", class: "bg-muted text-muted-foreground border-border" };
+    }
+  };
 
   const formatMessageTime = (timestamp: any) => {
     if (!timestamp) return "";
