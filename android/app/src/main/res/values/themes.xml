@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Tanabrew" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:statusBarColor">@color/tanabrew_green</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:navigationBarColor">@color/tanabrew_nav</item>
+        <item name="android:windowBackground">@drawable/splash_background</item>
+    </style>
+</resources>

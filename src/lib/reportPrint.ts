@@ -328,17 +328,21 @@ const reportShellHtml = (title: string, bodyHtml: string, autoPrint = true) => {
   <div class="manual-print-note no-print">Jika dialog print tidak muncul otomatis, gunakan menu browser untuk Print atau Save as PDF.</div>
   <script>
     function tanabrewBack(){
-      var hint = document.getElementById('tanabrew-back-hint');
-      try {
-        window.close();
-        window.setTimeout(function(){
-          if (hint) hint.textContent = 'Gunakan tombol kembali browser untuk kembali.';
-          if (window.history && window.history.length > 1) window.history.back();
-        }, 160);
-      } catch (error) {
-        if (hint) hint.textContent = 'Gunakan tombol kembali browser untuk kembali.';
-        try { if (window.history && window.history.length > 1) window.history.back(); } catch (historyError) {}
+      if (window.AndroidBridge && window.AndroidBridge.closePrintPreview) {
+        window.AndroidBridge.closePrintPreview();
+        return;
       }
+      try {
+        if (window.opener) {
+          window.close();
+          return;
+        }
+        if (window.history && window.history.length > 1) {
+          window.history.back();
+          return;
+        }
+      } catch (error) {}
+      window.location.href = '/riwayat';
     }
   <\/script>
   ${script}

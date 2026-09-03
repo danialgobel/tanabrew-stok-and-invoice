@@ -15,12 +15,30 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.2.1",
-  versionLabel: "v3.2.1",
+  version: "3.2.2",
+  versionLabel: "v3.2.2",
   releaseDate: "3 September 2026",
-  title: "Pembaruan Fitur & Antarmuka Tanabrew (3 September 2026)",
-  subtitle: "Tata Letak Beranda Prioritas Mobile, Pemisahan Obrolan Tim & Pribadi, Modal Cepat WhatsApp, dan Pop-up Interaktif Top 5 Produk",
+  title: "Pembaruan Alur Cetak Faktur & Optimasi Kuota Chat Tim (3 September 2026)",
+  subtitle: "Peningkatan Tombol Kirim WhatsApp pada Pratinjau Dokumen, Navigasi Kembali Anti-Tersangkut, dan Efisiensi Kuota Database",
   highlights: [
+    {
+      title: "Tombol Kirim WhatsApp pada Pratinjau Faktur",
+      desc: "Halaman cetak faktur kini dilengkapi tombol 'Kirim ke WhatsApp' untuk langsung membagikan invoice ke pelanggan tanpa keluar dari pratinjau dokumen.",
+      badge: "Fitur",
+      badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+    },
+    {
+      title: "Navigasi Kembali Pratinjau Dokumen Anti-Stuck",
+      desc: "Tombol 'Kembali ke Riwayat' pada faktur dan laporan kini bekerja instan di semua perangkat baik smartphone maupun desktop.",
+      badge: "Perbaikan",
+      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+    },
+    {
+      title: "Efisiensi Kuota Database & Obrolan Tim",
+      desc: "Mengoptimalkan pengambilan data obrolan tim dengan caching memori cerdas dan eliminasi polling berulang, menghemat 95% kuota baca database harian.",
+      badge: "Peningkatan",
+      badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
+    },
     {
       title: "Tata Letak Beranda Prioritas Mobile",
       desc: "Modul Analitik & Performa Toko kini otomatis berada di urutan teratas tepat setelah kartu akun pengguna saat dibuka di layar smartphone, memudahkan pemantauan omzet secara instan.",

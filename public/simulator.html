@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tanabrew Mobile Simulator 📱</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background: radial-gradient(circle at 50% 20%, #172033 0%, #0a0e17 100%);
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #f1f5f9;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      overflow-x: hidden;
+      padding-bottom: 40px;
+    }
+
+    /* Top Navigation Toolbar */
+    .top-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      width: 100%;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: #ffffff;
+      padding: 4px;
+      object-fit: contain;
+      box-shadow: 0 4px 12px rgba(46, 125, 50, 0.3);
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge-live {
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(46, 125, 50, 0.2);
+      color: #4ade80;
+      border: 1px solid rgba(74, 222, 128, 0.3);
+      padding: 2px 8px;
+      border-radius: 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .badge-live::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #4ade80;
+      box-shadow: 0 0 8px #4ade80;
+    }
+
+    .controls-section {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .ctrl-group {
+      display: flex;
+      align-items: center;
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 4px;
+      gap: 4px;
+    }
+
+    .ctrl-btn {
+      background: transparent;
+      border: 0;
+      color: #94a3b8;
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .ctrl-btn:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .ctrl-btn.active {
+      background: #2e7d32;
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(46, 125, 50, 0.4);
+    }
+
+    .action-btn {
+      background: rgba(30, 41, 59, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #f1f5f9;
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .action-btn:hover {
+      background: #1e293b;
+      border-color: rgba(255, 255, 255, 0.25);
+      transform: translateY(-1px);
+    }
+
+    .action-btn:active {
+      transform: translateY(0);
+    }
+
+    /* Phone Mockup Canvas */
+    .simulator-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 30px;
+      position: relative;
+    }
+
+    /* Smartphone Bezel Body */
+    .phone-mockup {
+      position: relative;
+      background: #111418;
+      border: 12px solid #222730;
+      border-radius: 54px;
+      box-shadow:
+        0 0 0 2px rgba(255, 255, 255, 0.1),
+        0 25px 60px -15px rgba(0, 0, 0, 0.9),
+        0 0 50px rgba(46, 125, 50, 0.15);
+      overflow: hidden;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Speaker Pill / Dynamic Island */
+    .dynamic-island {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 110px;
+      height: 28px;
+      background: #000000;
+      border-radius: 20px;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 10px;
+      pointer-events: none;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    }
+
+    .camera-lens {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #1c3d5a 0%, #000000 100%);
+      border: 1px solid #1e293b;
+    }
+
+    /* Status Bar */
+    .phone-statusbar {
+      position: absolute;
+      top: 10px;
+      left: 0;
+      right: 0;
+      height: 32px;
+      padding: 0 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffffff;
+      z-index: 40;
+      pointer-events: none;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+    }
+
+    .statusbar-icons {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+    }
+
+    /* Screen Area */
+    .phone-screen {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: #0f172a;
+      display: block;
+    }
+
+    /* Bottom Home Indicator Bar */
+    .home-indicator {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 130px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.4);
+      border-radius: 10px;
+      z-index: 50;
+      pointer-events: none;
+      transition: background 0.2s;
+    }
+
+    /* Hints Bar */
+    .hint-bar {
+      margin-top: 18px;
+      font-size: 13px;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .hint-pill {
+      background: rgba(30, 41, 59, 0.6);
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      color: #94a3b8;
+    }
+
+    .hint-pill b {
+      color: #4ade80;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Toolbar -->
+  <header class="top-toolbar">
+    <div class="brand-section">
+      <img class="brand-logo" src="https://i.ibb.co.com/Q7dCXq9q/logo-tanabrew-hijau.png" alt="Tanabrew">
+      <div class="brand-title">
+        Tanabrew Mobile Simulator
+        <span class="badge-live">Live Connected</span>
+      </div>
+    </div>
+
+    <div class="controls-section">
+      <!-- Device Preset Group -->
+      <div class="ctrl-group">
+        <button type="button" class="ctrl-btn active" onclick="setDevice('s24', 412, 915, this)">Samsung S24</button>
+        <button type="button" class="ctrl-btn" onclick="setDevice('ip15', 393, 852, this)">iPhone 15</button>
+        <button type="button" class="ctrl-btn" onclick="setDevice('redmi', 390, 844, this)">Redmi Note</button>
+      </div>
+
+      <!-- Zoom Preset Group -->
+      <div class="ctrl-group">
+        <button type="button" class="ctrl-btn" onclick="setZoom(0.85, this)">85%</button>
+        <button type="button" class="ctrl-btn active" onclick="setZoom(1.0, this)">100%</button>
+      </div>
+
+      <!-- Action Buttons -->
+      <button type="button" class="action-btn" onclick="reloadPhone()" title="Muat Ulang Simulator">
+        🔄 Muat Ulang
+      </button>
+
+      <a href="/" target="_blank" class="action-btn" style="text-decoration:none;" title="Buka di Layar Penuh">
+        ↗ Buka Fullscreen
+      </a>
+    </div>
+  </header>
+
+  <!-- Phone Mockup -->
+  <main class="simulator-container">
+    <div id="phone" class="phone-mockup" style="width: 412px; height: 890px;">
+      <!-- Dynamic Island / Camera -->
+      <div class="dynamic-island">
+        <div class="camera-lens"></div>
+      </div>
+
+      <!-- Mock Status Bar -->
+      <div class="phone-statusbar">
+        <span id="live-time">09:41</span>
+        <div class="statusbar-icons">
+          <span>📶 5G</span>
+          <span>⚡ 100%</span>
+        </div>
+      </div>
+
+      <!-- Embedded Tanabrew App -->
+      <iframe id="tanabrew-frame" class="phone-screen" src="/" allow="geolocation; microphone; camera; midi; vr; accelerometer; gyroscope; payment; ambient-light-sensor"></iframe>
+
+      <!-- iOS/Android Home Indicator -->
+      <div class="home-indicator"></div>
+    </div>
+
+    <!-- Quick Hints -->
+    <div class="hint-bar">
+      <div class="hint-pill">💡 <b>Scroll & Klik</b> langsung di dalam layar smartphone untuk menguji kasir, faktur, dan chat.</div>
+      <div class="hint-pill">⚡ Versi Web: <b>v3.2.2</b> (Tersinkronisasi Realtime)</div>
+    </div>
+  </main>
+
+  <script>
+    // Update live clock on statusbar
+    function updateClock() {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const clockEl = document.getElementById('live-time');
+      if (clockEl) clockEl.textContent = `${hours}:${minutes}`;
+    }
+    updateClock();
+    setInterval(updateClock, 10000);
+
+    // Change Device Dimensions
+    function setDevice(device, width, height, btn) {
+      document.querySelectorAll('.ctrl-group .ctrl-btn').forEach(b => {
+        if (b.innerText.includes('Samsung') || b.innerText.includes('iPhone') || b.innerText.includes('Redmi')) {
+          b.classList.remove('active');
+        }
+      });
+      btn.classList.add('active');
+
+      const phone = document.getElementById('phone');
+      phone.style.width = width + 'px';
+      phone.style.height = height + 'px';
+    }
+
+    // Set Zoom Scale
+    function setZoom(scale, btn) {
+      document.querySelectorAll('.ctrl-group .ctrl-btn').forEach(b => {
+        if (b.innerText.includes('%')) {
+          b.classList.remove('active');
+        }
+      });
+      btn.classList.add('active');
+
+      const phone = document.getElementById('phone');
+      phone.style.transform = `scale(${scale})`;
+      phone.style.transformOrigin = 'top center';
+    }
+
+    // Reload Phone Frame
+    function reloadPhone() {
+      const frame = document.getElementById('tanabrew-frame');
+      if (frame) {
+        frame.src = frame.src;
+      }
+    }
+  </script>
+</body>
+</html>

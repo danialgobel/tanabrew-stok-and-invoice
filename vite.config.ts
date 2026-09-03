@@ -7,6 +7,12 @@ export default defineConfig(() => ({
   server: {
     host: "::",
     port: 8080,
+    proxy: {
+      "/api": {
+        target: "https://tanabrew-stok-and-invoice.vercel.app",
+        changeOrigin: true,
+      },
+    },
     hmr: {
       overlay: false,
     },

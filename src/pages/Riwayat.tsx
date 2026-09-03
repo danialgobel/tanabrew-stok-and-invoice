@@ -158,15 +158,39 @@ const buildInvoicePrintHtml = (invoice: Invoice, autoPrint: boolean) => {
   <\/script>`
     : "";
 
+  const detectedPhoneMatch = invoice.customer?.match(/(?:08|\+62|62)[0-9]{8,13}/);
+  let cleanDetectedPhone = detectedPhoneMatch ? detectedPhoneMatch[0].replace(/[^0-9]/g, "") : "";
+  if (cleanDetectedPhone.startsWith("0")) {
+    cleanDetectedPhone = "62" + cleanDetectedPhone.slice(1);
+  }
+
+  const itemsSummary = (invoice.items || [])
+    .map((item) => `• ${item.nama_barang} (${item.jumlah} pcs) - Rp ${formatCurrency(item.subtotal)}`)
+    .join("\n");
+
+  const waMsg = `*FAKTUR / INVOICE TANABREW*\n` +
+    `No. Invoice: ${invoice.no_invoice}\n` +
+    `Tanggal: ${formatInvoiceDate(invoice)}\n` +
+    `Customer: ${invoice.customer}\n` +
+    `Gudang: ${invoice.stock_location || "Jogja"}\n\n` +
+    `*Rincian Belanja:*\n${itemsSummary}\n\n` +
+    `*Total Tagihan: Rp ${formatCurrency(invoice.total)}*\n` +
+    `Jumlah Dibayar: Rp ${formatCurrency(invoice.jumlah_dibayar)}\n` +
+    `Status: *${invoice.status}*\n\n` +
+    `Terima kasih telah mempercayakan kebutuhan kopi Anda di Tanabrew! ☕`;
+
   return `<!doctype html><html><head><meta charset="utf-8"><title>Invoice ${escapeHtml(invoice.no_invoice)}</title>
 <style>
   @page { size: A4; margin: 12mm; }
   * { box-sizing: border-box; }
   body { font-family: -apple-system, system-ui, sans-serif; color:#111; margin:0; padding:16px; font-size:13px; }
   .print-toolbar { position:sticky; top:0; z-index:20; display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:-16px -16px 16px; padding:10px 16px; background:#f1f8e9; border-bottom:1px solid #c8e6c9; }
-  .back-button { min-height:42px; border:0; border-radius:10px; background:#2E7D32; color:#fff; padding:0 14px; font-size:15px; font-weight:700; cursor:pointer; }
+  .back-button { min-height:42px; border:0; border-radius:10px; background:#2E7D32; color:#fff; padding:0 14px; font-size:14px; font-weight:700; cursor:pointer; }
   .back-button:active { transform:translateY(1px); }
-  .back-note { display:none; font-size:12px; color:#49624c; }
+  .wa-button { min-height:42px; border:0; border-radius:10px; background:#128C7E; color:#fff; padding:0 14px; font-size:14px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+  .wa-button:active { transform:translateY(1px); }
+  .print-btn { min-height:42px; border:1px solid #a5d6a7; border-radius:10px; background:#fff; color:#2E7D32; padding:0 14px; font-size:14px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+  .print-btn:active { transform:translateY(1px); }
   .head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
   .head img { width:140px; height:auto; }
   .info { text-align:right; line-height:1.5; }
@@ -185,8 +209,9 @@ const buildInvoicePrintHtml = (invoice: Invoice, autoPrint: boolean) => {
   @media print { .no-print { display:none !important; } }
 </style></head><body>
   <div class="print-toolbar no-print">
-    <button type="button" class="back-button" onclick="kembaliTanabrew()">&larr; Kembali ke Tanabrew</button>
-    <span id="back-note" class="back-note">Gunakan tombol kembali browser untuk kembali ke Tanabrew.</span>
+    <button type="button" class="back-button" onclick="kembaliTanabrew()">&larr; Kembali ke Riwayat</button>
+    <button type="button" class="wa-button" onclick="kirimKeWhatsApp()">📱 Kirim ke WhatsApp</button>
+    <button type="button" class="print-btn" onclick="window.print()">🖨️ Cetak Ulang</button>
   </div>
   <div class="head">
     <img src="https://i.ibb.co.com/Q7dCXq9q/logo-tanabrew-hijau.png" alt="Tanabrew" />
@@ -220,24 +245,32 @@ const buildInvoicePrintHtml = (invoice: Invoice, autoPrint: boolean) => {
   </div>
   <script>
     function kembaliTanabrew(){
-      var note = document.getElementById('back-note');
+      if (window.AndroidBridge && window.AndroidBridge.closePrintPreview) {
+        window.AndroidBridge.closePrintPreview();
+        return;
+      }
       try {
-        window.close();
-        setTimeout(function(){
-          if (window.closed) return;
-          if (window.history.length > 1) {
-            window.history.back();
-            return;
-          }
-          if (note) note.style.display = 'inline';
-        }, 160);
-      } catch (error) {
-        if (window.history.length > 1) {
+        if (window.opener) {
+          window.close();
+          return;
+        }
+        if (window.history && window.history.length > 1) {
           window.history.back();
           return;
         }
-        if (note) note.style.display = 'inline';
+      } catch (e) {}
+      window.location.href = '/riwayat';
+    }
+
+    function kirimKeWhatsApp(){
+      var msg = ${JSON.stringify(waMsg)};
+      var phone = ${JSON.stringify(cleanDetectedPhone)};
+      if (window.AndroidBridge && window.AndroidBridge.onWhatsAppShareRequested) {
+        window.AndroidBridge.onWhatsAppShareRequested(msg, phone);
+        return;
       }
+      var target = phone ? "https://wa.me/" + phone + "?text=" + encodeURIComponent(msg) : "https://wa.me/?text=" + encodeURIComponent(msg);
+      window.location.href = target;
     }
   <\/script>
   ${script}

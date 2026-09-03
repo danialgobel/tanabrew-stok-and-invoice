@@ -327,13 +327,21 @@ export const Obrolan = () => {
 
     try {
       const token = await currentUser.getIdToken();
-      const res = await fetch("/api/team-chat", {
+      let res: Response | null = await fetch("/api/team-chat", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
-      });
+      }).catch(() => null);
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res || !res.ok) {
+        res = await fetch("https://tanabrew-stok-and-invoice.vercel.app/api/team-chat", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }).catch(() => null);
+      }
+
+      if (!res || !res.ok) throw new Error(`HTTP ${res?.status || "Offline"}`);
 
       const data = await res.json();
       if (data.success) {
@@ -375,16 +383,28 @@ export const Obrolan = () => {
     }
   }, [currentUser]);
 
-  // Initial and periodic sync via serverless API (Admin SDK backed)
+  // Initial sync and gentle background sync (every 60s when visible to preserve Firestore quota)
   useEffect(() => {
     if (!currentUser) return;
     void fetchChatData(false);
 
     const interval = setInterval(() => {
-      void fetchChatData(true);
-    }, 5000);
+      if (document.visibilityState === "visible") {
+        void fetchChatData(true);
+      }
+    }, 60000);
 
-    return () => clearInterval(interval);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        void fetchChatData(true);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [currentUser, fetchChatData]);
 
   // Scroll to bottom when message arrives
@@ -463,27 +483,40 @@ export const Obrolan = () => {
       let apiSucceeded = false;
       try {
         const token = await currentUser.getIdToken();
-        const apiRes = await fetch("/api/team-chat", {
+        const payload = JSON.stringify({
+          message: text,
+          notifyOnly: Boolean(clientDocId),
+          existingMessageId: clientDocId,
+          recipientUid: activeRecipient?.uid,
+          recipientName: activeRecipient?.name,
+          conversationId,
+        });
+
+        let apiRes: Response | null = await fetch("/api/team-chat", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            message: text,
-            notifyOnly: Boolean(clientDocId),
-            existingMessageId: clientDocId,
-            recipientUid: activeRecipient?.uid,
-            recipientName: activeRecipient?.name,
-            conversationId,
-          }),
-        });
+          body: payload,
+        }).catch(() => null);
 
-        if (apiRes.ok) {
+        if (!apiRes || !apiRes.ok) {
+          apiRes = await fetch("https://tanabrew-stok-and-invoice.vercel.app/api/team-chat", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: payload,
+          }).catch(() => null);
+        }
+
+        if (apiRes && apiRes.ok) {
           apiSucceeded = true;
           void fetchChatData(true);
         } else if (!clientDocId) {
-          const errJson = await apiRes.json().catch(() => ({}));
+          const errJson = apiRes ? await apiRes.json().catch(() => ({})) : {};
           throw new Error(errJson.error || "Gagal menyimpan pesan ke server.");
         }
       } catch (apiErr: any) {
@@ -495,9 +528,13 @@ export const Obrolan = () => {
 
       triggerHaptic(20);
     } catch (err: any) {
+      const rawMsg = String(err?.message || "");
+      const isQuotaError = rawMsg.includes("RESOURCE_EXHAUSTED") || rawMsg.includes("Quota");
       toast({
-        title: "Gagal Mengirim Pesan",
-        description: err.message || "Periksa koneksi internet Anda.",
+        title: isQuotaError ? "Batas Kuota Firebase Tercapai" : "Gagal Mengirim Pesan",
+        description: isQuotaError
+          ? "Batas kuota harian Firebase (Free Tier) sedang penuh. Hubungi Owner/Webdev untuk upgrade ke paket Blaze (pay-as-you-go) atau tunggu reset harian."
+          : (err.message || "Periksa koneksi internet Anda."),
         variant: "destructive",
       });
     } finally {

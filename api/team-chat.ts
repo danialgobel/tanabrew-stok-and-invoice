@@ -122,14 +122,40 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const db = await getAdminDb();
   const { FieldValue } = await import("firebase-admin/firestore");
 
+let chatCache: {
+  timestamp: number;
+  users: any[];
+  messages: any[];
+} | null = null;
+
   // GET: Load all team members and recent messages
   if (req.method === "GET") {
     try {
-      // 1. Update requester's last_active_at
-      await db.collection("users").doc(user.uid).set(
-        { last_active_at: FieldValue.serverTimestamp() },
-        { merge: true }
-      );
+      const nowMs = Date.now();
+
+      // Return cached data if fresh (< 25s) to preserve Firestore quota
+      if (chatCache && (nowMs - chatCache.timestamp < 25000)) {
+        return res.status(200).json({
+          success: true,
+          users: chatCache.users,
+          messages: chatCache.messages,
+        });
+      }
+
+      // 1. Throttle requester's last_active_at write (at most once every 5 minutes)
+      const lastActiveRaw = user.userData?.last_active_at;
+      let lastActiveMs = 0;
+      if (lastActiveRaw) {
+        try {
+          lastActiveMs = lastActiveRaw.toMillis ? lastActiveRaw.toMillis() : new Date(lastActiveRaw).getTime();
+        } catch {}
+      }
+      if (nowMs - lastActiveMs > 5 * 60 * 1000) {
+        void db.collection("users").doc(user.uid).set(
+          { last_active_at: FieldValue.serverTimestamp() },
+          { merge: true }
+        ).catch(() => {});
+      }
 
       // 2. Fetch all users from Firestore and cross-verify with Firebase Auth
       const usersSnap = await db.collection("users").get();
@@ -137,7 +163,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       const authUsersResult = await auth.listUsers().catch(() => null);
       const activeAuthUids = authUsersResult ? new Set(authUsersResult.users.map((u) => u.uid)) : null;
 
-      const nowMs = Date.now();
       const users: any[] = [];
 
       for (const doc of usersSnap.docs) {
@@ -148,14 +173,14 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         }
 
         const data = doc.data();
-        let lastActiveMs = 0;
+        let userLastActive = 0;
         if (data.last_active_at) {
           try {
-            lastActiveMs = data.last_active_at.toMillis ? data.last_active_at.toMillis() : new Date(data.last_active_at).getTime();
+            userLastActive = data.last_active_at.toMillis ? data.last_active_at.toMillis() : new Date(data.last_active_at).getTime();
           } catch {}
         }
         // Online if active within last 5 minutes (300000 ms)
-        const isOnline = doc.id === user.uid || (nowMs - lastActiveMs < 5 * 60 * 1000);
+        const isOnline = doc.id === user.uid || (nowMs - userLastActive < 5 * 60 * 1000);
 
         users.push({
           uid: doc.id,
@@ -171,7 +196,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       // 3. Fetch latest messages from team_messages
       const msgSnap = await db.collection("team_messages")
         .orderBy("created_at", "desc")
-        .limit(100)
+        .limit(60)
         .get();
 
       const messages = msgSnap.docs.map((doc) => ({
@@ -179,9 +204,20 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         ...doc.data(),
       })).reverse();
 
+      // Store in memory cache
+      chatCache = {
+        timestamp: nowMs,
+        users,
+        messages,
+      };
+
       return res.status(200).json({ success: true, users, messages });
     } catch (err: any) {
       console.error("[Team Chat GET Error]", err);
+      // If quota exceeded or error, return cached data if available
+      if (chatCache) {
+        return res.status(200).json({ success: true, users: chatCache.users, messages: chatCache.messages });
+      }
       return res.status(500).json({ success: false, error: err.message || "Gagal memuat obrolan tim" });
     }
   }
@@ -227,13 +263,23 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
         const docRef = await db.collection("team_messages").add(messagePayload);
         savedMessageId = docRef.id;
+        chatCache = null;
       }
 
-      // 2. Update user's last_active_at
-      await db.collection("users").doc(user.uid).set(
-        { last_active_at: FieldValue.serverTimestamp() },
-        { merge: true }
-      );
+      // 2. Throttle user's last_active_at update
+      const lastActiveRaw = user.userData?.last_active_at;
+      let lastActiveMs = 0;
+      if (lastActiveRaw) {
+        try {
+          lastActiveMs = lastActiveRaw.toMillis ? lastActiveRaw.toMillis() : new Date(lastActiveRaw).getTime();
+        } catch {}
+      }
+      if (Date.now() - lastActiveMs > 5 * 60 * 1000) {
+        void db.collection("users").doc(user.uid).set(
+          { last_active_at: FieldValue.serverTimestamp() },
+          { merge: true }
+        ).catch(() => {});
+      }
 
       // 3. Trigger OneSignal notification
       const appId = process.env.ONESIGNAL_APP_ID;
