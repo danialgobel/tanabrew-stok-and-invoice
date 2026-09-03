@@ -61,6 +61,7 @@ export const Obrolan = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [showAllMembersModal, setShowAllMembersModal] = useState(false);
   const [activeRecipient, setActiveRecipient] = useState<TeamMember | null>(null);
+  const [chatTab, setChatTab] = useState<"team" | "direct">("team");
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -590,9 +591,9 @@ export const Obrolan = () => {
   const onlineCount = teamMembers.filter((m) => m.is_online).length;
 
   return (
-    <div className="mx-auto w-full max-w-lg lg:max-w-6xl h-[calc(100dvh-4.5rem)] lg:h-[calc(100vh-2rem)] flex flex-col overflow-hidden px-3 sm:px-6 lg:px-8 pt-3 pb-20 lg:pb-3">
+    <div className="mx-auto w-full max-w-lg lg:max-w-6xl h-[calc(100dvh-4.25rem)] lg:h-[calc(100vh-2rem)] flex flex-col overflow-hidden px-3 sm:px-6 lg:px-8 pt-2.5 pb-[4.25rem] lg:pb-2.5">
       {/* 1. HEADER & STATUS TIM */}
-      <div className="shrink-0 rounded-2xl border border-border bg-card p-3 shadow-xs space-y-2 mb-2 z-10">
+      <div className="shrink-0 rounded-2xl border border-border bg-card p-3 shadow-xs space-y-2.5 mb-2 z-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold border border-primary/20 shrink-0">
@@ -635,94 +636,136 @@ export const Obrolan = () => {
           </div>
         </div>
 
-        {/* 2. ANGGOTA TIM CAROUSEL (DITAMPILKAN DI ATAS DENGAN STATUS ONLINE & PEMILIHAN OBROLAN) */}
-        <div className="pt-2 border-t border-border/50">
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-            {/* Grup Tim Utama Tile */}
-            <div
-              onClick={() => {
-                triggerHaptic(10);
-                setActiveRecipient(null);
-              }}
-              className="flex flex-col items-center gap-0.5 shrink-0 w-13 text-center cursor-pointer group"
-            >
-              <div
-                className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-xs shadow-xs transition-transform group-active:scale-95 ${
-                  !activeRecipient
-                    ? "ring-2 ring-primary bg-primary text-primary-foreground shadow-md shadow-primary/25"
-                    : "ring-1 ring-border bg-muted/60 text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                <Users size={17} />
-              </div>
-              <span className="text-[9px] font-bold text-foreground truncate w-full leading-tight mt-0.5">
-                Grup Tim
-              </span>
-              <span className="text-[7px] font-bold px-1 py-0.1 rounded-full border uppercase bg-muted text-muted-foreground border-border">
-                Umum
-              </span>
-            </div>
-
-            {teamMembers.map((member) => {
-              const isMe = member.uid === currentUser?.uid;
-              const roleBadge = getRoleBadge(member.role);
-              const isOnline = Boolean(member.is_online || isMe);
-              const isSelected = activeRecipient?.uid === member.uid;
-
-              return (
-                <div
-                  key={member.uid}
-                  onClick={() => {
-                    triggerHaptic(10);
-                    if (isMe) {
-                      setActiveRecipient(null);
-                    } else {
-                      setActiveRecipient(member);
-                    }
-                  }}
-                  className="flex flex-col items-center gap-0.5 shrink-0 w-13 text-center cursor-pointer group"
-                >
-                  <div className="relative">
-                    <div
-                      className={`h-10 w-10 rounded-full overflow-hidden flex items-center justify-center font-bold text-xs shadow-xs transition-transform group-active:scale-95 ${
-                        isSelected
-                          ? "ring-2 ring-primary bg-primary/10 text-primary shadow-md shadow-primary/25 scale-105"
-                          : isOnline
-                          ? "ring-2 ring-emerald-500 bg-emerald-500/10 text-emerald-600"
-                          : "ring-1 ring-border bg-muted/60 text-muted-foreground opacity-75"
-                      }`}
-                    >
-                      {member.photo_url ? (
-                        <img
-                          src={member.photo_url}
-                          alt={member.name}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        getInitials(member.name, member.email)
-                      )}
-                    </div>
-                    <span
-                      className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-card ${
-                        isOnline ? "bg-emerald-500 ring-1 ring-emerald-500/30 animate-pulse" : "bg-muted-foreground/40"
-                      }`}
-                      title={isOnline ? "Online" : "Offline"}
-                    />
-                  </div>
-
-                  <span className={`text-[9px] truncate w-full leading-tight mt-0.5 ${
-                    isSelected ? "font-black text-primary" : "font-bold text-foreground"
-                  }`}>
-                    {isMe ? "Saya" : member.name.split(" ")[0]}
-                  </span>
-                  <span className={`text-[7px] font-bold px-1 py-0.1 rounded-full border uppercase ${roleBadge.class}`}>
-                    {roleBadge.label}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+        {/* TAB SWITCHER: GRUP TIM VS PESAN PRIBADI */}
+        <div className="grid grid-cols-2 p-1 rounded-xl bg-muted/60 border border-border/60 gap-1">
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic(8);
+              setChatTab("team");
+              setActiveRecipient(null);
+            }}
+            className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              chatTab === "team" && !activeRecipient
+                ? "bg-card text-foreground shadow-xs border border-border/80"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Users size={14} />
+            <span>Grup Tim</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic(8);
+              setChatTab("direct");
+            }}
+            className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              chatTab === "direct" || activeRecipient
+                ? "bg-card text-foreground shadow-xs border border-border/80"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <MessageSquare size={14} />
+            <span>Pesan Pribadi</span>
+            {onlineCount > 0 && (
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse ml-0.5" />
+            )}
+          </button>
         </div>
+
+        {/* 2. ANGGOTA TIM CAROUSEL (DITAMPILKAN DI MODE GRUP UNTUK QUICK TAP KE DM) */}
+        {chatTab === "team" && (
+          <div className="pt-1.5 border-t border-border/50">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+              {/* Grup Tim Utama Tile */}
+              <div
+                onClick={() => {
+                  triggerHaptic(10);
+                  setActiveRecipient(null);
+                }}
+                className="flex flex-col items-center gap-0.5 shrink-0 w-13 text-center cursor-pointer group"
+              >
+                <div
+                  className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-xs shadow-xs transition-transform group-active:scale-95 ${
+                    !activeRecipient
+                      ? "ring-2 ring-primary bg-primary text-primary-foreground shadow-md shadow-primary/25"
+                      : "ring-1 ring-border bg-muted/60 text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  <Users size={17} />
+                </div>
+                <span className="text-[9px] font-bold text-foreground truncate w-full leading-tight mt-0.5">
+                  Grup Tim
+                </span>
+                <span className="text-[7px] font-bold px-1 py-0.1 rounded-full border uppercase bg-muted text-muted-foreground border-border">
+                  Umum
+                </span>
+              </div>
+
+              {teamMembers.map((member) => {
+                const isMe = member.uid === currentUser?.uid;
+                const roleBadge = getRoleBadge(member.role);
+                const isOnline = Boolean(member.is_online || isMe);
+                const isSelected = activeRecipient?.uid === member.uid;
+
+                return (
+                  <div
+                    key={member.uid}
+                    onClick={() => {
+                      triggerHaptic(10);
+                      if (isMe) {
+                        setActiveRecipient(null);
+                        setChatTab("team");
+                      } else {
+                        setActiveRecipient(member);
+                        setChatTab("direct");
+                      }
+                    }}
+                    className="flex flex-col items-center gap-0.5 shrink-0 w-13 text-center cursor-pointer group"
+                  >
+                    <div className="relative">
+                      <div
+                        className={`h-10 w-10 rounded-full overflow-hidden flex items-center justify-center font-bold text-xs shadow-xs transition-transform group-active:scale-95 ${
+                          isSelected
+                            ? "ring-2 ring-primary bg-primary/10 text-primary shadow-md shadow-primary/25 scale-105"
+                            : isOnline
+                            ? "ring-2 ring-emerald-500 bg-emerald-500/10 text-emerald-600"
+                            : "ring-1 ring-border bg-muted/60 text-muted-foreground opacity-75"
+                        }`}
+                      >
+                        {member.photo_url ? (
+                          <img
+                            src={member.photo_url}
+                            alt={member.name}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          getInitials(member.name, member.email)
+                        )}
+                      </div>
+                      <span
+                        className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-card ${
+                          isOnline ? "bg-emerald-500 ring-1 ring-emerald-500/30 animate-pulse" : "bg-muted-foreground/40"
+                        }`}
+                        title={isOnline ? "Online" : "Offline"}
+                      />
+                    </div>
+
+                    <span className={`text-[9px] truncate w-full leading-tight mt-0.5 ${
+                      isSelected ? "font-black text-primary" : "font-bold text-foreground"
+                    }`}>
+                      {isMe ? "Saya" : member.name.split(" ")[0]}
+                    </span>
+                    <span className={`text-[7px] font-bold px-1 py-0.1 rounded-full border uppercase ${roleBadge.class}`}>
+                      {roleBadge.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* RECIPIENT MODE BANNER (IF DIRECT CONVERSATION ACTIVE) */}
@@ -743,14 +786,105 @@ export const Obrolan = () => {
             }}
             className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1 shrink-0 ml-2 cursor-pointer"
           >
-            ✕ Kembali ke Grup
+            ← Kembali ke Kontak
           </button>
         </div>
       )}
 
-      {/* 3. GROUP / DIRECT CHAT FEED CONTAINER */}
+      {/* 3. GROUP / DIRECT CHAT FEED CONTAINER OR CONTACT DIRECTORY */}
       <div className="flex-1 min-h-0 rounded-2xl border border-border bg-card/60 backdrop-blur-sm flex flex-col overflow-hidden shadow-sm">
-        {/* Messages Feed */}
+        {chatTab === "direct" && !activeRecipient ? (
+          /* DAFTAR KONTAK PESAN PRIBADI */
+          <div className="flex-1 min-h-0 overflow-y-auto p-3.5 sm:p-4 space-y-3">
+            <div className="flex items-center justify-between pb-1 border-b border-border/60">
+              <div>
+                <h3 className="text-xs font-bold text-foreground">Daftar Rekan Tim Tanabrew</h3>
+                <p className="text-[11px] text-muted-foreground">Pilih rekan untuk koordinasi langsung (1-on-1)</p>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                {teamMembers.filter((m) => m.uid !== currentUser?.uid).length} Kontak
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              {teamMembers
+                .filter((m) => m.uid !== currentUser?.uid)
+                .map((member) => {
+                  const roleBadge = getRoleBadge(member.role);
+                  const isOnline = Boolean(member.is_online);
+                  const dmCount = messages.filter(
+                    (m) =>
+                      (m.sender_uid === member.uid && m.recipient_uid === currentUser?.uid) ||
+                      (m.sender_uid === currentUser?.uid && m.recipient_uid === member.uid)
+                  ).length;
+
+                  return (
+                    <div
+                      key={member.uid}
+                      onClick={() => {
+                        triggerHaptic(10);
+                        setActiveRecipient(member);
+                      }}
+                      className="rounded-2xl border border-border bg-card p-3 flex items-center justify-between gap-3 shadow-xs hover:border-primary/40 hover:bg-muted/30 active:scale-[0.99] transition-all cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="relative shrink-0">
+                          <div className="h-11 w-11 rounded-full overflow-hidden bg-primary/10 text-primary font-bold text-sm border border-primary/20 flex items-center justify-center">
+                            {member.photo_url ? (
+                              <img
+                                src={member.photo_url}
+                                alt={member.name}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              getInitials(member.name, member.email)
+                            )}
+                          </div>
+                          <span
+                            className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-card ${
+                              isOnline ? "bg-emerald-500 ring-1 ring-emerald-500/30 animate-pulse" : "bg-muted-foreground/40"
+                            }`}
+                          />
+                        </div>
+
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xs font-bold text-foreground truncate group-hover:text-primary transition-colors">
+                              {member.name}
+                            </h4>
+                            <span className={`px-1.5 py-0.2 rounded-full text-[8px] font-bold border uppercase ${roleBadge.class}`}>
+                              {roleBadge.label}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
+                            <span className={isOnline ? "text-emerald-600 dark:text-emerald-400 font-semibold" : ""}>
+                              {isOnline ? "Online sekarang" : formatLastActive(member.last_active_at)}
+                            </span>
+                            {dmCount > 0 && (
+                              <>
+                                <span>•</span>
+                                <span>{dmCount} pesan</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded-xl bg-primary/10 hover:bg-primary hover:text-primary-foreground text-primary px-3 py-1.5 text-xs font-bold transition-all shrink-0"
+                      >
+                        <MessageSquare size={13} />
+                        <span>Chat</span>
+                      </button>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Messages Feed */}
         <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden space-y-3 p-3.5 sm:p-4 scroll-smooth">
           {displayedMessages.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-card/80 p-8 text-center space-y-2 my-auto shadow-xs">
@@ -832,7 +966,7 @@ export const Obrolan = () => {
         </div>
 
         {/* 4. PINNED BOTTOM INPUT BOX (Docks flush to the bottom) */}
-        <div className="shrink-0 border-t border-border bg-card p-2.5 sm:p-3">
+        <div className="shrink-0 border-t border-border bg-card p-2 sm:p-2.5">
           <form
             onSubmit={handleSendMessage}
             className="flex items-center gap-2"
@@ -848,19 +982,21 @@ export const Obrolan = () => {
               }
               disabled={sending}
               style={{ fontSize: "16px" }}
-              className="flex-1 rounded-xl border border-input bg-background px-4 py-2.5 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring shadow-xs"
+              className="flex-1 rounded-xl border border-input bg-background px-3.5 py-2 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring shadow-xs"
             />
             <button
               type="submit"
               disabled={sending || !inputText.trim()}
-              className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 shrink-0 cursor-pointer"
+              className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 shrink-0 cursor-pointer"
               title="Kirim Pesan"
             >
-              {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+              {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
             </button>
           </form>
         </div>
-      </div>
+      </>
+    )}
+  </div>
 
       {/* 5. MODAL DAFTAR LENGKAP ANGGOTA TIM */}
       {showAllMembersModal && (

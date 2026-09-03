@@ -118,6 +118,7 @@ const Beranda = () => {
   const isAdmin = userProfile?.role === "admin" || userProfile?.role === "owner";
   const isOwner = userProfile?.role === "owner";
   const [showPriceListModal, setShowPriceListModal] = useState(false);
+  const [selectedBestSeller, setSelectedBestSeller] = useState<{ name: string; count: number; percentage: number; rank: number } | null>(null);
 
   const handleLogoClick = () => {
     triggerHaptic(10);
@@ -768,12 +769,12 @@ const Beranda = () => {
         </div>
 
         {/* Main 12-Column Responsive Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="flex flex-col gap-5 lg:grid lg:grid-cols-12 lg:gap-6 lg:items-start">
           
           {/* Main Area (Desktop: 8 Cols) */}
-          <div className="lg:col-span-8 space-y-6 order-2 lg:order-1">
+          <div className="contents lg:block lg:col-span-8 lg:space-y-6">
             {/* Grid 4 Kartu Stok Metrik */}
-            <div className="tanabrew-waterfall-2 grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+            <div className="tanabrew-waterfall-2 grid grid-cols-2 sm:grid-cols-4 gap-3.5 order-4 lg:order-none">
               {loading ? (
                 <>
                   <CardSkeleton lines={2} />
@@ -800,7 +801,7 @@ const Beranda = () => {
             </div>
 
             {/* Analitik & Performa Toko */}
-            <div className="tanabrew-waterfall-3 tanabrew-dashboard-panel rounded-2xl border border-border bg-card p-5 shadow-sm space-y-5">
+            <div className="tanabrew-waterfall-3 tanabrew-dashboard-panel rounded-2xl border border-border bg-card p-5 shadow-sm space-y-5 order-2 lg:order-none">
               <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
                 <div>
                   <h2 className="text-sm font-bold text-foreground">Analitik & Performa Toko</h2>
@@ -940,7 +941,15 @@ const Beranda = () => {
                     ) : (
                       <div className="space-y-2">
                         {topBestSellers.map((item, idx) => (
-                          <div key={item.name} className="rounded-xl border border-border bg-card p-2.5 space-y-1.5">
+                          <button
+                            key={item.name}
+                            type="button"
+                            onClick={() => {
+                              triggerHaptic(10);
+                              setSelectedBestSeller({ ...item, rank: idx + 1 });
+                            }}
+                            className="w-full text-left rounded-xl border border-border bg-card p-2.5 space-y-1.5 hover:border-primary/40 hover:bg-muted/40 transition-all active:scale-[0.98] cursor-pointer group shadow-xs select-none"
+                          >
                             <div className="flex items-center justify-between text-xs gap-2">
                               <div className="flex items-center gap-2 min-w-0">
                                 <span className={`flex h-5 w-5 items-center justify-center rounded-md font-bold text-[10px] shrink-0 ${
@@ -951,9 +960,12 @@ const Beranda = () => {
                                 }`}>
                                   #{idx + 1}
                                 </span>
-                                <span className="font-semibold text-foreground truncate">{item.name}</span>
+                                <span className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">{item.name}</span>
                               </div>
-                              <span className="font-bold text-primary shrink-0 text-xs">{item.count} pcs</span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <span className="font-bold text-primary text-xs">{item.count} pcs</span>
+                                <ChevronRight size={13} className="text-muted-foreground opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                              </div>
                             </div>
                             <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                               <div
@@ -961,7 +973,7 @@ const Beranda = () => {
                                 style={{ width: `${Math.min(100, Math.max(8, item.percentage))}%` }}
                               />
                             </div>
-                          </div>
+                          </button>
                         ))}
                       </div>
                     )}
@@ -971,7 +983,7 @@ const Beranda = () => {
             </div>
 
             {/* Tabel Stok */}
-            <div className="tanabrew-waterfall-4 rounded-2xl border border-border overflow-hidden bg-card shadow-sm">
+            <div className="tanabrew-waterfall-4 rounded-2xl border border-border overflow-hidden bg-card shadow-sm order-7 lg:order-none">
               <div className="bg-primary/10 px-4 py-3 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-primary">Tabel Stok Inventaris</h2>
                 <button
@@ -1030,14 +1042,14 @@ const Beranda = () => {
           </div>
 
           {/* Side Widget Column (Desktop: 4 Cols) */}
-          <div className="lg:col-span-4 space-y-5 order-1 lg:order-2">
+          <div className="contents lg:block lg:col-span-4 lg:space-y-5">
             {/* Header Profil Pengguna */}
             <div 
               onClick={() => {
                 triggerHaptic(10);
                 setProfileModalOpen(true);
               }}
-              className="tanabrew-waterfall-1 tanabrew-glass-card rounded-2xl border border-border/80 p-4 flex items-center justify-between gap-3 shadow-sm cursor-pointer hover:border-primary/40 active:scale-[0.99] transition-all"
+              className="tanabrew-waterfall-1 tanabrew-glass-card rounded-2xl border border-border/80 p-4 flex items-center justify-between gap-3 shadow-sm cursor-pointer hover:border-primary/40 active:scale-[0.99] transition-all order-1 lg:order-none"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-sm border border-primary/20 shrink-0 overflow-hidden">
@@ -1083,7 +1095,7 @@ const Beranda = () => {
 
             {/* Kapsul Ticker Aktivitas Terbaru (Ultra-Compact 1 Baris) */}
             {displayActivities.length > 0 && currentTickerActivity && (
-              <div className="tanabrew-waterfall-2 rounded-xl border border-emerald-500/25 bg-emerald-50/70 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 px-3.5 py-2 transition-all flex items-center justify-between gap-2.5 shadow-sm">
+              <div className="tanabrew-waterfall-2 rounded-xl border border-emerald-500/25 bg-emerald-50/70 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 px-3.5 py-2 transition-all flex items-center justify-between gap-2.5 shadow-sm order-3 lg:order-none">
                 <button
                   type="button"
                   onClick={() => {
@@ -1135,7 +1147,7 @@ const Beranda = () => {
             )}
 
             {/* Ringkasan Cepat Hari Ini (Today's Quick Overview) */}
-            <div className="tanabrew-waterfall-3 grid grid-cols-3 lg:grid-cols-1 gap-2.5">
+            <div className="tanabrew-waterfall-3 grid grid-cols-3 lg:grid-cols-1 gap-2.5 order-5 lg:order-none">
               <div 
                 onClick={() => {
                   triggerHaptic(10);
@@ -1189,7 +1201,7 @@ const Beranda = () => {
             </div>
 
             {notificationStatus !== "granted" && !showWelcomeAnimation && (
-              <div className="tanabrew-card-enter rounded-2xl border border-yellow-200 bg-yellow-50/70 p-4 shadow-sm" style={{ animationDelay: "20ms" }}>
+              <div className="tanabrew-card-enter rounded-2xl border border-yellow-200 bg-yellow-50/70 p-4 shadow-sm order-6 lg:order-none" style={{ animationDelay: "20ms" }}>
                 <div className="flex items-start gap-3">
                   <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-yellow-100 text-yellow-800">
                     <Bell size={16} />
@@ -1213,7 +1225,7 @@ const Beranda = () => {
             )}
 
             {isOwner && showOwnerCommandMode && (
-              <div className="tanabrew-card-enter rounded-2xl border border-amber-500/50 bg-amber-50/40 dark:bg-amber-950/10 p-5 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300" style={{ animationDelay: "50ms" }}>
+              <div className="tanabrew-card-enter rounded-2xl border border-amber-500/50 bg-amber-50/40 dark:bg-amber-950/10 p-5 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300 order-6 lg:order-none" style={{ animationDelay: "50ms" }}>
                 <div className="flex items-center justify-between mb-4 border-b border-amber-500/20 pb-2">
                   <div className="flex items-center gap-2">
                     <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-900/40 px-2.5 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">
@@ -1727,6 +1739,135 @@ const Beranda = () => {
             </div>
           </div>
         )}
+
+        {/* MODAL DETAIL TOP BEST SELLER */}
+        {selectedBestSeller && (() => {
+          const matchedProduct = products.find((p) => p.nama_barang.toLowerCase() === selectedBestSeller.name.toLowerCase());
+          return (
+            <div
+              className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in"
+              onClick={() => setSelectedBestSeller(null)}
+            >
+              <div
+                className="bg-card w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 border border-border shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200 text-foreground"
+                style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header Modal */}
+                <div className="flex items-center justify-between border-b border-border/80 pb-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className={`flex h-8 w-8 items-center justify-center rounded-xl font-black text-xs shrink-0 ${
+                      selectedBestSeller.rank === 1 ? "bg-amber-500/20 text-amber-600 border border-amber-500/30" :
+                      selectedBestSeller.rank === 2 ? "bg-slate-300/30 text-slate-700 dark:text-slate-300 border border-slate-300/40" :
+                      selectedBestSeller.rank === 3 ? "bg-amber-700/20 text-amber-800 dark:text-amber-300 border border-amber-700/30" :
+                      "bg-muted text-muted-foreground border border-border"
+                    }`}>
+                      #{selectedBestSeller.rank}
+                    </span>
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-bold text-foreground truncate max-w-[200px]">
+                        {selectedBestSeller.name}
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground">Peringkat #{selectedBestSeller.rank} Terlaris</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBestSeller(null)}
+                    className="p-1 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer shrink-0"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Performance Stats Cards */}
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="rounded-xl border border-primary/20 bg-primary/10 p-3 space-y-0.5">
+                    <p className="text-[11px] font-semibold text-primary">Total Terjual</p>
+                    <p className="text-xl font-extrabold text-foreground">{selectedBestSeller.count} <span className="text-xs font-medium text-muted-foreground">pcs</span></p>
+                  </div>
+                  <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 space-y-0.5">
+                    <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">Porsi Penjualan</p>
+                    <p className="text-xl font-extrabold text-foreground">{selectedBestSeller.percentage.toFixed(1)}%</p>
+                  </div>
+                </div>
+
+                {/* Stock & Revenue Information */}
+                <div className="rounded-2xl border border-border bg-muted/30 p-3.5 space-y-2.5 text-xs">
+                  <div className="flex items-center justify-between font-bold text-foreground">
+                    <span>Status Stok Inventaris</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      (matchedProduct?.total_stok || 0) <= 0
+                        ? "bg-destructive/15 text-destructive"
+                        : (matchedProduct?.total_stok || 0) <= 5
+                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                        : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                    }`}>
+                      {(matchedProduct?.total_stok || 0) <= 0 ? "Stok Habis" : (matchedProduct?.total_stok || 0) <= 5 ? "Stok Menipis" : "Stok Aman"}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 text-center pt-1">
+                    <div className="rounded-lg bg-card border border-border p-2">
+                      <p className="text-[10px] text-muted-foreground">Gudang Jogja</p>
+                      <p className="text-sm font-bold text-foreground">{matchedProduct?.stok_jogja ?? "-"}</p>
+                    </div>
+                    <div className="rounded-lg bg-card border border-border p-2">
+                      <p className="text-[10px] text-muted-foreground">Gudang Lombok</p>
+                      <p className="text-sm font-bold text-foreground">{matchedProduct?.stok_lombok ?? "-"}</p>
+                    </div>
+                    <div className="rounded-lg bg-primary/10 border border-primary/20 p-2">
+                      <p className="text-[10px] text-primary font-semibold">Total Stok</p>
+                      <p className="text-sm font-black text-primary">{matchedProduct?.total_stok ?? "-"}</p>
+                    </div>
+                  </div>
+
+                  {matchedProduct?.harga ? (
+                    <div className="border-t border-border/60 pt-2 flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Harga Satuan:</span>
+                      <span className="font-bold text-foreground">Rp {fmt(matchedProduct.harga)}</span>
+                    </div>
+                  ) : null}
+
+                  {matchedProduct?.harga ? (
+                    <div className="flex items-center justify-between text-xs font-semibold">
+                      <span className="text-muted-foreground">Total Omzet Produk:</span>
+                      <span className="font-black text-primary font-mono text-sm">
+                        Rp {fmt(matchedProduct.harga * selectedBestSeller.count)}
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* Quick Actions */}
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedBestSeller(null);
+                      navigate("/cetak-invoice");
+                    }}
+                    className="flex items-center justify-center gap-1.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 px-3 text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer"
+                  >
+                    <Plus size={14} />
+                    <span>Buat Invoice</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedBestSeller(null);
+                      navigate("/update-stok");
+                    }}
+                    className="flex items-center justify-center gap-1.5 rounded-xl border border-border bg-card hover:bg-muted py-2.5 px-3 text-xs font-bold text-foreground transition-all active:scale-95 cursor-pointer"
+                  >
+                    <Package size={14} />
+                    <span>Cek Stok</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* MODAL PENGATURAN PRICE LIST RAHASIA (5-TAP LOGO) */}
         <PriceListManagerModal

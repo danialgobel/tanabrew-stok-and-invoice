@@ -16,7 +16,7 @@ import {
   type DocumentData,
   type QueryDocumentSnapshot,
 } from "firebase/firestore";
-import { Activity, Download, Edit, Eye, FileText, Package, Printer, RotateCcw, Search, Trash2, X, Smartphone, Receipt } from "lucide-react";
+import { Activity, Download, Edit, Eye, FileText, Package, Printer, RotateCcw, Search, Trash2, X, Smartphone, Receipt, Share2, Copy, ExternalLink } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { addActivityLog } from "@/lib/activityLog";
 import { triggerHaptic } from "@/lib/haptics";
@@ -338,6 +338,11 @@ const Riwayat = () => {
   const [loadingReport, setLoadingReport] = useState<ReportType | null>(null);
   const [sendingWaInvoiceId, setSendingWaInvoiceId] = useState<string | null>(null);
   const [printingInvoiceId, setPrintingInvoiceId] = useState<string | null>(null);
+  const [waShareInvoice, setWaShareInvoice] = useState<Invoice | null>(null);
+  const [waPhone, setWaPhone] = useState("");
+  const [waCustomText, setWaCustomText] = useState("");
+  const [sharingPdf, setSharingPdf] = useState(false);
+  const [copiedText, setCopiedText] = useState(false);
 
   useEffect(() => {
     if (!actionNotice) return;
@@ -863,6 +868,126 @@ const Riwayat = () => {
     void handleSendWhatsAppInvoice(invoice, false);
   };
 
+  const openWhatsAppModal = (invoice: Invoice) => {
+    triggerHaptic(10);
+    setWaShareInvoice(invoice);
+
+    // Deteksi nomor telepon jika tertulis di nama customer (contoh: "Budi (08123456789)")
+    let detectedPhone = "";
+    const match = invoice.customer?.match(/(?:08|\+62|62)[0-9]{8,13}/);
+    if (match) {
+      detectedPhone = match[0];
+    }
+    setWaPhone(detectedPhone);
+
+    const itemsSummary = (invoice.items || [])
+      .map((item) => `• ${item.nama_barang} (${item.jumlah} pcs) - Rp ${formatCurrency(item.subtotal)}`)
+      .join("\n");
+
+    const msg = `*FAKTUR / INVOICE TANABREW*\n` +
+      `No. Invoice: ${invoice.no_invoice}\n` +
+      `Tanggal: ${formatInvoiceDate(invoice)}\n` +
+      `Customer: ${invoice.customer}\n` +
+      `Gudang: ${invoice.stock_location || "Jogja"}\n\n` +
+      `*Rincian Belanja:*\n${itemsSummary}\n\n` +
+      `*Total Tagihan: Rp ${formatCurrency(invoice.total)}*\n` +
+      `Jumlah Dibayar: Rp ${formatCurrency(invoice.jumlah_dibayar)}\n` +
+      `Status: *${invoice.status}*\n\n` +
+      `Terima kasih telah mempercayakan kebutuhan kopi Anda di Tanabrew! ☕`;
+
+    setWaCustomText(msg);
+  };
+
+  const handleDirectWhatsAppSend = () => {
+    if (!waShareInvoice) return;
+    triggerHaptic(10);
+    let cleanPhone = waPhone.replace(/[^0-9]/g, "");
+    if (cleanPhone.startsWith("0")) {
+      cleanPhone = "62" + cleanPhone.slice(1);
+    }
+    const url = cleanPhone
+      ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(waCustomText)}`
+      : `https://wa.me/?text=${encodeURIComponent(waCustomText)}`;
+    window.open(url, "_blank");
+  };
+
+  const handleNativeSharePdf = async () => {
+    if (!waShareInvoice) return;
+    setSharingPdf(true);
+    try {
+      const { base64, fileName } = await generateInvoicePdfBlob(waShareInvoice);
+      const byteCharacters = atob(base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const file = new File([byteArray], fileName, { type: "application/pdf" });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: `Invoice ${waShareInvoice.no_invoice}`,
+          text: `Faktur Pembelian Tanabrew No. ${waShareInvoice.no_invoice}`,
+        });
+        toast({ title: "Berhasil Dibagikan", description: "Dokumen PDF invoice berhasil dibagikan." });
+      } else {
+        const blob = new Blob([byteArray], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast({
+          title: "PDF Diunduh",
+          description: "File PDF telah diunduh, Anda dapat melampirkannya langsung di chat WhatsApp.",
+        });
+      }
+    } catch (err: any) {
+      if (err?.name !== "AbortError") {
+        console.warn("Share PDF error:", err);
+        toast({ title: "Gagal Berbagi", description: "Terjadi kendala membagikan file PDF.", variant: "destructive" });
+      }
+    } finally {
+      setSharingPdf(false);
+    }
+  };
+
+  const handleCopyWaText = async () => {
+    try {
+      await navigator.clipboard.writeText(waCustomText);
+      setCopiedText(true);
+      toast({ title: "Teks Disalin", description: "Format rincian invoice berhasil disalin ke clipboard." });
+      setTimeout(() => setCopiedText(false), 2000);
+    } catch {
+      toast({ title: "Gagal Menyalin", description: "Gagal menyalin teks rincian.", variant: "destructive" });
+    }
+  };
+
+  const handleDownloadInvoicePdf = async () => {
+    if (!waShareInvoice) return;
+    try {
+      const { base64, fileName } = await generateInvoicePdfBlob(waShareInvoice);
+      const byteCharacters = atob(base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "Unduhan Berhasil", description: `File ${fileName} berhasil disimpan.` });
+    } catch {
+      toast({ title: "Gagal Mengunduh", description: "Kendala memproses dokumen PDF.", variant: "destructive" });
+    }
+  };
+
   const handleSendWhatsAppInvoice = async (invoice: Invoice, force = true) => {
     if (!currentUser || !userProfile) {
       toast({ title: "Error", description: "Data user belum siap, silakan coba lagi.", variant: "destructive" });
@@ -1094,11 +1219,11 @@ const Riwayat = () => {
           </button>
           <button
             type="button"
-            onClick={() => handleSendWhatsAppInvoice(invoice, true)}
-            disabled={!isAdmin || sendingWaInvoiceId === invoice.id}
+            onClick={() => openWhatsAppModal(invoice)}
+            disabled={!isAdmin}
             className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            <Smartphone size={15} /> {sendingWaInvoiceId === invoice.id ? "Mengirim..." : "Kirim WhatsApp"}
+            <Smartphone size={15} /> Kirim WhatsApp
           </button>
         </div>
 
@@ -1460,9 +1585,9 @@ const Riwayat = () => {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleSendWhatsAppInvoice(invoice, true);
+                              openWhatsAppModal(invoice);
                             }}
-                            disabled={!isAdmin || sendingWaInvoiceId === invoice.id}
+                            disabled={!isAdmin}
                             className="inline-flex items-center justify-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1.5 text-xs font-semibold text-white disabled:opacity-50 transition-colors cursor-pointer"
                           >
                             <Smartphone size={13} /> WA
@@ -1655,6 +1780,122 @@ const Riwayat = () => {
         onCancel={() => setDeleteTarget(null)}
         onConfirm={() => void handleDeleteInvoice()}
       />
+
+      {/* MODAL SHARE WHATSAPP INVOICE */}
+      {waShareInvoice && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in"
+          onClick={() => setWaShareInvoice(null)}
+        >
+          <div
+            className="bg-card w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 border border-border shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200 text-foreground"
+            style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header Modal */}
+            <div className="flex items-center justify-between border-b border-border/80 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25">
+                  <Smartphone size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-foreground">Kirim Invoice ke WhatsApp</h3>
+                  <p className="text-xs text-muted-foreground font-mono">{waShareInvoice.no_invoice}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setWaShareInvoice(null)}
+                className="p-1 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Target Phone Input */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                <span>Nomor WhatsApp Tujuan</span>
+                <span className="text-[10px] text-muted-foreground">Customer: {waShareInvoice.customer}</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="tel"
+                  value={waPhone}
+                  onChange={(e) => setWaPhone(e.target.value)}
+                  placeholder="Contoh: 08123456789 atau 628..."
+                  className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Jika dikosongkan, WhatsApp akan meminta Anda memilih kontak langsung saat terbuka.
+              </p>
+            </div>
+
+            {/* Message Preview */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <label className="font-semibold text-foreground">Pesan / Rincian Invoice</label>
+                <button
+                  type="button"
+                  onClick={handleCopyWaText}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline cursor-pointer"
+                >
+                  <Copy size={12} />
+                  <span>{copiedText ? "Tersalin!" : "Salin Teks"}</span>
+                </button>
+              </div>
+              <textarea
+                value={waCustomText}
+                onChange={(e) => setWaCustomText(e.target.value)}
+                rows={5}
+                className="w-full rounded-xl border border-input bg-muted/40 p-2.5 text-[11px] font-mono leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40 resize-none"
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-2 pt-1">
+              <button
+                type="button"
+                onClick={handleDirectWhatsAppSend}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 px-4 text-xs font-bold shadow-md shadow-emerald-600/25 transition-all cursor-pointer active:scale-95"
+              >
+                <Smartphone size={16} />
+                <span>Buka Chat WhatsApp</span>
+                <ExternalLink size={13} className="opacity-80" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleNativeSharePdf}
+                disabled={sharingPdf}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 px-4 text-xs font-bold shadow-md shadow-primary/20 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+              >
+                <Share2 size={16} />
+                <span>{sharingPdf ? "Menyiapkan Dokumen PDF..." : "Bagikan File Dokumen PDF (Share)"}</span>
+              </button>
+
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleDownloadInvoicePdf}
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-border bg-card hover:bg-muted py-2 px-3 text-xs font-semibold text-foreground transition-all cursor-pointer"
+                >
+                  <Download size={14} />
+                  <span>Unduh PDF</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWaShareInvoice(null)}
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-border bg-muted/60 hover:bg-muted py-2 px-3 text-xs font-semibold text-muted-foreground transition-all cursor-pointer"
+                >
+                  <span>Tutup</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
     </>
   );

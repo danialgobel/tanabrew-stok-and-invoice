@@ -21,6 +21,7 @@ import { collection, query, where, onSnapshot, limit } from "firebase/firestore"
 import { db } from "@/lib/firebase";
 import { CURRENT_RELEASE } from "@/config/appRelease";
 import { openAppChangelogModal } from "@/components/AppUpdateAnnouncementModal";
+import { useUnreadChat } from "@/hooks/useUnreadChat";
 
 interface DesktopSidebarProps {
   onSecretLogoClick?: () => void;
@@ -30,6 +31,7 @@ export const DesktopSidebar = ({ onSecretLogoClick }: DesktopSidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { currentUser, userProfile, logout } = useAuth();
+  const { hasUnreadChat } = useUnreadChat();
   const [hasUnpaid, setHasUnpaid] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>("");
   const [currentDate, setCurrentDate] = useState<string>("");
@@ -110,7 +112,7 @@ export const DesktopSidebar = ({ onSecretLogoClick }: DesktopSidebarProps) => {
     { path: "/update-stok", label: "Update Stok", icon: Package, desc: "Gudang & Inventaris" },
     { path: "/cetak-invoice", label: "Cetak Invoice", icon: FileText, desc: "Kasir & Transaksi" },
     { path: "/riwayat", label: "Riwayat", icon: History, badge: hasUnpaid, desc: "Laporan & Log" },
-    { path: "/obrolan", label: "Obrolan Tim", icon: MessageSquare, desc: "Pesan & Koordinasi" },
+    { path: "/obrolan", label: "Obrolan Tim", icon: MessageSquare, badge: hasUnreadChat, desc: "Pesan & Koordinasi" },
     { path: "/akun", label: "Akun Saya", icon: User, desc: "Profil & Pengaturan" },
     ...(isOwnerOrDev
       ? [{ path: "/god-mode", label: "Developer", icon: ShieldAlert, desc: "Akses Developer" }]

@@ -5,11 +5,13 @@ import { useAuth } from "@/context/AuthContext";
 import { triggerHaptic } from "@/lib/haptics";
 import { collection, query, where, onSnapshot, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useUnreadChat } from "@/hooks/useUnreadChat";
 
 const BottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { userProfile } = useAuth();
+  const { hasUnreadChat } = useUnreadChat();
   const [hasUnpaid, setHasUnpaid] = useState(false);
 
   useEffect(() => {
@@ -34,7 +36,7 @@ const BottomNav = () => {
     { path: "/", label: "Beranda", icon: Home },
     { path: "/update-stok", label: "Stok", icon: Package },
     { path: "/cetak-invoice", label: "Invoice", icon: FileText },
-    { path: "/obrolan", label: "Obrolan", icon: MessageSquare },
+    { path: "/obrolan", label: "Obrolan", icon: MessageSquare, badge: hasUnreadChat },
     { path: "/riwayat", label: "Riwayat", icon: History, badge: hasUnpaid },
     { path: "/akun", label: "Akun", icon: User },
   ];
