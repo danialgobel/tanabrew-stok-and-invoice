@@ -15,8 +15,8 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.2.0",
-  versionLabel: "v3.2.0",
+  version: "3.2.1",
+  versionLabel: "v3.2.1",
   releaseDate: "3 September 2026",
   title: "Pembaruan Fitur & Antarmuka Tanabrew (3 September 2026)",
   subtitle: "Tata Letak Beranda Prioritas Mobile, Pemisahan Obrolan Tim & Pribadi, Modal Cepat WhatsApp, dan Pop-up Interaktif Top 5 Produk",
@@ -46,8 +46,8 @@ export const CURRENT_RELEASE: AppReleaseInfo = {
       badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
     {
-      title: "Modal Cepat Berbagi Invoice ke WhatsApp (Share & PDF)",
-      desc: "Tombol WA di Riwayat kini membuka pop-up cepat untuk mengirim rincian invoice langsung ke nomor WhatsApp customer, membagikan file PDF asli via Web Share HP, atau mengunduh dokumen PDF secara mandiri.",
+      title: "Modal Cepat Berbagi Invoice ke WhatsApp (Buka Dokumen & PDF)",
+      desc: "Tombol WA di Riwayat kini membuka pop-up cepat untuk mengirim rincian invoice langsung ke chat WhatsApp customer, membuka pratinjau dokumen PDF resmi untuk dicetak atau dibagikan ke aplikasi apa saja di HP, serta mengunduh file secara mandiri.",
       badge: "Fitur",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },

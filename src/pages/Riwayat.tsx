@@ -911,46 +911,50 @@ const Riwayat = () => {
     window.open(url, "_blank");
   };
 
-  const handleNativeSharePdf = async () => {
-    if (!waShareInvoice) return;
-    setSharingPdf(true);
+  const handleSharePdfInvoice = (invoice: Invoice) => {
+    triggerHaptic(10);
     try {
-      const { base64, fileName } = await generateInvoicePdfBlob(waShareInvoice);
-      const byteCharacters = atob(base64);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const file = new File([byteArray], fileName, { type: "application/pdf" });
-
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: `Invoice ${waShareInvoice.no_invoice}`,
-          text: `Faktur Pembelian Tanabrew No. ${waShareInvoice.no_invoice}`,
-        });
-        toast({ title: "Berhasil Dibagikan", description: "Dokumen PDF invoice berhasil dibagikan." });
+      const popup = window.open("", "_blank");
+      if (popup) {
+        popup.document.open();
+        popup.document.write(buildInvoicePrintHtml(invoice, true));
+        popup.document.close();
       } else {
-        const blob = new Blob([byteArray], { type: "application/pdf" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = fileName;
-        a.click();
-        URL.revokeObjectURL(url);
-        toast({
-          title: "PDF Diunduh",
-          description: "File PDF telah diunduh, Anda dapat melampirkannya langsung di chat WhatsApp.",
-        });
+        const iframe = document.createElement("iframe");
+        iframe.style.position = "fixed";
+        iframe.style.left = "-9999px";
+        iframe.style.top = "0";
+        iframe.style.width = "1px";
+        iframe.style.height = "1px";
+        iframe.style.opacity = "0";
+        document.body.appendChild(iframe);
+
+        const idoc = iframe.contentWindow?.document;
+        if (!idoc) {
+          document.body.removeChild(iframe);
+          toast({ title: "Error", description: "Gagal membuka halaman dokumen", variant: "destructive" });
+          return;
+        }
+
+        idoc.open();
+        idoc.write(buildInvoicePrintHtml(invoice, false));
+        idoc.close();
+
+        setTimeout(() => {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+          setTimeout(() => document.body.removeChild(iframe), 1000);
+        }, 700);
       }
-    } catch (err: any) {
-      if (err?.name !== "AbortError") {
-        console.warn("Share PDF error:", err);
-        toast({ title: "Gagal Berbagi", description: "Terjadi kendala membagikan file PDF.", variant: "destructive" });
-      }
-    } finally {
-      setSharingPdf(false);
+
+      toast({
+        title: "Dokumen PDF Siap",
+        description: "Halaman dokumen terbuka. Anda dapat mencetak atau membagikan langsung ke aplikasi WhatsApp.",
+      });
+      void updateInvoicePrintStatus(invoice);
+    } catch (err) {
+      console.warn("Error sharing PDF via print preview:", err);
+      toast({ title: "Gagal", description: "Gagal membuka dokumen cetak.", variant: "destructive" });
     }
   };
 
@@ -1867,12 +1871,11 @@ const Riwayat = () => {
 
               <button
                 type="button"
-                onClick={handleNativeSharePdf}
-                disabled={sharingPdf}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 px-4 text-xs font-bold shadow-md shadow-primary/20 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+                onClick={() => handleSharePdfInvoice(waShareInvoice)}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 px-4 text-xs font-bold shadow-md shadow-primary/20 transition-all cursor-pointer active:scale-95"
               >
                 <Share2 size={16} />
-                <span>{sharingPdf ? "Menyiapkan Dokumen PDF..." : "Bagikan File Dokumen PDF (Share)"}</span>
+                <span>Buka Dokumen PDF & Bagikan</span>
               </button>
 
               <div className="grid grid-cols-2 gap-2 pt-1">
