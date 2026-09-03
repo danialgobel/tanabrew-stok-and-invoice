@@ -189,41 +189,57 @@ export const Obrolan = () => {
     }
   }, [currentUser, sortTeamMembers, userProfile]);
 
-  // Direct realtime listeners for Firestore
+  // Stable references to prevent listener churn and rapid unwatch/watch cycling
+  const currentUserRef = useRef(currentUser);
+  currentUserRef.current = currentUser;
+
+  const userProfileRef = useRef(userProfile);
+  userProfileRef.current = userProfile;
+
+  const sortTeamMembersRef = useRef(sortTeamMembers);
+  sortTeamMembersRef.current = sortTeamMembers;
+
+  const discoverFallbackMembersRef = useRef(discoverFallbackMembers);
+  discoverFallbackMembersRef.current = discoverFallbackMembers;
+
+  // Sync active presence once per session safely without triggering effect loops
+  const hasSyncedPresence = useRef(false);
   useEffect(() => {
+    if (!currentUser?.uid || hasSyncedPresence.current) return;
+    hasSyncedPresence.current = true;
+    void updateDoc(doc(db, "users", currentUser.uid), {
+      last_active_at: serverTimestamp(),
+    }).catch(() => {});
+  }, [currentUser?.uid]);
+
+  // Direct realtime listeners for Firestore - stable lifecycle tied only to currentUser.uid
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+
     setLoading(true);
 
-    // Sync active presence
-    if (currentUser) {
-      void updateDoc(doc(db, "users", currentUser.uid), {
-        last_active_at: serverTimestamp(),
-      }).catch(() => {});
-    }
-
     // Seed self immediately so UI is never blank
-    if (currentUser) {
-      setTeamMembers((prev) => {
-        if (prev.some((m) => m.uid === currentUser.uid)) return prev;
-        return [
-          {
-            uid: currentUser.uid,
-            name: userProfile?.name || currentUser.displayName || currentUser.email?.split("@")[0] || "Saya",
-            email: userProfile?.email || currentUser.email || "",
-            role: userProfile?.role || "staff",
-            photo_url: userProfile?.photo_url || "",
-            is_online: true,
-          },
-          ...prev,
-        ];
-      });
-    }
+    setTeamMembers((prev) => {
+      if (prev.some((m) => m.uid === currentUser.uid)) return prev;
+      return [
+        {
+          uid: currentUser.uid,
+          name: userProfileRef.current?.name || currentUser.displayName || currentUser.email?.split("@")[0] || "Saya",
+          email: userProfileRef.current?.email || currentUser.email || "",
+          role: userProfileRef.current?.role || "staff",
+          photo_url: userProfileRef.current?.photo_url || "",
+          is_online: true,
+        },
+        ...prev,
+      ];
+    });
 
     // Realtime users / team members subscription
     const unsubUsers = onSnapshot(
       collection(db, "users"),
       (snap) => {
         if (snap.empty) {
-          void discoverFallbackMembers();
+          void discoverFallbackMembersRef.current();
           setLoading(false);
           return;
         }
@@ -244,11 +260,11 @@ export const Obrolan = () => {
             role: data.role || "staff",
             photo_url: data.photo_url || "",
             last_active_at: data.last_active_at,
-            is_online: isOnline || (currentUser && d.id === currentUser.uid),
+            is_online: isOnline || (currentUserRef.current && d.id === currentUserRef.current.uid),
           } as TeamMember;
         });
 
-        const sorted = sortTeamMembers(members);
+        const sorted = sortTeamMembersRef.current(members);
         setTeamMembers(sorted);
         try {
           sessionStorage.setItem("tanabrew_cached_team_members", JSON.stringify(sorted));
@@ -257,7 +273,7 @@ export const Obrolan = () => {
       },
       (err) => {
         console.warn("Users realtime listener notice (using resilient fallback):", err);
-        void discoverFallbackMembers();
+        void discoverFallbackMembersRef.current();
         setLoading(false);
       }
     );
@@ -301,7 +317,7 @@ export const Obrolan = () => {
       unsubUsers();
       unsubMessages();
     };
-  }, [currentUser, discoverFallbackMembers, sortTeamMembers, userProfile]);
+  }, [currentUser?.uid]);
 
   // Scroll to bottom when message arrives
   useEffect(() => {
@@ -388,30 +404,38 @@ export const Obrolan = () => {
         console.warn("Direct Firestore write notice (falling back to Serverless API):", clientWriteErr);
       }
 
-      // Update user presence
-      void updateDoc(doc(db, "users", currentUser.uid), {
-        last_active_at: serverTimestamp(),
-      }).catch(() => {});
-
       // 2. Dispatch push notification or perform fallback write via API
-      const token = await currentUser.getIdToken();
-      await fetch("/api/team-chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          message: text,
-          notifyOnly: Boolean(clientDocId),
-          existingMessageId: clientDocId,
-          recipientUid: activeRecipient?.uid,
-          recipientName: activeRecipient?.name,
-          conversationId,
-        }),
-      }).catch((apiErr) => {
+      let apiSucceeded = false;
+      try {
+        const token = await currentUser.getIdToken();
+        const apiRes = await fetch("/api/team-chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            message: text,
+            notifyOnly: Boolean(clientDocId),
+            existingMessageId: clientDocId,
+            recipientUid: activeRecipient?.uid,
+            recipientName: activeRecipient?.name,
+            conversationId,
+          }),
+        });
+
+        if (apiRes.ok) {
+          apiSucceeded = true;
+        } else if (!clientDocId) {
+          const errJson = await apiRes.json().catch(() => ({}));
+          throw new Error(errJson.error || "Gagal menyimpan pesan ke server.");
+        }
+      } catch (apiErr: any) {
+        if (!clientDocId && !apiSucceeded) {
+          throw apiErr;
+        }
         console.warn("Push notification dispatch warning:", apiErr);
-      });
+      }
 
       triggerHaptic(20);
     } catch (err: any) {

@@ -408,40 +408,38 @@ const Riwayat = () => {
   }, []);
 
   useEffect(() => {
-    const q = query(collection(db, "activity_logs"), orderBy("created_at", "desc"), firestoreLimit(80));
     const unsubscribe = onSnapshot(
-      q,
+      collection(db, "activity_logs"),
       (snap) => {
         const data = snap.docs.map((logDoc) => ({ id: logDoc.id, ...logDoc.data() } as ActivityLog));
-        setActivityLogs(data);
+        data.sort((a, b) => getDateValue(b.created_at) - getDateValue(a.created_at));
+        setActivityLogs(data.slice(0, 100));
         setLoadingLogs(false);
       },
       () => {
-        toast({ title: "Error", description: "Gagal memuat riwayat aktivitas.", variant: "destructive" });
         setLoadingLogs(false);
       },
     );
 
     return () => unsubscribe();
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
-    const q = query(collection(db, "stock_movements"), orderBy("created_at", "desc"), firestoreLimit(80));
     const unsubscribe = onSnapshot(
-      q,
+      collection(db, "stock_movements"),
       (snap) => {
         const data = snap.docs.map((movementDoc) => ({ id: movementDoc.id, ...movementDoc.data() } as StockMovement));
-        setStockMovements(data);
+        data.sort((a, b) => getDateValue(b.created_at) - getDateValue(a.created_at));
+        setStockMovements(data.slice(0, 100));
         setLoadingStockMovements(false);
       },
       () => {
-        toast({ title: "Error", description: "Gagal memuat riwayat mutasi stok.", variant: "destructive" });
         setLoadingStockMovements(false);
       },
     );
 
     return () => unsubscribe();
-  }, [toast]);
+  }, []);
 
   const filteredInvoices = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
