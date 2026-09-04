@@ -78,12 +78,12 @@ Rincian mendalam mengenai arsitektur, skema basis data, dan operasional tersedia
 
 ---
 
-## Pengembang Utama (Creator & Lead Developer)
+## Pengembang & Kontributor (Contributors)
 
-Sistem **Tanabrew Stock & Invoice** dirancang, dibangun dari nol, dan dikembangkan secara penuh oleh:
-
-**Danial Gobel** ([@danialgobel](https://github.com/danialgobel))  
-*Creator & Lead Developer of Tanabrew Stock & Invoice*
+* **Danial Gobel** ([@danialgobel](https://github.com/danialgobel)) — **Creator & Lead Developer**  
+  *Perancang dan pembangun arsitektur sistem Tanabrew Stock & Invoice secara penuh dari nol.*
+* **Google Antigravity** — **AI Pair Programming Assistant**  
+  *Asisten kecerdasan buatan dalam audit arsitektur, pengujian stabilitas kode, dan otomasi rilis.*
 
 ---
 
