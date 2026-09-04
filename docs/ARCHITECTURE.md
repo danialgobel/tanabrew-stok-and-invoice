@@ -70,3 +70,19 @@ graph TD
    - Semua akses objek wajib menggunakan chaining aman: `userProfile?.role`, `invoice.items?.map(...)`, dengan fallback default (`|| []`, `|| 0`, `|| ""`).
 3. **Penyelarasan Waktu Terpusat (`src/lib/dateUtils.ts`)**:
    - Seluruh parsing tanggal transaksi, pembuatan nomor invoice (`INV/TNB/YYYY/MM/XXXX`), dan grafik omzet wajib mengacu pada fungsi pembantu di `dateUtils.ts`.
+
+---
+
+## ⚡ 5. Arsitektur Efisiensi Kuota Firestore & Master Cron Vercel
+
+1. **Perlindungan Kuota Firebase Spark (Anti-Overquota)**:
+   - **Bounded Listeners**: Seluruh kueri realtime ke `invoices` di Beranda dibatasi maksimal `limit(80)`, sedangkan `activity_logs` dan `stock_movements` di Riwayat dibatasi `limit(50)`.
+   - **Eliminasi Listener Duplikat**: Menggabungkan listener duplikat pada halaman yang sama menjadi satu aliran data terpusat.
+   - **Shared Memory Cache (`useProducts.ts`)**: Katalog produk kopi menggunakan *singleton module-level listener* sehingga navigasi antar-halaman membaca langsung dari memori (0 read tambahan).
+   - **Visibility-Aware Polling (`useUnreadChat.ts`)**: Pengecekan pesan obrolan belum dibaca dibatasi setiap 60 detik dan otomatis berhenti saat tab diminimalkan / tidak aktif.
+
+2. **Master Cron Dispatcher Vercel (`api/cron-dispatcher.ts`)**:
+   - **Jadwal Eksekusi**: Berjalan otomatis sekali setiap hari pukul **23:00 WIB** via Vercel Cron (`0 16 * * *` UTC).
+   - **Distribusi Otomatis ke Seluruh Pengguna**: Menarik seluruh akun aktif di koleksi `users` (Owner, Admin, Staff, Kasir) secara otomatis dari database tanpa perlu registrasi manual.
+   - **Resilient Multi-User Fallback**: Jika kuota harian Firestore habis (`8 RESOURCE_EXHAUSTED`), fungsi otomatis mengalihkan penerima ke tim inti dan variabel environment `RECIPIENT_EMAILS` di Vercel agar email laporan harian tidak pernah gagal terkirim.
+

@@ -105,12 +105,17 @@ Digunakan oleh `AutoUpdateBanner.tsx` untuk sinkronisasi pembaruan tanpa logout 
 
 ## ⚡ 3. Aturan Optimasi Kueri & Anti-Overquota
 
-Untuk menjaga agar aplikasi tetap beroperasi secara **100% gratis** di bawah kuota Firebase Spark (50.000 baca/hari):
+Untuk menjaga agar aplikasi tetap beroperasi secara **100% gratis** di bawah kuota Firebase Spark (50.000 baca/hari & 20.000 tulis/hari):
 
-1. **Selalu Gunakan Batasan Kueri (`limit`)**:
-   - Kueri log aktivitas wajib membatasi hasil maksimal: `limit(10)` atau `limit(20)`.
-   - Dilarang keras melakukan kueri `getDocs(collection(db, "activity_logs"))` tanpa `limit` dan tanpa filter tanggal.
-2. **Kueri Riwayat Berdasarkan Tanggal**:
-   - Halaman Riwayat menerapkan filter tanggal (`where("createdAt", ">=", startOfDay)`).
-3. **Penyimpanan Gambar**:
-   - Gambar statis dan aset price list diletakkan di `/public/` (CDN Vercel), **bukan** di Firebase Storage untuk menghemat biaya transmisi cloud.
+1. **Selalu Gunakan Batasan Kueri Realtime (`limit`)**:
+   - Kueri log aktivitas dan pergerakan stok wajib membatasi hasil maksimal: `limit(50)` dengan `orderBy("created_at", "desc")`.
+   - Kueri faktur dashboard di halaman Beranda dibatasi maksimal `limit(80)` dalam **satu listener tunggal** (dilarang membuat listener duplikat).
+2. **Kueri Riwayat Berdasarkan Tanggal & Kursor Paginasi**:
+   - Halaman Riwayat menerapkan paginasi kursor (`startAfter(invoiceCursor)`) dengan batas `firestoreLimit(60)` per halaman.
+3. **Pemanfaatan Shared In-Memory Cache**:
+   - Katalog produk `useProducts.ts` menggunakan *singleton module cache* untuk mencegah pembacaan berulang saat pengguna berpindah tab/halaman.
+4. **Pencegahan Polling Agresif di Latar Belakang**:
+   - Pemeriksaan pesan obrolan tim di `useUnreadChat.ts` dibatasi setiap 60 detik dan dihentikan saat tab browser tidak aktif (*visibility-aware*).
+5. **Penyimpanan Aset Statis**:
+   - Gambar statis, logo, dan dokumen aset price list diletakkan di `/public/` (CDN Vercel), **bukan** di Firebase Storage untuk menghemat kuota transmisi cloud.
+

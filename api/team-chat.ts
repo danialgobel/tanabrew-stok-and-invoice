@@ -133,8 +133,8 @@ let chatCache: {
     try {
       const nowMs = Date.now();
 
-      // Return cached data if fresh (< 25s) to preserve Firestore quota
-      if (chatCache && (nowMs - chatCache.timestamp < 25000)) {
+      // Return cached data if fresh (< 45s) to preserve Firestore quota
+      if (chatCache && (nowMs - chatCache.timestamp < 45000)) {
         return res.status(200).json({
           success: true,
           users: chatCache.users,

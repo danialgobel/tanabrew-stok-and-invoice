@@ -446,12 +446,12 @@ const Riwayat = () => {
   }, []);
 
   useEffect(() => {
+    const q = query(collection(db, "activity_logs"), orderBy("created_at", "desc"), firestoreLimit(50));
     const unsubscribe = onSnapshot(
-      collection(db, "activity_logs"),
+      q,
       (snap) => {
         const data = snap.docs.map((logDoc) => ({ id: logDoc.id, ...logDoc.data() } as ActivityLog));
-        data.sort((a, b) => getDateValue(b.created_at) - getDateValue(a.created_at));
-        setActivityLogs(data.slice(0, 100));
+        setActivityLogs(data);
         setLoadingLogs(false);
       },
       () => {
@@ -463,12 +463,12 @@ const Riwayat = () => {
   }, []);
 
   useEffect(() => {
+    const q = query(collection(db, "stock_movements"), orderBy("created_at", "desc"), firestoreLimit(50));
     const unsubscribe = onSnapshot(
-      collection(db, "stock_movements"),
+      q,
       (snap) => {
         const data = snap.docs.map((movementDoc) => ({ id: movementDoc.id, ...movementDoc.data() } as StockMovement));
-        data.sort((a, b) => getDateValue(b.created_at) - getDateValue(a.created_at));
-        setStockMovements(data.slice(0, 100));
+        setStockMovements(data);
         setLoadingStockMovements(false);
       },
       () => {

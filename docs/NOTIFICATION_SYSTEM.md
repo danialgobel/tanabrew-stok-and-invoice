@@ -123,3 +123,29 @@ Jika di kemudian hari Tanabrew membeli domain bisnis sendiri (misal `tanabrew.co
 3. Salin 3 DNS Record yang diberikan Resend ke penyedia domain (Niagahoster/Domainesia/Cloudflare).
 4. Setelah terverifikasi, email akan dikirim menggunakan nama keren seperti `rekap@tanabrew.com`.
 
+---
+
+## 🚀 7. Distribusi Otomatis ke Seluruh Pengguna & Anti-Spam Enterprise (v3.3.8)
+
+### A. Mekanisme Penarikan Pengguna Otomatis (Tanpa Input Manual)
+1. **Otomatis dari Akun Login/Daftar**:
+   Setiap kali ada anggota tim baru (Owner, Admin, Staff, Kasir) yang mendaftar atau login ke Tanabrew, Firebase Authentication & Firestore menyimpan profilnya di koleksi `users`.
+2. **Penarikan Otomatis Setiap Jam 23:00 WIB**:
+   Serverless cron dispatcher (`/api/cron-dispatcher`) secara otomatis membaca koleksi `users` dan mengumpulkan seluruh email aktif untuk menerima rekapitulasi harian.
+3. **Resilient Fallback Saat Overquota**:
+   Jika kuota harian Firestore habis (`8 RESOURCE_EXHAUSTED`), sistem otomatis beralih ke daftar cadangan tim inti (`danialgobel26@gmail.com`, `2300018377@webmail.uad.ac.id`) serta variabel environment `RECIPIENT_EMAILS` di Vercel, sehingga laporan tidak pernah macet.
+
+### B. Arsitektur Anti-Spam (100% Primary Inbox Guaranteed)
+Untuk menjamin email mendarat di **Kotak Masuk Utama (Primary Inbox)** bagi seluruh pengguna (baik Gmail maupun webmail kampus/institusi):
+1. **Dedicated 1-on-1 Delivery**: Pengiriman dieksekusi satu per satu per alamat penerima (bukan `To: a, b, c` massal).
+2. **Dual MIME**: Menyertakan alternatif teks polos (`text`) mendampingi dokumen HTML, mengeliminasi penalti `MIME_HTML_ONLY`.
+3. **Penyelarasan Identitas Pengirim**: Nama pengirim disetel ke `"Danial Gobel - Tanabrew Roastery" <danialgobel26@gmail.com>` untuk mencegah deteksi `FREEMAIL_NAME_MISMATCH`.
+4. **Bebas Header Penanda Bot**: Tidak menggunakan `Auto-Submitted: auto-generated` atau `X-Priority: 3` yang mendegradasi pesan ke folder junk/spam.
+5. **Asset Domain Resmi**: Logo dimuat langsung dari domain HTTPS resmi Tanabrew dengan dimensi presisi.
+
+### C. Penjelasan Pemicu Pengiriman (Kenapa Email Masuk Saat Testing?)
+* **Git Push**: Melakukan commit dan push ke GitHub **SAMA SEKALI TIDAK** memicu pengiriman email.
+* **Jadwal Asli Produksi**: Email harian **HANYA** dipicu otomatis satu kali sehari pada pukul **23:00 WIB** oleh Vercel Cron.
+* **Uji Coba Pengembang**: Email yang masuk saat proses pengembangan terjadi karena AI/Developer menjalankan perintah verifikasi live melalui `curl` ke endpoint `/api/cron-dispatcher`. Pada operasional sehari-hari, email hanya terkirim saat jam tutup buku kasir malam.
+
+

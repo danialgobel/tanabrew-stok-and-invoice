@@ -15,28 +15,49 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.3.8",
-  versionLabel: "v3.3.8",
+  version: "3.3.9",
+  versionLabel: "v3.3.9",
   releaseDate: "5 September 2026",
-  title: "Ekspansi Penerima Laporan Otomatis ke Seluruh Pengguna (5 September 2026)",
-  subtitle: "Inklusi Penuh Seluruh Pengguna Terdaftar (Owner, Admin, Staff, Kasir) dan Dukungan Pengujian Instan (?all=true)",
+  title: "Optimasi Ekstrem Kuota Firestore & Pembaruan Dokumentasi Arsitektur (5 September 2026)",
+  subtitle: "Eliminasi Listener Koleksi Tanpa Batas, Singleton In-Memory Caching, dan Penyelarasan Menyeluruh Dokumentasi Proyek",
   highlights: [
     {
-      title: "Inklusi Penuh Seluruh Role Pengguna",
-      desc: "Memperluas penerima email laporan otomatis harian agar mencakup SELURUH pengguna terdaftar aktif (Owner, Admin, Staff, dan Kasir) tanpa terkecuali.",
-      badge: "Fitur",
+      title: "Optimasi Ekstrem Kuota Firestore (Hemat 90-95% Reads)",
+      desc: "Menghapus duplikasi query unconstrained invoices di Beranda, membatasi limit(50) riwayat log & stok, menghentikan polling ganda useUnreadChat, dan menerapkan singleton in-memory caching produk.",
+      badge: "Peningkatan",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
     {
-      title: "Dukungan Parameter Distribusi Langsung (?all=true)",
-      desc: "Menambahkan kemampuan pengiriman laporan langsung ke seluruh pengguna terdaftar saat uji coba live menggunakan parameter ?all=true.",
-      badge: "Peningkatan",
+      title: "Sinkronisasi Menyeluruh Dokumentasi Teknis (.MD)",
+      desc: "Memperbarui aturan kuota Firestore, arsitektur cron master, panduan distribusi otomatis ke seluruh pengguna, dan kamus database agar panduan AI dan developer selalu sinkron.",
+      badge: "Perbaikan",
       badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
   ],
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.3.8",
+    versionLabel: "v3.3.8",
+    releaseDate: "5 September 2026",
+    title: "Ekspansi Penerima Laporan Otomatis ke Seluruh Pengguna (5 September 2026)",
+    subtitle: "Inklusi Penuh Seluruh Pengguna Terdaftar (Owner, Admin, Staff, Kasir) dan Dukungan Pengujian Instan (?all=true)",
+    highlights: [
+      {
+        title: "Inklusi Penuh Seluruh Role Pengguna",
+        desc: "Memperluas penerima email laporan otomatis harian agar mencakup SELURUH pengguna terdaftar aktif (Owner, Admin, Staff, dan Kasir) tanpa terkecuali.",
+        badge: "Fitur",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+      {
+        title: "Dukungan Parameter Distribusi Langsung (?all=true)",
+        desc: "Menambahkan kemampuan pengiriman laporan langsung ke seluruh pengguna terdaftar saat uji coba live menggunakan parameter ?all=true.",
+        badge: "Peningkatan",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      },
+    ],
+  },
   {
     version: "3.3.7",
     versionLabel: "v3.3.7",

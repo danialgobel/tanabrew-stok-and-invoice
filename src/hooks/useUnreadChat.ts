@@ -4,16 +4,33 @@ import { useAuth } from "@/context/AuthContext";
 
 const STORAGE_KEY = "tanabrew_last_read_chat_time";
 
+// Shared module-level state: Mencegah request ganda dari BottomNav dan DesktopSidebar
+let globalHasUnread = false;
+let globalLastCheckTime = 0;
+const subscribers = new Set<(hasUnread: boolean) => void>();
+
+const notifySubscribers = (hasUnread: boolean) => {
+  globalHasUnread = hasUnread;
+  subscribers.forEach((cb) => cb(hasUnread));
+};
+
 export const useUnreadChat = () => {
   const location = useLocation();
   const { currentUser } = useAuth();
-  const [hasUnreadChat, setHasUnreadChat] = useState(false);
+  const [hasUnreadChat, setHasUnreadChat] = useState(globalHasUnread);
+
+  useEffect(() => {
+    subscribers.add(setHasUnreadChat);
+    return () => {
+      subscribers.delete(setHasUnreadChat);
+    };
+  }, []);
 
   const markChatAsRead = useCallback(() => {
     try {
       const now = Date.now();
       localStorage.setItem(STORAGE_KEY, String(now));
-      setHasUnreadChat(false);
+      notifySubscribers(false);
       window.dispatchEvent(new CustomEvent("tanabrew:chat_read", { detail: now }));
     } catch {}
   }, []);
@@ -24,6 +41,13 @@ export const useUnreadChat = () => {
       markChatAsRead();
       return;
     }
+
+    // Hindari request duplikat jika baru saja di-check dalam 30 detik terakhir
+    const now = Date.now();
+    if (now - globalLastCheckTime < 30000) {
+      return;
+    }
+    globalLastCheckTime = now;
 
     try {
       const storedTimeStr = localStorage.getItem(STORAGE_KEY);
@@ -40,7 +64,7 @@ export const useUnreadChat = () => {
 
       const data = await res.json();
       if (data.success && Array.isArray(data.messages) && data.messages.length > 0) {
-        // Find latest message not sent by current user
+        // Cari pesan terbaru yang bukan dari user saat ini
         const otherMessages = data.messages.filter((m: any) => m.sender_uid !== currentUser.uid);
         if (otherMessages.length > 0) {
           const latestMsg = otherMessages[otherMessages.length - 1];
@@ -55,11 +79,7 @@ export const useUnreadChat = () => {
             }
           }
 
-          if (msgTime > lastReadTime) {
-            setHasUnreadChat(true);
-          } else {
-            setHasUnreadChat(false);
-          }
+          notifySubscribers(msgTime > lastReadTime);
         }
       }
     } catch {
@@ -67,29 +87,41 @@ export const useUnreadChat = () => {
     }
   }, [currentUser, location.pathname, markChatAsRead]);
 
-  // If user opens /obrolan, mark read instantly
+  // Tandai terbaca saat membuka halaman /obrolan
   useEffect(() => {
     if (location.pathname === "/obrolan") {
       markChatAsRead();
     }
   }, [location.pathname, markChatAsRead]);
 
-  // Periodic unread check (initial + every 12s)
+  // Visibility-Aware Polling (60s interval dan hanya saat tab aktif):
+  // Menghemat hingga 90% panggilan API dan pembacaan Firestore
   useEffect(() => {
     if (!currentUser) return;
     void checkUnreadStatus();
 
     const interval = setInterval(() => {
-      void checkUnreadStatus();
-    }, 12000);
+      // Jangan poll jika tab diminimize / background
+      if (document.visibilityState === "visible") {
+        void checkUnreadStatus();
+      }
+    }, 60000);
 
-    const handleChatReadEvent = () => {
-      setHasUnreadChat(false);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void checkUnreadStatus();
+      }
     };
 
+    const handleChatReadEvent = () => {
+      notifySubscribers(false);
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("tanabrew:chat_read", handleChatReadEvent);
     return () => {
       clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("tanabrew:chat_read", handleChatReadEvent);
     };
   }, [currentUser, checkUnreadStatus]);

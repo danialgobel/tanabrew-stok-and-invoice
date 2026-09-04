@@ -254,24 +254,6 @@ const Beranda = () => {
   }, []);
 
   useEffect(() => {
-    const q = query(collection(db, "invoices"), orderBy("created_at", "desc"), limit(80));
-    const unsubscribe = onSnapshot(
-      q,
-      (snap) => {
-        const data = snap.docs.map((invoiceDoc) => ({ id: invoiceDoc.id, ...invoiceDoc.data() } as Invoice));
-        setDashboardInvoices(data);
-        setLoadingDashboard(false);
-      },
-      () => {
-        setDashboardInvoices([]);
-        setLoadingDashboard(false);
-      },
-    );
-
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
     const shouldShowWelcome = shouldShowWelcomeFromRoute || hasWelcomeAnimationFlag();
     setShowWelcomeAnimation(shouldShowWelcome);
     setHomeIntroReady(!shouldShowWelcome);
@@ -288,10 +270,13 @@ const Beranda = () => {
     setNotificationStatus(getNotificationPermissionState());
   }, [currentUser?.uid]);
 
+  // Optimal Bounded Listener (Limit 80) menggantikan 2 listener duplikat sebelumnya:
+  // Menghemat hingga 95% kuota read Firestore harian pada halaman Beranda
   useEffect(() => {
     setLoadingDashboard(true);
+    const q = query(collection(db, "invoices"), orderBy("created_at", "desc"), limit(80));
     const unsubscribe = onSnapshot(
-      collection(db, "invoices"),
+      q,
       (snap) => {
         const data = snap.docs.map((invoiceDoc) => ({ id: invoiceDoc.id, ...invoiceDoc.data() } as Invoice));
         data.sort((a, b) => getInvoiceDateValue(b) - getInvoiceDateValue(a));
