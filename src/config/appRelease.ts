@@ -15,28 +15,43 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.3.9",
-  versionLabel: "v3.3.9",
+  version: "3.3.10",
+  versionLabel: "v3.3.10",
   releaseDate: "5 September 2026",
-  title: "Optimasi Ekstrem Kuota Firestore & Pembaruan Dokumentasi Arsitektur (5 September 2026)",
-  subtitle: "Eliminasi Listener Koleksi Tanpa Batas, Singleton In-Memory Caching, dan Penyelarasan Menyeluruh Dokumentasi Proyek",
+  title: "Penyempurnaan Rasio Asli Logo Email Laporan Tanabrew (5 September 2026)",
+  subtitle: "Penerapan Container Sel Terproteksi dan Height Auto Responsif pada Seluruh 5 Model Laporan Email",
   highlights: [
     {
-      title: "Optimasi Ekstrem Kuota Firestore (Hemat 90-95% Reads)",
-      desc: "Menghapus duplikasi query unconstrained invoices di Beranda, membatasi limit(50) riwayat log & stok, menghentikan polling ganda useUnreadChat, dan menerapkan singleton in-memory caching produk.",
-      badge: "Peningkatan",
-      badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-    },
-    {
-      title: "Sinkronisasi Menyeluruh Dokumentasi Teknis (.MD)",
-      desc: "Memperbarui aturan kuota Firestore, arsitektur cron master, panduan distribusi otomatis ke seluruh pengguna, dan kamus database agar panduan AI dan developer selalu sinkron.",
+      title: "Rasio Asli Logo Email Bebas Distorsi (Anti-Gepeng)",
+      desc: "Memperbaiki rendering logo Tanabrew Roastery dengan rasio proporsional alami (848x256), container sel terproteksi 170px, dan height auto dinamis agar logo tidak terdistorsi atau gepeng di Gmail Android, iOS, maupun Desktop.",
       badge: "Perbaikan",
-      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
   ],
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.3.9",
+    versionLabel: "v3.3.9",
+    releaseDate: "5 September 2026",
+    title: "Optimasi Ekstrem Kuota Firestore & Pembaruan Dokumentasi Arsitektur (5 September 2026)",
+    subtitle: "Eliminasi Listener Koleksi Tanpa Batas, Singleton In-Memory Caching, dan Penyelarasan Menyeluruh Dokumentasi Proyek",
+    highlights: [
+      {
+        title: "Optimasi Ekstrem Kuota Firestore (Hemat 90-95% Reads)",
+        desc: "Menghapus duplikasi query unconstrained invoices di Beranda, membatasi limit(50) riwayat log & stok, menghentikan polling ganda useUnreadChat, dan menerapkan singleton in-memory caching produk.",
+        badge: "Peningkatan",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+      {
+        title: "Sinkronisasi Menyeluruh Dokumentasi Teknis (.MD)",
+        desc: "Memperbarui aturan kuota Firestore, arsitektur cron master, panduan distribusi otomatis ke seluruh pengguna, dan kamus database agar panduan AI dan developer selalu sinkron.",
+        badge: "Perbaikan",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      },
+    ],
+  },
   {
     version: "3.3.8",
     versionLabel: "v3.3.8",
