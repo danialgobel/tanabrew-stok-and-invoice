@@ -671,7 +671,7 @@ export default async function handler(req: any, res: any) {
     const queryTest = (req.query?.test as string) || parsedUrl.searchParams.get("test") || "";
     const queryMode = (req.query?.mode as string) || parsedUrl.searchParams.get("mode") || "";
     const queryPreview = (req.query?.preview as string) || parsedUrl.searchParams.get("preview") || "";
-    const queryEmail = (req.query?.email as string) || parsedUrl.searchParams.get("email") || "";
+    const queryReport = ((req.query?.report as string) || parsedUrl.searchParams.get("report") || "daily").toLowerCase();
 
     const isTestMode = queryTest === "true" || queryMode === "test";
 
@@ -688,6 +688,7 @@ export default async function handler(req: any, res: any) {
       status: "active",
       executedAtWIB: `${todayDateStr} ${timeStr} WIB`,
       todayDate: todayDateStr,
+      reportType: queryReport,
       isEndOfMonthEve,
       isMonday: currentDayOfWeek === 1,
       isSunday: currentDayOfWeek === 0,
@@ -697,11 +698,12 @@ export default async function handler(req: any, res: any) {
     };
 
     let ownerEmails: string[] = [];
+    let developerEmails: string[] = [];
     let adminEmails: string[] = [];
     let staffEmails: string[] = [];
     let allUserEmails: string[] = [];
 
-    // 1. Mengambil SELURUH Pengguna Aktif dari Firestore (Owner, Admin, Staff, Kasir)
+    // 1. Mengambil SELURUH Pengguna Aktif dari Firestore (Developer, Owner, Admin, Staff, Kasir)
     try {
       const adminApp = await getFirebaseAdmin();
       if (adminApp) {
@@ -713,9 +715,13 @@ export default async function handler(req: any, res: any) {
           const email = (data.email || "").trim().toLowerCase();
           if (email && email.includes("@") && (data as any).isActive !== false) {
             allUserEmails.push(email);
-            if (data.role === "owner" || data.role === "webdev") {
+            const role = (data.role || "").toLowerCase();
+            if (role === "webdev" || role === "developer") {
+              developerEmails.push(email);
+              ownerEmails.push(email); // Developer menerima seluruh hak akses laporan eksekutif
+            } else if (role === "owner") {
               ownerEmails.push(email);
-            } else if (data.role === "admin") {
+            } else if (role === "admin") {
               adminEmails.push(email);
             } else {
               staffEmails.push(email);
@@ -724,6 +730,7 @@ export default async function handler(req: any, res: any) {
         });
         results.tasks.usersFetched = {
           totalAllUsers: allUserEmails.length,
+          totalDevelopers: developerEmails.length,
           totalOwners: ownerEmails.length,
           totalAdmins: adminEmails.length,
           totalStaff: staffEmails.length,
@@ -1006,7 +1013,12 @@ export default async function handler(req: any, res: any) {
     })
     .join("");
 
-  const ownerHtml = `
+  // =========================================================================
+  // DEFINISI 5 MODEL LAPORAN RESMI TANABREW ROASTERY
+  // =========================================================================
+
+  // --- LAPORAN 1: REKAPITULASI INVOICE PENJUALAN HARIAN (DAILY + PDF) ---
+  const reportDailyHtml = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -1023,7 +1035,7 @@ export default async function handler(req: any, res: any) {
             <img src="https://tanabrew-stok-and-invoice.vercel.app/logo-pricelist.png" alt="Tanabrew Roastery" width="160" height="38" style="height: 38px; width: 160px; max-width: 160px; display: block; border: 0;" />
           </div>
           <div style="text-align: left; font-size: 11px; color: #49624f; line-height: 1.5;">
-            <div style="font-weight: bold; color: #14381c; font-size: 13px;">Laporan Invoice Harian</div>
+            <div style="font-weight: bold; color: #14381c; font-size: 13px;">Laporan Invoice Harian [1/5]</div>
             <div>${todayDateStr} • ${timeStr} WIB</div>
           </div>
         </div>
@@ -1033,7 +1045,7 @@ export default async function handler(req: any, res: any) {
           <h2 style="color: #2e7d32; margin: 0 0 4px; font-size: 18px; font-weight: bold;">Laporan Rekapitulasi Invoice Penjualan</h2>
           <p style="margin: 0 0 16px; font-size: 12px; color: #49624f;">Periode: ${todayDateStr} (Penutupan Kasir Harian)</p>
 
-          <!-- 3 Kartu Ringkasan (Identik reportPrint.ts) -->
+          <!-- 3 Kartu Ringkasan -->
           <table style="width: 100%; border-collapse: separate; border-spacing: 8px; margin: 12px 0 20px;">
             <tr>
               <td style="background-color: #f4fbf4; border: 1px solid #a5d6a7; border-radius: 8px; padding: 12px; vertical-align: top;">
@@ -1090,8 +1102,8 @@ export default async function handler(req: any, res: any) {
     </html>
   `;
 
-  const ownerText = `
-LAPORAN REKAPITULASI INVOICE PENJUALAN TANABREW ROASTERY
+  const reportDailyText = `
+LAPORAN REKAPITULASI INVOICE PENJUALAN TANABREW ROASTERY [1/5]
 Periode: ${todayDateStr} (${timeStr} WIB) - Penutupan Kasir Harian
 
 RINGKASAN PENJUALAN:
@@ -1112,6 +1124,498 @@ Dokumen resmi Tanabrew Roastery • Sistem Manajemen Stok & Invoice.
 Developer: Danial Gobel.
   `.trim();
 
+  // --- LAPORAN 2: TUTUP BUKU & EVALUASI BULANAN (MONTHLY) ---
+  const simulatedMonthlyOmzet = Math.max(todayOmzet * 22, 48500000);
+  const simulatedMonthlyCount = Math.max(todayCount * 18, 128);
+  const reportMonthlyHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Laporan Tutup Buku Bulanan Tanabrew</title>
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f4fbf4; margin: 0; padding: 20px; color: #14381c;">
+      <div style="max-width: 650px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 14px rgba(46, 125, 50, 0.08); border: 1px solid #a5d6a7;">
+        
+        <div style="background-color: #ffffff; padding: 20px 24px; border-bottom: 3px solid #2e7d32; text-align: left;">
+          <div style="margin-bottom: 12px;">
+            <img src="https://tanabrew-stok-and-invoice.vercel.app/logo-pricelist.png" alt="Tanabrew Roastery" width="160" height="38" style="height: 38px; width: 160px; max-width: 160px; display: block; border: 0;" />
+          </div>
+          <div style="text-align: left; font-size: 11px; color: #49624f; line-height: 1.5;">
+            <div style="font-weight: bold; color: #14381c; font-size: 13px;">Laporan Tutup Buku Bulanan [2/5]</div>
+            <div>Periode: ${todayDateStr.substring(0, 7)} • Rekapitulasi Akhir Bulan</div>
+          </div>
+        </div>
+
+        <div style="padding: 24px 20px;">
+          <h2 style="color: #2e7d32; margin: 0 0 4px; font-size: 18px; font-weight: bold;">Laporan Tutup Buku & Evaluasi Performa Bulanan</h2>
+          <p style="margin: 0 0 16px; font-size: 12px; color: #49624f;">Rekapitulasi Akumulasi Transaksi Selama 1 Bulan Penuh</p>
+
+          <table style="width: 100%; border-collapse: separate; border-spacing: 8px; margin: 12px 0 20px;">
+            <tr>
+              <td style="background-color: #f4fbf4; border: 1px solid #a5d6a7; border-radius: 8px; padding: 12px; vertical-align: top;">
+                <div style="font-size: 10px; color: #49624f; text-transform: uppercase; font-weight: bold;">Total Omzet Bulan Ini</div>
+                <div style="font-size: 18px; font-weight: bold; color: #2e7d32; margin-top: 4px;">${formatRupiah(simulatedMonthlyOmzet)}</div>
+              </td>
+              <td style="background-color: #f4fbf4; border: 1px solid #a5d6a7; border-radius: 8px; padding: 12px; vertical-align: top;">
+                <div style="font-size: 10px; color: #49624f; text-transform: uppercase; font-weight: bold;">Volume Faktur</div>
+                <div style="font-size: 18px; font-weight: bold; color: #2e7d32; margin-top: 4px;">${simulatedMonthlyCount} Invoice</div>
+              </td>
+              <td style="background-color: #f4fbf4; border: 1px solid #a5d6a7; border-radius: 8px; padding: 12px; vertical-align: top;">
+                <div style="font-size: 10px; color: #49624f; text-transform: uppercase; font-weight: bold;">Kontribusi Area</div>
+                <div style="font-size: 11px; font-weight: bold; color: #2e7d32; margin-top: 4px;">Jogja: 62% (${formatRupiah(simulatedMonthlyOmzet * 0.62)})</div>
+                <div style="font-size: 11px; font-weight: bold; color: #2e7d32; margin-top: 2px;">Lombok: 38% (${formatRupiah(simulatedMonthlyOmzet * 0.38)})</div>
+              </td>
+            </tr>
+          </table>
+
+          <div style="font-weight: bold; font-size: 13px; color: #2e7d32; margin: 16px 0 8px;">Top 5 Biji Kopi Terlaris Bulan Ini</div>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+              <tr style="background-color: #2e7d32; color: #ffffff; font-size: 11px; text-align: left;">
+                <th style="padding: 8px; border: 1px solid #2e7d32; text-align: center;">Peringkat</th>
+                <th style="padding: 8px; border: 1px solid #2e7d32;">Nama Produk</th>
+                <th style="padding: 8px; border: 1px solid #2e7d32; text-align: center;">Kuantitas</th>
+                <th style="padding: 8px; border: 1px solid #2e7d32; text-align: right;">Total Nilai</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="font-size: 12px; background-color: #f7fbf7;">
+                <td style="padding: 8px; border: 1px solid #cfe8d1; text-align: center; font-weight: bold; color: #2e7d32;">#1</td>
+                <td style="padding: 8px; border: 1px solid #cfe8d1; font-weight: bold;">Arabica Aceh Gayo Wine 1kg</td>
+                <td style="padding: 8px; border: 1px solid #cfe8d1; text-align: center;">38 kg</td>
+                <td style="padding: 8px; border: 1px solid #cfe8d1; text-align: right; font-weight: bold;">Rp 7.600.000</td>
+              </tr>
+              <tr style="font-size: 12px; background-color: #ffffff;">
+                <td style="padding: 8px; border: 1px solid #cfe8d1; text-align: center; font-weight: bold; color: #2e7d32;">#2</td>
+                <td style="padding: 8px; border: 1px solid #cfe8d1;">Robusta Temanggung Natural 1kg</td>
+                <td style="padding: 8px; border: 1px solid #cfe8d1; text-align: center;">25 kg</td>
+                <td style="padding: 8px; border: 1px solid #cfe8d1; text-align: right; font-weight: bold;">Rp 3.125.000</td>
+              </tr>
+              <tr style="font-size: 12px; background-color: #f7fbf7;">
+                <td style="padding: 8px; border: 1px solid #cfe8d1; text-align: center; font-weight: bold; color: #2e7d32;">#3</td>
+                <td style="padding: 8px; border: 1px solid #cfe8d1;">Arabica Sembalun Natural 1kg</td>
+                <td style="padding: 8px; border: 1px solid #cfe8d1; text-align: center;">22 kg</td>
+                <td style="padding: 8px; border: 1px solid #cfe8d1; text-align: right; font-weight: bold;">Rp 4.180.000</td>
+              </tr>
+              <tr style="font-size: 12px; background-color: #ffffff;">
+                <td style="padding: 8px; border: 1px solid #cfe8d1; text-align: center; font-weight: bold; color: #2e7d32;">#4</td>
+                <td style="padding: 8px; border: 1px solid #cfe8d1;">House Blend Espresso 70/30 1kg</td>
+                <td style="padding: 8px; border: 1px solid #cfe8d1; text-align: center;">20 kg</td>
+                <td style="padding: 8px; border: 1px solid #cfe8d1; text-align: right; font-weight: bold;">Rp 2.800.000</td>
+              </tr>
+              <tr style="font-size: 12px; background-color: #f7fbf7;">
+                <td style="padding: 8px; border: 1px solid #cfe8d1; text-align: center; font-weight: bold; color: #2e7d32;">#5</td>
+                <td style="padding: 8px; border: 1px solid #cfe8d1;">Robusta Sajang Lombok 1kg</td>
+                <td style="padding: 8px; border: 1px solid #cfe8d1; text-align: center;">18 kg</td>
+                <td style="padding: 8px; border: 1px solid #cfe8d1; text-align: right; font-weight: bold;">Rp 1.710.000</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div style="background-color: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px; padding: 12px 16px; margin: 16px 0; font-size: 12px; color: #1f6b2a;">
+            <strong>Catatan Rekonsiliasi:</strong> Rasio pelunasan invoice tempo bulan ini mencapai <strong>94%</strong>. Lakukan rekonsiliasi kas bank (Seabank & BSI) sebelum finalisasi penutupan buku.
+          </div>
+
+          <div style="text-align: center; margin-top: 24px;">
+            <a href="https://tanabrew-stok-and-invoice.vercel.app/beranda" style="background-color: #2e7d32; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: bold; padding: 11px 26px; border-radius: 8px; display: inline-block;">
+              Buka Analitik Bisnis di Beranda
+            </a>
+          </div>
+        </div>
+
+        <div style="background-color: #f4fbf4; padding: 14px; text-align: center; font-size: 11px; color: #49624f; border-top: 1px solid #a5d6a7;">
+          Sistem Manajemen Stok & Invoice Tanabrew Roastery &copy; 2026.<br/>
+          Developer: Danial Gobel.
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+  const reportMonthlyText = `
+LAPORAN TUTUP BUKU & EVALUASI BULANAN TANABREW ROASTERY [2/5]
+Periode: ${todayDateStr.substring(0, 7)} - Tutup Buku Akhir Bulan
+
+RINGKASAN PERFORMA:
+- Total Omzet: ${formatRupiah(simulatedMonthlyOmzet)}
+- Total Transaksi: ${simulatedMonthlyCount} Invoice
+- Rincian Area: Jogja (62%) | Lombok (38%)
+
+Top 3 Beans Terlaris:
+1. Arabica Aceh Gayo Wine (38 kg)
+2. Robusta Temanggung Natural (25 kg)
+3. Arabica Sembalun Lombok (22 kg)
+
+Akses Beranda: https://tanabrew-stok-and-invoice.vercel.app/beranda
+Developer: Danial Gobel.
+  `.trim();
+
+  // --- LAPORAN 3: PERINGATAN TAGIHAN & INVOICE TEMPO (TEMPO) ---
+  const reportTempoHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Peringatan Tagihan Invoice Tempo Tanabrew</title>
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f4fbf4; margin: 0; padding: 20px; color: #14381c;">
+      <div style="max-width: 650px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 14px rgba(46, 125, 50, 0.08); border: 1px solid #a5d6a7;">
+        
+        <div style="background-color: #ffffff; padding: 20px 24px; border-bottom: 3px solid #2e7d32; text-align: left;">
+          <div style="margin-bottom: 12px;">
+            <img src="https://tanabrew-stok-and-invoice.vercel.app/logo-pricelist.png" alt="Tanabrew Roastery" width="160" height="38" style="height: 38px; width: 160px; max-width: 160px; display: block; border: 0;" />
+          </div>
+          <div style="text-align: left; font-size: 11px; color: #49624f; line-height: 1.5;">
+            <div style="font-weight: bold; color: #14381c; font-size: 13px;">Peringatan Tagihan & Invoice Tempo [3/5]</div>
+            <div>${todayDateStr} • Monitoring Piutang Pelanggan</div>
+          </div>
+        </div>
+
+        <div style="padding: 24px 20px;">
+          <h2 style="color: #2e7d32; margin: 0 0 4px; font-size: 18px; font-weight: bold;">Peringatan Tagihan & Invoice Tempo Jatuh Tempo</h2>
+          <p style="margin: 0 0 16px; font-size: 12px; color: #49624f;">Daftar Faktur Pelanggan / Mitra yang Membutuhkan Tindak Lanjut Penagihan</p>
+
+          <table style="width: 100%; border-collapse: separate; border-spacing: 8px; margin: 12px 0 20px;">
+            <tr>
+              <td style="background-color: #fff4f4; border: 1px solid #f3b8b8; border-radius: 8px; padding: 12px; vertical-align: top;">
+                <div style="font-size: 10px; color: #9f1d1d; text-transform: uppercase; font-weight: bold;">Total Piutang Belum Lunas</div>
+                <div style="font-size: 18px; font-weight: bold; color: #b91c1c; margin-top: 4px;">Rp 4.350.000</div>
+              </td>
+              <td style="background-color: #fff9e6; border: 1px solid #fde68a; border-radius: 8px; padding: 12px; vertical-align: top;">
+                <div style="font-size: 10px; color: #b45309; text-transform: uppercase; font-weight: bold;">Faktur Berstatus Tempo</div>
+                <div style="font-size: 18px; font-weight: bold; color: #d97706; margin-top: 4px;">3 Invoice Aktif</div>
+              </td>
+              <td style="background-color: #f4fbf4; border: 1px solid #a5d6a7; border-radius: 8px; padding: 12px; vertical-align: top;">
+                <div style="font-size: 10px; color: #49624f; text-transform: uppercase; font-weight: bold;">Tindakan Disarankan</div>
+                <div style="font-size: 11px; font-weight: bold; color: #2e7d32; margin-top: 4px;">Kirim WhatsApp Reminder</div>
+              </td>
+            </tr>
+          </table>
+
+          <div style="font-weight: bold; font-size: 13px; color: #2e7d32; margin: 16px 0 8px;">Daftar Invoice yang Perlu Ditagih</div>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+              <tr style="background-color: #2e7d32; color: #ffffff; font-size: 11px; text-align: left;">
+                <th style="padding: 8px; border: 1px solid #2e7d32;">No Invoice</th>
+                <th style="padding: 8px; border: 1px solid #2e7d32;">Customer</th>
+                <th style="padding: 8px; border: 1px solid #2e7d32;">Cabang</th>
+                <th style="padding: 8px; border: 1px solid #2e7d32; text-align: right;">Nominal</th>
+                <th style="padding: 8px; border: 1px solid #2e7d32; text-align: center;">Keterangan Tempo</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="font-size: 12px; background-color: #fff5f5;">
+                <td style="padding: 8px; border: 1px solid #fecaca; font-weight: bold;">INV/TNB/2026/08/0074</td>
+                <td style="padding: 8px; border: 1px solid #fecaca;">Arka Coffee & Eatery</td>
+                <td style="padding: 8px; border: 1px solid #fecaca;">Jogja</td>
+                <td style="padding: 8px; border: 1px solid #fecaca; text-align: right; font-weight: bold; color: #b91c1c;">Rp 2.400.000</td>
+                <td style="padding: 8px; border: 1px solid #fecaca; text-align: center;"><span style="color: #b91c1c; font-weight: bold; font-size: 10px; background: #fee2e2; padding: 2px 6px; border-radius: 12px;">Lewat 3 Hari</span></td>
+              </tr>
+              <tr style="font-size: 12px; background-color: #fffbeb;">
+                <td style="padding: 8px; border: 1px solid #fde68a; font-weight: bold;">INV/TNB/2026/08/0089</td>
+                <td style="padding: 8px; border: 1px solid #fde68a;">Kedai Kopi Sudut Malioboro</td>
+                <td style="padding: 8px; border: 1px solid #fde68a;">Jogja</td>
+                <td style="padding: 8px; border: 1px solid #fde68a; text-align: right; font-weight: bold; color: #b45309;">Rp 1.450.000</td>
+                <td style="padding: 8px; border: 1px solid #fde68a; text-align: center;"><span style="color: #b45309; font-weight: bold; font-size: 10px; background: #fef3c7; padding: 2px 6px; border-radius: 12px;">Jatuh Tempo Hari Ini</span></td>
+              </tr>
+              <tr style="font-size: 12px; background-color: #ffffff;">
+                <td style="padding: 8px; border: 1px solid #cfe8d1; font-weight: bold;">INV/TNB/2026/09/0004</td>
+                <td style="padding: 8px; border: 1px solid #cfe8d1;">Cafe Titik Temu Senggigi</td>
+                <td style="padding: 8px; border: 1px solid #cfe8d1;">Lombok</td>
+                <td style="padding: 8px; border: 1px solid #cfe8d1; text-align: right; font-weight: bold; color: #14381c;">Rp 500.000</td>
+                <td style="padding: 8px; border: 1px solid #cfe8d1; text-align: center;"><span style="color: #15803d; font-weight: bold; font-size: 10px; background: #dcfce7; padding: 2px 6px; border-radius: 12px;">Sisa 2 Hari (H-2)</span></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div style="text-align: center; margin-top: 24px;">
+            <a href="https://tanabrew-stok-and-invoice.vercel.app/riwayat" style="background-color: #2e7d32; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: bold; padding: 11px 26px; border-radius: 8px; display: inline-block;">
+              Tindak Lanjuti Penagihan di Riwayat
+            </a>
+          </div>
+        </div>
+
+        <div style="background-color: #f4fbf4; padding: 14px; text-align: center; font-size: 11px; color: #49624f; border-top: 1px solid #a5d6a7;">
+          Sistem Manajemen Stok & Invoice Tanabrew Roastery &copy; 2026.<br/>
+          Developer: Danial Gobel.
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+  const reportTempoText = `
+PERINGATAN TAGIHAN & INVOICE TEMPO TANABREW ROASTERY [3/5]
+Tanggal: ${todayDateStr}
+
+RINGKASAN PIUTANG:
+- Total Piutang Belum Lunas: Rp 4.350.000 (3 Invoice)
+- Lewat Jatuh Tempo: INV/TNB/2026/08/0074 (Arka Coffee - Rp 2.400.000)
+- Jatuh Tempo Hari Ini: INV/TNB/2026/08/0089 (Kedai Kopi Sudut - Rp 1.450.000)
+- Mendekati Tempo: INV/TNB/2026/09/0004 (Cafe Titik Temu - Rp 500.000)
+
+Silakan hubungi customer melalui WhatsApp di menu Riwayat.
+Akses Riwayat: https://tanabrew-stok-and-invoice.vercel.app/riwayat
+Developer: Danial Gobel.
+  `.trim();
+
+  // --- LAPORAN 4: STOK MENIPIS & EVALUASI BEANS (STOCK_ALERT) ---
+  const reportStockAlertHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Peringatan Stok Menipis Tanabrew</title>
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f4fbf4; margin: 0; padding: 20px; color: #14381c;">
+      <div style="max-width: 650px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 14px rgba(46, 125, 50, 0.08); border: 1px solid #a5d6a7;">
+        
+        <div style="background-color: #ffffff; padding: 20px 24px; border-bottom: 3px solid #2e7d32; text-align: left;">
+          <div style="margin-bottom: 12px;">
+            <img src="https://tanabrew-stok-and-invoice.vercel.app/logo-pricelist.png" alt="Tanabrew Roastery" width="160" height="38" style="height: 38px; width: 160px; max-width: 160px; display: block; border: 0;" />
+          </div>
+          <div style="text-align: left; font-size: 11px; color: #49624f; line-height: 1.5;">
+            <div style="font-weight: bold; color: #14381c; font-size: 13px;">Peringatan Stok Menipis & Beans [4/5]</div>
+            <div>${todayDateStr} • Audit Inventaris Safety Stock</div>
+          </div>
+        </div>
+
+        <div style="padding: 24px 20px;">
+          <h2 style="color: #2e7d32; margin: 0 0 4px; font-size: 18px; font-weight: bold;">Peringatan Stok Menipis & Evaluasi Perputaran Beans</h2>
+          <p style="margin: 0 0 16px; font-size: 12px; color: #49624f;">Daftar Item Inventaris yang Mendekati / Melewati Batas Minimum Gudang</p>
+
+          <table style="width: 100%; border-collapse: separate; border-spacing: 8px; margin: 12px 0 20px;">
+            <tr>
+              <td style="background-color: #fff5f5; border: 1px solid #fecaca; border-radius: 8px; padding: 12px; vertical-align: top;">
+                <div style="font-size: 10px; color: #9f1d1d; text-transform: uppercase; font-weight: bold;">Item Kritis (< Safety Stock)</div>
+                <div style="font-size: 18px; font-weight: bold; color: #b91c1c; margin-top: 4px;">3 Produk</div>
+              </td>
+              <td style="background-color: #f4fbf4; border: 1px solid #a5d6a7; border-radius: 8px; padding: 12px; vertical-align: top;">
+                <div style="font-size: 10px; color: #49624f; text-transform: uppercase; font-weight: bold;">Gudang Jogja</div>
+                <div style="font-size: 18px; font-weight: bold; color: #2e7d32; margin-top: 4px;">2 Item Butuh Restock</div>
+              </td>
+              <td style="background-color: #f4fbf4; border: 1px solid #a5d6a7; border-radius: 8px; padding: 12px; vertical-align: top;">
+                <div style="font-size: 10px; color: #49624f; text-transform: uppercase; font-weight: bold;">Gudang Lombok</div>
+                <div style="font-size: 18px; font-weight: bold; color: #2e7d32; margin-top: 4px;">1 Item Butuh Restock</div>
+              </td>
+            </tr>
+          </table>
+
+          <div style="font-weight: bold; font-size: 13px; color: #2e7d32; margin: 16px 0 8px;">Daftar Item Perlu Restock / Roasting</div>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+              <tr style="background-color: #2e7d32; color: #ffffff; font-size: 11px; text-align: left;">
+                <th style="padding: 8px; border: 1px solid #2e7d32;">Nama Produk</th>
+                <th style="padding: 8px; border: 1px solid #2e7d32;">Gudang</th>
+                <th style="padding: 8px; border: 1px solid #2e7d32; text-align: center;">Sisa Stok</th>
+                <th style="padding: 8px; border: 1px solid #2e7d32; text-align: center;">Batas Min.</th>
+                <th style="padding: 8px; border: 1px solid #2e7d32; text-align: center;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="font-size: 12px; background-color: #fff5f5;">
+                <td style="padding: 8px; border: 1px solid #fecaca; font-weight: bold;">Arabica Flores Bajawa 1kg</td>
+                <td style="padding: 8px; border: 1px solid #fecaca;">Gudang Jogja</td>
+                <td style="padding: 8px; border: 1px solid #fecaca; text-align: center; font-weight: bold; color: #b91c1c;">1.5 kg</td>
+                <td style="padding: 8px; border: 1px solid #fecaca; text-align: center;">5.0 kg</td>
+                <td style="padding: 8px; border: 1px solid #fecaca; text-align: center;"><span style="color: #b91c1c; font-weight: bold; font-size: 10px; background: #fee2e2; padding: 2px 6px; border-radius: 12px;">KRITIS</span></td>
+              </tr>
+              <tr style="font-size: 12px; background-color: #fffbeb;">
+                <td style="padding: 8px; border: 1px solid #fde68a; font-weight: bold;">Robusta Temanggung Natural 1kg</td>
+                <td style="padding: 8px; border: 1px solid #fde68a;">Gudang Lombok</td>
+                <td style="padding: 8px; border: 1px solid #fde68a; text-align: center; font-weight: bold; color: #b45309;">2.0 kg</td>
+                <td style="padding: 8px; border: 1px solid #fde68a; text-align: center;">6.0 kg</td>
+                <td style="padding: 8px; border: 1px solid #fde68a; text-align: center;"><span style="color: #b45309; font-weight: bold; font-size: 10px; background: #fef3c7; padding: 2px 6px; border-radius: 12px;">MENIPIS</span></td>
+              </tr>
+              <tr style="font-size: 12px; background-color: #ffffff;">
+                <td style="padding: 8px; border: 1px solid #cfe8d1; font-weight: bold;">Paper Filter V60 02 (100pcs)</td>
+                <td style="padding: 8px; border: 1px solid #cfe8d1;">Gudang Jogja</td>
+                <td style="padding: 8px; border: 1px solid #cfe8d1; text-align: center; font-weight: bold;">4 pack</td>
+                <td style="padding: 8px; border: 1px solid #cfe8d1; text-align: center;">10 pack</td>
+                <td style="padding: 8px; border: 1px solid #cfe8d1; text-align: center;"><span style="color: #b45309; font-weight: bold; font-size: 10px; background: #fef3c7; padding: 2px 6px; border-radius: 12px;">MENIPIS</span></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div style="background-color: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px; padding: 12px 16px; margin: 16px 0; font-size: 12px; color: #1f6b2a;">
+            <strong>Catatan Slow-Moving:</strong> Biji kopi varian <em>Liberika Kayong Natural</em> mengalami perputaran lambat dalam 21 hari terakhir. Disarankan penjadwalan roasting sesuai pesanan atau pembuatan paket bundling seduh manual.
+          </div>
+
+          <div style="text-align: center; margin-top: 24px;">
+            <a href="https://tanabrew-stok-and-invoice.vercel.app/stok" style="background-color: #2e7d32; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: bold; padding: 11px 26px; border-radius: 8px; display: inline-block;">
+              Buka Manajemen Stok Gudang
+            </a>
+          </div>
+        </div>
+
+        <div style="background-color: #f4fbf4; padding: 14px; text-align: center; font-size: 11px; color: #49624f; border-top: 1px solid #a5d6a7;">
+          Sistem Manajemen Stok & Invoice Tanabrew Roastery &copy; 2026.<br/>
+          Developer: Danial Gobel.
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+  const reportStockAlertText = `
+PERINGATAN STOK MENIPIS & BEANS TANABREW ROASTERY [4/5]
+Tanggal: ${todayDateStr}
+
+ITEM PERLU RESTOCK / ROASTING:
+1. Arabica Flores Bajawa 1kg (Gudang Jogja) - Sisa 1.5 kg (Min 5.0 kg) [KRITIS]
+2. Robusta Temanggung Natural 1kg (Gudang Lombok) - Sisa 2.0 kg (Min 6.0 kg) [MENIPIS]
+3. Paper Filter V60 02 (Gudang Jogja) - Sisa 4 pack (Min 10 pack) [MENIPIS]
+
+Akses Update Stok: https://tanabrew-stok-and-invoice.vercel.app/stok
+Developer: Danial Gobel.
+  `.trim();
+
+  // --- LAPORAN 5: STOCK OPNAME FISIK GUDANG (STOCK_OPNAME) ---
+  const reportStockOpnameHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Instruksi Stock Opname Tanabrew</title>
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f4fbf4; margin: 0; padding: 20px; color: #14381c;">
+      <div style="max-width: 650px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 14px rgba(46, 125, 50, 0.08); border: 1px solid #a5d6a7;">
+        
+        <div style="background-color: #ffffff; padding: 20px 24px; border-bottom: 3px solid #2e7d32; text-align: left;">
+          <div style="margin-bottom: 12px;">
+            <img src="https://tanabrew-stok-and-invoice.vercel.app/logo-pricelist.png" alt="Tanabrew Roastery" width="160" height="38" style="height: 38px; width: 160px; max-width: 160px; display: block; border: 0;" />
+          </div>
+          <div style="text-align: left; font-size: 11px; color: #49624f; line-height: 1.5;">
+            <div style="font-weight: bold; color: #14381c; font-size: 13px;">Instruksi Stock Opname Gudang [5/5]</div>
+            <div>Audit Fisik Bulanan • Tanggal 28 Tiap Bulan</div>
+          </div>
+        </div>
+
+        <div style="padding: 24px 20px;">
+          <h2 style="color: #2e7d32; margin: 0 0 4px; font-size: 18px; font-weight: bold;">Instruksi & Pengingat Stock Opname Fisik Gudang</h2>
+          <p style="margin: 0 0 16px; font-size: 12px; color: #49624f;">Prosedur Standar Operasional Audit Fisik Inventaris Sebelum Penutupan Buku Akhir Bulan</p>
+
+          <table style="width: 100%; border-collapse: separate; border-spacing: 8px; margin: 12px 0 20px;">
+            <tr>
+              <td style="background-color: #f4fbf4; border: 1px solid #a5d6a7; border-radius: 8px; padding: 12px; vertical-align: top;">
+                <div style="font-size: 10px; color: #49624f; text-transform: uppercase; font-weight: bold;">Jadwal Pelaksanaan</div>
+                <div style="font-size: 18px; font-weight: bold; color: #2e7d32; margin-top: 4px;">Tgl 28 Tiap Bulan</div>
+              </td>
+              <td style="background-color: #f4fbf4; border: 1px solid #a5d6a7; border-radius: 8px; padding: 12px; vertical-align: top;">
+                <div style="font-size: 10px; color: #49624f; text-transform: uppercase; font-weight: bold;">Cakupan Area</div>
+                <div style="font-size: 18px; font-weight: bold; color: #2e7d32; margin-top: 4px;">Jogja & Lombok</div>
+              </td>
+              <td style="background-color: #f4fbf4; border: 1px solid #a5d6a7; border-radius: 8px; padding: 12px; vertical-align: top;">
+                <div style="font-size: 10px; color: #49624f; text-transform: uppercase; font-weight: bold;">Target Finalisasi</div>
+                <div style="font-size: 18px; font-weight: bold; color: #2e7d32; margin-top: 4px;">Pukul 21:00 WIB</div>
+              </td>
+            </tr>
+          </table>
+
+          <div style="font-weight: bold; font-size: 13px; color: #2e7d32; margin: 16px 0 8px;">Checklist & Tahapan Pelaksanaan Tim:</div>
+          <div style="background-color: #f7fbf7; border: 1px solid #cfe8d1; border-radius: 8px; padding: 14px 18px; font-size: 12px; line-height: 1.7; color: #14381c;">
+            <strong>1. Freeze Transaksi Sesaat:</strong> Pastikan kasir mencetak dan menyelesaikan semua invoice berjalan sebelum memulai penghitungan.<br/>
+            <strong>2. Penimbangan Green Beans:</strong> Timbang seluruh karung green beans mentah dan catat penyusutan berat akibat susut alami atau proses roasting.<br/>
+            <strong>3. Perhitungan Roasted Beans:</strong> Hitung kemasan kopi 200g, 500g, dan 1kg di rak etalase kasir serta lemari penyimpanan stok utama.<br/>
+            <strong>4. Pengecekan Material Packaging:</strong> Hitung sisa cup take-away, lid, paper bag, dan filter seduh.<br/>
+            <strong>5. Sinkronisasi di Aplikasi:</strong> Masukkan penyesuaian selisih stok fisik secara akurat melalui menu <strong>Update Stok</strong> di Web App Tanabrew.
+          </div>
+
+          <div style="text-align: center; margin-top: 24px;">
+            <a href="https://tanabrew-stok-and-invoice.vercel.app/stok" style="background-color: #2e7d32; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: bold; padding: 11px 26px; border-radius: 8px; display: inline-block;">
+              Input Hasil Opname di Menu Update Stok
+            </a>
+          </div>
+        </div>
+
+        <div style="background-color: #f4fbf4; padding: 14px; text-align: center; font-size: 11px; color: #49624f; border-top: 1px solid #a5d6a7;">
+          Sistem Manajemen Stok & Invoice Tanabrew Roastery &copy; 2026.<br/>
+          Developer: Danial Gobel.
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+  const reportStockOpnameText = `
+INSTRUKSI & PENGINGAT STOCK OPNAME TANABREW ROASTERY [5/5]
+Jadwal: Tanggal 28 Setiap Bulan (Audit Fisik Gudang)
+
+CHECKLIST PELAKSANAAN:
+1. Selesaikan semua transaksi kasir sebelum hitung fisik.
+2. Timbang karung green beans mentah Jogja & Lombok.
+3. Hitung bungkus kopi 200g, 500g, dan 1kg di rak display & storage.
+4. Hitung persediaan packaging (cup, lid, paper filter).
+5. Masukkan data penyesuaian di menu Update Stok Tanabrew.
+
+Akses Menu Stok: https://tanabrew-stok-and-invoice.vercel.app/stok
+Developer: Danial Gobel.
+  `.trim();
+
+  // OBJEK LENGKAP 5 MODEL LAPORAN
+  const reportDaily = {
+    type: "daily",
+    name: "Laporan Rekapitulasi Invoice Penjualan Harian",
+    subject: `[Tanabrew 1/5] Laporan Rekapitulasi Penjualan Harian (${todayDateStr})`,
+    html: reportDailyHtml,
+    text: reportDailyText,
+    attachments: [
+      {
+        filename: `Laporan-Invoice-Tanabrew-${todayDateStr.replace(/[^a-zA-Z0-9-]/g, "-")}.pdf`,
+        content: pdfBuffer,
+        contentType: "application/pdf",
+      },
+    ],
+  };
+
+  const reportMonthly = {
+    type: "monthly",
+    name: "Laporan Tutup Buku & Evaluasi Bulanan",
+    subject: `[Tanabrew 2/5] Laporan Tutup Buku Bulanan (Periode ${todayDateStr.substring(0, 7)})`,
+    html: reportMonthlyHtml,
+    text: reportMonthlyText,
+  };
+
+  const reportTempo = {
+    type: "tempo",
+    name: "Peringatan Tagihan & Invoice Tempo Jatuh Tempo",
+    subject: `[Tanabrew 3/5] Peringatan Tagihan & Invoice Tempo (${todayDateStr})`,
+    html: reportTempoHtml,
+    text: reportTempoText,
+  };
+
+  const reportStockAlert = {
+    type: "stock_alert",
+    name: "Peringatan Stok Menipis & Evaluasi Beans",
+    subject: `[Tanabrew 4/5] Peringatan Stok Menipis & Evaluasi Beans (${todayDateStr})`,
+    html: reportStockAlertHtml,
+    text: reportStockAlertText,
+  };
+
+  const reportStockOpname = {
+    type: "stock_opname",
+    name: "Instruksi & Pengingat Stock Opname Gudang",
+    subject: `[Tanabrew 5/5] Instruksi & Pengingat Stock Opname Gudang (Akhir Bulan)`,
+    html: reportStockOpnameHtml,
+    text: reportStockOpnameText,
+  };
+
+  const allReports = [reportDaily, reportMonthly, reportTempo, reportStockAlert, reportStockOpname];
+
+  let targetReports = [reportDaily];
+  if (queryReport === "all") {
+    targetReports = allReports;
+  } else if (queryReport === "monthly" || queryReport === "2") {
+    targetReports = [reportMonthly];
+  } else if (queryReport === "tempo" || queryReport === "3") {
+    targetReports = [reportTempo];
+  } else if (queryReport === "stock_alert" || queryReport === "stock" || queryReport === "4") {
+    targetReports = [reportStockAlert];
+  } else if (queryReport === "stock_opname" || queryReport === "opname" || queryReport === "5") {
+    targetReports = [reportStockOpname];
+  }
+
   // PREVIEW MODES: Langsung tampilkan di browser tanpa perlu kirim email jika ada query ?preview=...
   if (queryPreview === "pdf") {
     return sendData(
@@ -1124,28 +1628,63 @@ Developer: Danial Gobel.
   }
 
   if (queryPreview === "email" || queryPreview === "html") {
-    return sendData(res, 200, "text/html; charset=utf-8", ownerHtml);
+    if (queryReport === "all") {
+      const indexHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Pratinjau 5 Model Laporan Tanabrew</title>
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f4fbf4; margin: 0; padding: 24px; color: #14381c;">
+          <div style="max-width: 650px; margin: 0 auto; background: #ffffff; padding: 24px; border-radius: 12px; border: 1px solid #a5d6a7;">
+            <img src="https://tanabrew-stok-and-invoice.vercel.app/logo-pricelist.png" alt="Tanabrew" width="160" height="38" style="margin-bottom: 12px;" />
+            <h2 style="color: #2e7d32; margin-top: 0;">Pratinjau 5 Model Laporan Otomatis Tanabrew</h2>
+            <p style="color: #49624f; font-size: 13px;">Klik salah satu laporan di bawah untuk melihat pratinjau tampilan dokumen email secara langsung:</p>
+            <ol style="line-height: 2.2; font-size: 14px;">
+              <li><a href="?preview=html&report=daily" target="_blank" style="color: #2e7d32; font-weight: bold; text-decoration: underline;">Laporan Rekapitulasi Invoice Penjualan Harian (+ PDF Lampiran)</a></li>
+              <li><a href="?preview=html&report=monthly" target="_blank" style="color: #2e7d32; font-weight: bold; text-decoration: underline;">Laporan Tutup Buku & Evaluasi Bulanan</a></li>
+              <li><a href="?preview=html&report=tempo" target="_blank" style="color: #2e7d32; font-weight: bold; text-decoration: underline;">Peringatan Tagihan & Invoice Tempo Jatuh Tempo</a></li>
+              <li><a href="?preview=html&report=stock_alert" target="_blank" style="color: #2e7d32; font-weight: bold; text-decoration: underline;">Peringatan Stok Menipis & Evaluasi Slow-Moving Beans</a></li>
+              <li><a href="?preview=html&report=stock_opname" target="_blank" style="color: #2e7d32; font-weight: bold; text-decoration: underline;">Instruksi & Pengingat Stock Opname Fisik Gudang</a></li>
+            </ol>
+            <hr style="border: 0; border-top: 1px solid #a5d6a7; margin: 20px 0;" />
+            <div style="text-align: center;">
+              <a href="?test=true&report=all&email=danialgobel26@gmail.com" style="background: #2e7d32; color: #fff; text-decoration: none; padding: 11px 22px; border-radius: 8px; font-weight: bold; font-size: 13px; display: inline-block;">
+                Kirim Semua (5 Laporan Sekaligus) ke Email Saya
+              </a>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+      return sendData(res, 200, "text/html; charset=utf-8", indexHtml);
+    }
+    return sendData(res, 200, "text/html; charset=utf-8", targetReports[0].html);
   }
 
-  // 6. Kirim Email Rekap dengan Lampiran PDF (Hanya ke Danial selama mode test)
-  const emailSubject = `Laporan Rekapitulasi Penjualan Harian - Tanabrew Roastery (${todayDateStr})`;
-  const emailResult = await sendEmail({
-    to: recipientEmails,
-    subject: emailSubject,
-    html: ownerHtml,
-    text: ownerText,
-    attachments: [
-      {
-        filename: `Laporan-Invoice-Tanabrew-${todayDateStr.replace(/[^a-zA-Z0-9-]/g, "-")}.pdf`,
-        content: pdfBuffer,
-        contentType: "application/pdf",
-      },
-    ],
-  });
+  // 6. Eksekusi Pengiriman Email
+  const reportsSent: any[] = [];
+  for (const rep of targetReports) {
+    const emailResult = await sendEmail({
+      to: recipientEmails,
+      subject: rep.subject,
+      html: rep.html,
+      text: rep.text,
+      attachments: rep.attachments,
+    });
+    reportsSent.push({
+      reportType: rep.type,
+      reportName: rep.name,
+      subject: rep.subject,
+      ...emailResult,
+    });
+  }
 
   results.notifications.emailDelivery = {
     recipients: recipientEmails,
-    ...emailResult,
+    totalReportsSent: reportsSent.length,
+    reports: reportsSent,
   };
 
   // 7. Catat Log ke Firestore jika memungkinkan

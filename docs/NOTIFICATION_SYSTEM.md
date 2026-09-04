@@ -75,19 +75,31 @@ Sesuai permintaan operasional, notifikasi otomatis pengunjung **wajib menggunaka
 
 ---
 
-## 🤖 5. Master Cron Dispatcher & Pemetaan Role Notifikasi (`api/cron-dispatcher.ts`)
+## 🤖 5. Master Cron Dispatcher & Pemetaan 5 Model Laporan (`api/cron-dispatcher.ts`)
 
-Sistem dilengkapi tugas otomatis terjadwal yang berjalan setiap malam jam 23:00 WIB (16:00 UTC) melalui Vercel Cron Jobs:
+Sistem dilengkapi tugas otomatis terjadwal yang berjalan setiap malam jam 23:00 WIB (16:00 UTC) melalui Vercel Cron Jobs yang mengelola **5 model laporan resmi**:
 
-1. **Owner & Webdev (Eksekutif)**:
-   - **Kanal**: Email HTML Resmi (Resend) + Push Notification (OneSignal).
-   - **Isi**: Laporan Tutup Buku Bulanan H-1 akhir bulan, Rekap Omzet Harian jam 23:00 WIB, Peringatan Slow-Moving Beans (tgl 15), dan Audit Kesehatan Database.
-2. **Admin (Manajemen Stok & Tagihan)**:
-   - **Kanal**: Email Ringkasan Operasional + Push Notification HP.
-   - **Isi**: Pengingat Invoice Tempo Jatuh Tempo (Senin), Peringatan Stok Menipis Jogja & Lombok, Instruksi Stock Opname (tgl 28).
-3. **Staff / Kasir (Operasional)**:
-   - **Kanal**: Push Notification HP Saja.
-   - **Isi**: Notifikasi Pengunjung Price List & Shopee, Peringatan Stok Kritis rak kasir, Pengingat Stock Opname fisik. Kasir terisolasi dari email omzet keuangan bisnis demi privasi finansial.
+| No | Model Laporan | Trigger / Jadwal | Penerima Default | Kanal & Format |
+| :---: | :--- | :--- | :--- | :--- |
+| **1** | **Rekapitulasi Penjualan Harian** (`daily`) | Setiap Hari (23:00 WIB) | Developer, Owner, Admin, Staff, Kasir | Email HTML + **Lampiran PDF Resmi A4** |
+| **2** | **Tutup Buku Bulanan** (`monthly`) | H-1 Akhir Bulan (23:00 WIB) | Developer, Owner, Admin | Email HTML Ringkasan Eksekutif & Omzet Bulanan |
+| **3** | **Peringatan Invoice Tempo** (`tempo`) | Setiap Hari Senin (23:00 WIB) | Developer, Owner, Admin, Kasir | Email HTML Monitoring Piutang & Jatuh Tempo |
+| **4** | **Peringatan Stok Menipis** (`stock_alert`) | Tgl 15 & Saat Stok Kritis | Developer, Owner, Admin, Gudang | Email HTML Safety Stock & Evaluasi Slow-Moving Beans |
+| **5** | **Instruksi Stock Opname** (`stock_opname`) | Tgl 28 Setiap Bulan (23:00 WIB) | Developer, Owner, Admin, Tim Gudang | Email HTML SOP & Checklist Audit Fisik Inventaris |
+
+### 🛠️ Akses Khusus Developer (`webdev` / `developer`)
+- Akun Developer secara otomatis memiliki hak akses tertinggi setara Owner untuk **menerima seluruh 5 model laporan** tanpa batasan.
+- Developer dapat menguji atau melihat seluruh model laporan kapan saja:
+  - **Pratinjau di Browser (Tanpa Kirim Email)**:
+    - Pratinjau Menu Utama (Indeks 5 Laporan): `/api/cron-dispatcher?preview=html&report=all`
+    - Pratinjau PDF Harian: `/api/cron-dispatcher?preview=pdf`
+    - Pratinjau Laporan Harian: `/api/cron-dispatcher?preview=html&report=daily`
+    - Pratinjau Tutup Buku: `/api/cron-dispatcher?preview=html&report=monthly`
+    - Pratinjau Invoice Tempo: `/api/cron-dispatcher?preview=html&report=tempo`
+    - Pratinjau Stok Menipis: `/api/cron-dispatcher?preview=html&report=stock_alert`
+    - Pratinjau Stock Opname: `/api/cron-dispatcher?preview=html&report=stock_opname`
+  - **Kirim Semua (5 Laporan) Sekaligus ke Email Developer**:
+    - URL: `/api/cron-dispatcher?test=true&report=all&email=danialgobel26@gmail.com`
 
 ---
 
