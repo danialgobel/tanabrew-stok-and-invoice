@@ -57,7 +57,7 @@ Menyimpan transaksi kasir dan faktur penagihan pelanggan resmi.
 | `subtotal` | `number` | Ya | Total harga sebelum diskon/pajak |
 | `discount` | `number` | Tidak | Nilai diskon (dalam Rupiah) |
 | `totalAmount` | `number` | Ya | Total akhir yang wajib dibayar |
-| `paymentMethod` | `string` | Ya | Metode bayar (*"cash"*, *"transfer"*, *"qris"*, *"tempo"*) |
+| `paymentMethod` | `string` | Ya | Metode bayar (*"cash"*, *"transfer"*, *"tempo"*) |
 | `paymentStatus` | `string` | Ya | Status (*"lunas"*, *"pending"*, *"batal"*) |
 | `createdAt` | `timestamp/string` | Ya | Tanggal pembuatan faktur |
 | `notes` | `string` | Tidak | Catatan tambahan pada dokumen faktur |

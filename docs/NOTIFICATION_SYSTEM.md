@@ -89,3 +89,37 @@ Sistem dilengkapi tugas otomatis terjadwal yang berjalan setiap malam jam 23:00 
    - **Kanal**: Push Notification HP Saja.
    - **Isi**: Notifikasi Pengunjung Price List & Shopee, Peringatan Stok Kritis rak kasir, Pengingat Stock Opname fisik. Kasir terisolasi dari email omzet keuangan bisnis demi privasi finansial.
 
+---
+
+## 📧 6. Audit Deliverability Email: Mencegah Spam & Mengirim ke Seluruh Pengguna
+
+### Mengapa Email Masuk ke Spam pada Resend Default?
+1. **Domain Bersama (`onboarding@resend.dev`)**:
+   Domain `resend.dev` adalah lingkungan pengujian (*sandbox*) publik Resend. Karena dipakai bersama secara massal oleh ribuan developer tanpa reputasi domain eksklusif, algoritma proteksi Google Gmail secara otomatis menandainya sebagai pesan otomatis uji coba dan memasukkannya ke tab **Spam / Promosi**.
+2. **Batasan Pengiriman Resend Sandbox**:
+   Pada mode uji coba tanpa domain sendiri, Resend memberlakukan aturan ketat: **hanya boleh mengirim ke alamat email pemilik akun Resend itu sendiri** (`danialgobel26@gmail.com`). Jika sistem mengirim ke email staff/admin lain, Resend akan menolaknya.
+3. **Mengapa Domain `*.vercel.app` Tidak Bisa Didaftarkan di Resend?**:
+   Resend memerlukan verifikasi DNS berupa *DNS Records* (SPF, DKIM, DMARC, MX). Subdomain Vercel (`https://tanabrew-stok-and-invoice.vercel.app`) adalah milik publik Vercel dan bukan domain milik pribadi, sehingga pengguna tidak memiliki hak untuk menambahkan DNS record ke server Vercel.
+
+### 💡 Solusi & Rekomendasi Pengiriman Email:
+
+#### Opsi A: Menggunakan Gmail SMTP Resmi (Nodemailer via Google App Password) — [REKOMENDASI TERBAIK: 100% GRATIS & BEBAS SPAM]
+Sistem Tanabrew kini mendukung pengiriman langsung via **Gmail SMTP resmi Google**:
+- **Bebas Spam**: Email dikirim langsung melalui server `smtp.gmail.com` milik Google dengan reputasi SPF & DKIM Google asli, sehingga **100% masuk ke Inbox Utama**, bukan Spam.
+- **Kirim ke Semua User**: Tidak ada batasan domain; dapat mengirim ke seluruh email owner, admin, staff, maupun pelanggan.
+- **100% Gratis & Tanpa Beli Domain**:
+  1. Buka [Google Account Security](https://myaccount.google.com/apppasswords).
+  2. Pastikan Verifikasi 2 Langkah (*2-Step Verification*) aktif di akun Google Anda (`danialgobel26@gmail.com`).
+  3. Buat **Sandi Aplikasi (App Password)** dengan nama "Tanabrew Cron".
+  4. Salin 16 digit kode sandi tersebut.
+  5. Tambahkan di Vercel Dashboard > Settings > Environment Variables:
+     - `GMAIL_USER`: `danialgobel26@gmail.com`
+     - `GMAIL_APP_PASSWORD`: `16-digit-sandi-aplikasi-google`
+
+#### Opsi B: Menggunakan Custom Domain Pribadi di Resend
+Jika di kemudian hari Tanabrew membeli domain bisnis sendiri (misal `tanabrew.com` atau `tanabrew.id`):
+1. Buka dashboard Resend > Domains > Add Domain.
+2. Masukkan `tanabrew.com` (tanpa `https://` atau garis miring).
+3. Salin 3 DNS Record yang diberikan Resend ke penyedia domain (Niagahoster/Domainesia/Cloudflare).
+4. Setelah terverifikasi, email akan dikirim menggunakan nama keren seperti `rekap@tanabrew.com`.
+

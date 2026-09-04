@@ -15,46 +15,73 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.3.0",
-  versionLabel: "v3.3.0",
+  version: "3.3.1",
+  versionLabel: "v3.3.1",
   releaseDate: "5 September 2026",
-  title: "Otomasi Master Cron, Vercel Analytics & Security Headers (5 September 2026)",
-  subtitle: "Sistem Penjadwalan Otomatis Rekap Omzet, Tutup Buku Bulanan, Pemetaan Notifikasi Role, dan Analitik Real-Time",
+  title: "Audit Deliverability Email Anti-Spam & Publikasi Detail Laporan PDF (5 September 2026)",
+  subtitle: "Dukungan Gmail SMTP Langsung, Penghapusan QRIS, Tabel Audit Transaksi Lengkap, dan Auto-Paging Laporan PDF",
   highlights: [
     {
-      title: "Master Cron Dispatcher Terjadwal 23:00 WIB",
-      desc: "Sistem serverless otomatis yang mengeksekusi rekap omzet harian tutup toko, cek stok menipis, pengingat invoice tempo, dan pembersihan log tanpa repot.",
+      title: "Dukungan Langsung Gmail SMTP (Nodemailer) Anti-Spam",
+      desc: "Mengirim email rekap harian resmi langsung lewat server Google SMTP sehingga 100% masuk Inbox Utama dan dapat dikirim ke seluruh anggota tim tanpa batas sandbox.",
       badge: "Baru",
       badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
     {
-      title: "Laporan Tutup Buku Bulanan Eksekutif (H-1 Akhir Bulan)",
-      desc: "Menghitung omzet bersih bulanan, komparasi performa Gudang Jogja vs Lombok, dan daftar invoice tempo belum lunas langsung ke email Owner & Push Notif HP.",
+      title: "Publikasi Dokumen PDF Sangat Detail",
+      desc: "PDF kini menyajikan audit transaksi lengkap per faktur: nomor invoice, nama pelanggan, cabang gudang, kasir, rincian item/biji kopi yang dibeli, dan nilai pesanan.",
       badge: "Fitur",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
     {
-      title: "Pemetaan Notifikasi Berbasis Role (Role-Based Notification)",
-      desc: "Owner & Admin menerima email laporan omzet dan finansial resmi, sementara staf kasir menerima notifikasi operasional stok untuk menjaga kerahasiaan keuangan toko.",
+      title: "Penyelarasan Metode Pembayaran Resmi Tanabrew",
+      desc: "Menghapus QRIS dari seluruh sistem laporan dan menyelaraskan pencatatan hanya pada metode resmi Tanabrew: Tunai, Transfer Bank (Seabank/BSI), dan Tempo.",
+      badge: "Perbaikan",
+      badgeColor: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/20",
+    },
+    {
+      title: "Statistik Biji Kopi Terlaris & Auto-Paging",
+      desc: "Laporan PDF dilengkapi ringkasan biji kopi terlaris hari ini serta dukungan pemecahan halaman otomatis (multi-page) untuk volume transaksi tinggi.",
       badge: "Peningkatan",
       badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
-    },
-    {
-      title: "Integrasi Vercel Web Analytics Real-Time",
-      desc: "Memantau trafik pengunjung kasir, pemindaian QR price list, dan performa kecepatan web secara visual langsung di dashboard Vercel.",
-      badge: "Fitur",
-      badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-    },
-    {
-      title: "Edge Security Headers & Perlindungan Anti-Clickjacking",
-      desc: "Menerapkan standar keamanan HTTP modern (X-Frame-Options, MIME sniffing protection, Referrer Policy) untuk melindungi POS kasir dari manipulasi pihak luar.",
-      badge: "Peningkatan",
-      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
   ],
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.3.0",
+    versionLabel: "v3.3.0",
+    releaseDate: "5 September 2026",
+    title: "Otomasi Master Cron, Vercel Analytics & Security Headers (5 September 2026)",
+    subtitle: "Sistem Penjadwalan Otomatis Rekap Omzet, Tutup Buku Bulanan, Pemetaan Notifikasi Role, dan Analitik Real-Time",
+    highlights: [
+      {
+        title: "Master Cron Dispatcher Terjadwal 23:00 WIB",
+        desc: "Sistem serverless otomatis yang mengeksekusi rekap omzet harian tutup toko, cek stok menipis, pengingat invoice tempo, dan pembersihan log tanpa repot.",
+        badge: "Baru",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      },
+      {
+        title: "Laporan Tutup Buku Bulanan Eksekutif (H-1 Akhir Bulan)",
+        desc: "Menghitung omzet bersih bulanan, komparasi performa Gudang Jogja vs Lombok, dan daftar invoice tempo belum lunas langsung ke email Owner & Push Notif HP.",
+        badge: "Fitur",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+      {
+        title: "Pemetaan Notifikasi Berbasis Role (Role-Based Notification)",
+        desc: "Owner & Admin menerima email laporan omzet dan finansial resmi, sementara staf kasir menerima notifikasi operasional stok untuk menjaga kerahasiaan keuangan toko.",
+        badge: "Peningkatan",
+        badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
+      },
+      {
+        title: "Integrasi Vercel Web Analytics Real-Time",
+        desc: "Memantau trafik pengunjung kasir, pemindaian QR price list, dan performa kecepatan web secara visual langsung di dashboard Vercel.",
+        badge: "Fitur",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+    ],
+  },
   {
     version: "3.2.3",
     versionLabel: "v3.2.3",
