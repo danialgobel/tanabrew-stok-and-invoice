@@ -704,40 +704,42 @@ export default async function handler(req: any, res: any) {
     let allUserEmails: string[] = [];
 
     // 1. Mengambil SELURUH Pengguna Aktif dari Firestore (Developer, Owner, Admin, Staff, Kasir)
-    try {
-      const adminApp = await getFirebaseAdmin();
-      if (adminApp) {
-        const { getFirestore } = await import("firebase-admin/firestore");
-        const db = getFirestore(adminApp);
-        const usersSnap = await db.collection("users").get();
-        usersSnap.forEach((doc) => {
-          const data = doc.data() as UserProfile;
-          const email = (data.email || "").trim().toLowerCase();
-          if (email && email.includes("@") && (data as any).isActive !== false) {
-            allUserEmails.push(email);
-            const role = (data.role || "").toLowerCase();
-            if (role === "webdev" || role === "developer") {
-              developerEmails.push(email);
-              ownerEmails.push(email); // Developer menerima seluruh hak akses laporan eksekutif
-            } else if (role === "owner") {
-              ownerEmails.push(email);
-            } else if (role === "admin") {
-              adminEmails.push(email);
-            } else {
-              staffEmails.push(email);
+    if (!queryPreview) {
+      try {
+        const adminApp = await getFirebaseAdmin();
+        if (adminApp) {
+          const { getFirestore } = await import("firebase-admin/firestore");
+          const db = getFirestore(adminApp);
+          const usersSnap = await db.collection("users").get();
+          usersSnap.forEach((doc) => {
+            const data = doc.data() as UserProfile;
+            const email = (data.email || "").trim().toLowerCase();
+            if (email && email.includes("@") && (data as any).isActive !== false) {
+              allUserEmails.push(email);
+              const role = (data.role || "").toLowerCase();
+              if (role === "webdev" || role === "developer") {
+                developerEmails.push(email);
+                ownerEmails.push(email); // Developer menerima seluruh hak akses laporan eksekutif
+              } else if (role === "owner") {
+                ownerEmails.push(email);
+              } else if (role === "admin") {
+                adminEmails.push(email);
+              } else {
+                staffEmails.push(email);
+              }
             }
-          }
-        });
-        results.tasks.usersFetched = {
-          totalAllUsers: allUserEmails.length,
-          totalDevelopers: developerEmails.length,
-          totalOwners: ownerEmails.length,
-          totalAdmins: adminEmails.length,
-          totalStaff: staffEmails.length,
-        };
+          });
+          results.tasks.usersFetched = {
+            totalAllUsers: allUserEmails.length,
+            totalDevelopers: developerEmails.length,
+            totalOwners: ownerEmails.length,
+            totalAdmins: adminEmails.length,
+            totalStaff: staffEmails.length,
+          };
+        }
+      } catch (err: any) {
+        results.tasks.usersError = `Firestore users notice: ${err?.message || "Quota limit"}. Menggunakan fallback email tim.`;
       }
-    } catch (err: any) {
-      results.tasks.usersError = `Firestore users notice: ${err?.message || "Quota limit"}. Menggunakan fallback email tim.`;
     }
 
     // ATURAN PENGIRIMAN EMAIL PENERIMA KE SELURUH PENGGUNA (ALL USERS):
@@ -961,12 +963,14 @@ export default async function handler(req: any, res: any) {
   const pushTitle = "Tanabrew Roastery";
   const pushMsg = `Omzet Hari Ini: ${formatRupiah(todayOmzet)} (${todayCount} Invoice). Ketuk untuk melihat laporan.`;
 
-  const pushResult = await sendPushNotification({
-    title: pushTitle,
-    message: pushMsg,
-    targetUrl: "https://tanabrew-stok-and-invoice.vercel.app/riwayat",
-  });
-  results.notifications.oneSignalPush = pushResult;
+  if (!queryPreview && !isTestMode) {
+    const pushResult = await sendPushNotification({
+      title: pushTitle,
+      message: pushMsg,
+      targetUrl: "https://tanabrew-stok-and-invoice.vercel.app/riwayat",
+    });
+    results.notifications.oneSignalPush = pushResult;
+  }
 
   // 4. Generate Publikasi PDF Resmi Bergaya Web App Tanabrew (reportPrint.ts)
   const pdfBuffer = generateReportPdfBuffer({
