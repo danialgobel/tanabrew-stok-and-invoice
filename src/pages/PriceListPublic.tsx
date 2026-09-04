@@ -21,8 +21,39 @@ export default function PriceListPublic() {
       }
     });
 
+    // Notify team/owner about visitor (anti-spam 1 per session)
+    try {
+      const alreadyNotified = sessionStorage.getItem("tb_visited_pricelist");
+      if (!alreadyNotified) {
+        sessionStorage.setItem("tb_visited_pricelist", "true");
+        fetch("/api/visitor-event", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ event: "VISIT_PRICELIST" }),
+        }).catch(() => {});
+      }
+    } catch {
+      // Ignore storage error
+    }
+
     return () => unsubscribe();
   }, []);
+
+  const handleShopeeClick = () => {
+    try {
+      const alreadyNotifiedShopee = sessionStorage.getItem("tb_clicked_shopee");
+      if (!alreadyNotifiedShopee) {
+        sessionStorage.setItem("tb_clicked_shopee", "true");
+        fetch("/api/visitor-event", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ event: "VISIT_SHOPEE" }),
+        }).catch(() => {});
+      }
+    } catch {
+      // Ignore storage error
+    }
+  };
 
   const currentDisplayImage = imageUrl || DEFAULT_PRICELIST_IMAGE;
 
@@ -450,6 +481,7 @@ export default function PriceListPublic() {
             id="shopeeButton"
             target="_blank"
             rel="noopener noreferrer"
+            onClick={handleShopeeClick}
             aria-label="Order Produk Tanabrew via Shopee Official"
           >
             <svg

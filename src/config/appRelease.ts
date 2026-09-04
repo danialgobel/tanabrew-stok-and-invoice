@@ -15,12 +15,24 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.2.4",
-  versionLabel: "v3.2.4",
+  version: "3.2.5",
+  versionLabel: "v3.2.5",
   releaseDate: "5 September 2026",
-  title: "Pembaruan Tampilan Price List Pelanggan & Integrasi Shopee (5 September 2026)",
-  subtitle: "Penyempurnaan Logo Resmi Tanabrew, Warna Khas Hijau Roastery, Tombol Shopee Official, dan Bebas Pop-up Pelanggan",
+  title: "Notifikasi Kunjungan Price List & Shopee Pelanggan (5 September 2026)",
+  subtitle: "Notifikasi Otomatis ke Seluruh Perangkat Tim saat Ada Pelanggan Membuka Price List atau Mengunjungi Shopee",
   highlights: [
+    {
+      title: "Pembaruan Aplikasi Real-Time Tanpa Relog",
+      desc: "Sistem pendeteksi versi baru otomatis memunculkan notifikasi banner saat ada pembaruan baru dari deploy GitHub/Vercel, memungkinkan seluruh tim memperbarui aplikasi seketika dengan 1 klik tanpa harus login ulang.",
+      badge: "Baru",
+      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+    },
+    {
+      title: "Notifikasi Pengunjung Price List & Shopee Otomatis",
+      desc: "Sistem secara otomatis mengirimkan notifikasi ke seluruh perangkat tim saat pelanggan memindai QR/membuka link price list ('seseorang mengunjungi pricelist') atau mengklik toko Shopee ('seseorang mengunjungi shopee tanabrew').",
+      badge: "Fitur",
+      badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+    },
     {
       title: "Header Price List Bersih & Elegan dengan Logo Resmi",
       desc: "Tampilan header menu/price list publik kini tampil bersih dan minimalis terfokus penuh pada kapsul logo resmi Tanabrew Roastery beresolusi tinggi.",

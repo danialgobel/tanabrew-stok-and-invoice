@@ -25,6 +25,7 @@ const queryClient = new QueryClient();
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { AppUpdateAnnouncementModal } from "@/components/AppUpdateAnnouncementModal";
+import { AutoUpdateBanner } from "@/components/AutoUpdateBanner";
 import PriceListManagerModal from "@/components/PriceListManagerModal";
 import { DesktopSidebar } from "@/components/DesktopSidebar";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -117,6 +118,7 @@ const AppRoutes = () => {
       {showNav && <BottomNav />}
       {!isPublicMenu && <PWAInstallPrompt />}
       {!isPublicMenu && <AppUpdateAnnouncementModal />}
+      {!isPublicMenu && <AutoUpdateBanner />}
       {/* Global Price List Modal — triggered by 5-tap logo on any page/device */}
       <PriceListManagerModal open={showPriceListModal} onOpenChange={setShowPriceListModal} />
     </>
