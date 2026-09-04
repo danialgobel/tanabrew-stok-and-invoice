@@ -1717,7 +1717,9 @@ Developer: Danial Gobel.
     success: true,
     message: "Master Cron Dispatcher Tanabrew berhasil dijalankan.",
     audit: {
-      provider: emailResult.sent ? (emailResult as any).provider : "none",
+      provider: reportsSent[0]?.sent ? (reportsSent[0] as any).provider : "none",
+      reportsSentCount: reportsSent.length,
+      reports: reportsSent,
       gmailAppPasswordConfigured: isGmailConfigured,
       currentRecipients: recipientEmails,
       allRegisteredRecipients: {
