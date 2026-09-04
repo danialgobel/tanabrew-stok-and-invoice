@@ -15,34 +15,49 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.3.3",
-  versionLabel: "v3.3.3",
+  version: "3.3.4",
+  versionLabel: "v3.3.4",
   releaseDate: "5 September 2026",
-  title: "Adapter Respon Serverless Native & Stabilisasi Eksekusi Vercel (5 September 2026)",
-  subtitle: "Penyelarasan Runtime Node.js Raw Stream, Adapter sendJson/sendData Universal, dan Penghapusan Konflik Durasi Vercel",
+  title: "Inlining Asset Logo Mandiri & Perbaikan Total Vercel Deployment (5 September 2026)",
+  subtitle: "Penyelesaian Masalah Modul Eksternal Vercel, Eliminasi Ketergantungan Path Relatif, dan Kesiapan Penuh Pengiriman Email",
   highlights: [
     {
-      title: "Adapter Respon Serverless Native Node.js",
-      desc: "Menyediakan adapter sendJson dan sendData yang kompatibel penuh dengan ServerResponse bawaan Node.js di Vercel, mencegah error res.status dan res.send.",
+      title: "Penyelesaian Definitif ERR_MODULE_NOT_FOUND",
+      desc: "Menyematkan aset logo base64 resmi langsung di dalam cron dispatcher tanpa ketergantungan berkas lintas-direktori, menjamin fungsi berjalan 100% tanpa kegagalan impor di Vercel.",
       badge: "Perbaikan",
       badgeColor: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/20",
     },
     {
-      title: "Penghapusan Konflik Konfigurasi Vercel Hobby",
-      desc: "Menghapus batas durasi statis yang berkonflik dengan paket Vercel Hobby sehingga fungsi dieksekusi secara instan dan mulus.",
-      badge: "Peningkatan",
+      title: "Dukungan Penuh Kredensial Gmail SMTP & OneSignal",
+      desc: "Menghubungkan variabel GMAIL_USER dan GMAIL_APP_PASSWORD yang telah terkonfigurasi di Vercel untuk pengiriman laporan penutupan kasir anti-spam ke seluruh Owner dan Admin.",
+      badge: "Fitur",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-    },
-    {
-      title: "Penguraian URL Query Mandiri",
-      desc: "Mendukung pembacaan parameter query test, mode, preview, dan email secara mandiri langsung dari req.url.",
-      badge: "Peningkatan",
-      badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
     },
   ],
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.3.3",
+    versionLabel: "v3.3.3",
+    releaseDate: "5 September 2026",
+    title: "Adapter Respon Serverless Native & Stabilisasi Eksekusi Vercel (5 September 2026)",
+    subtitle: "Penyelarasan Runtime Node.js Raw Stream, Adapter sendJson/sendData Universal, dan Penghapusan Konflik Durasi Vercel",
+    highlights: [
+      {
+        title: "Adapter Respon Serverless Native Node.js",
+        desc: "Menyediakan adapter sendJson dan sendData yang kompatibel penuh dengan ServerResponse bawaan Node.js di Vercel, mencegah error res.status dan res.send.",
+        badge: "Perbaikan",
+        badgeColor: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/20",
+      },
+      {
+        title: "Penghapusan Konflik Konfigurasi Vercel Hobby",
+        desc: "Menghapus batas durasi statis yang berkonflik dengan paket Vercel Hobby sehingga fungsi dieksekusi secara instan dan mulus.",
+        badge: "Peningkatan",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+    ],
+  },
   {
     version: "3.3.2",
     versionLabel: "v3.3.2",
