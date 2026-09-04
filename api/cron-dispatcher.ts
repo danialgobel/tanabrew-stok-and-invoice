@@ -589,40 +589,98 @@ const sendEmail = async ({
   };
 };
 
-export default async function handler(req: ApiRequest, res: ApiResponse) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
+const sendJson = (res: any, statusCode: number, data: any) => {
+  try {
+    res.statusCode = statusCode;
+    if (typeof res.setHeader === "function") {
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+    }
+    if (typeof res.json === "function") {
+      return res.json(data);
+    }
+    return res.end(JSON.stringify(data));
+  } catch {
+    try {
+      res.statusCode = 500;
+      return res.end(JSON.stringify({ error: "Serialization error" }));
+    } catch {
+      return;
+    }
+  }
+};
+
+const sendData = (
+  res: any,
+  statusCode: number,
+  contentType: string,
+  data: any,
+  disposition?: string
+) => {
+  try {
+    res.statusCode = statusCode;
+    if (typeof res.setHeader === "function") {
+      res.setHeader("Content-Type", contentType);
+      if (disposition) {
+        res.setHeader("Content-Disposition", disposition);
+      }
+    }
+    if (typeof res.send === "function") {
+      return res.send(data);
+    }
+    return res.end(data);
+  } catch {
+    try {
+      res.statusCode = 500;
+      return res.end("Error sending data");
+    } catch {
+      return;
+    }
+  }
+};
+
+export default async function handler(req: any, res: any) {
+  if (typeof res.setHeader === "function") {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
+  }
 
   if (req.method === "OPTIONS") {
-    return res.status(200).json({ ok: true });
+    return sendJson(res, 200, { ok: true });
   }
 
   try {
+    const rawUrl = req.url || "/api/cron-dispatcher";
+    const parsedUrl = new URL(rawUrl, "https://tanabrew-stok-and-invoice.vercel.app");
+    const queryTest = (req.query?.test as string) || parsedUrl.searchParams.get("test") || "";
+    const queryMode = (req.query?.mode as string) || parsedUrl.searchParams.get("mode") || "";
+    const queryPreview = (req.query?.preview as string) || parsedUrl.searchParams.get("preview") || "";
+    const queryEmail = (req.query?.email as string) || parsedUrl.searchParams.get("email") || "";
+
+    const isTestMode = queryTest === "true" || queryMode === "test";
+
     const nowWib = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
-  const todayDateStr = nowWib.toISOString().split("T")[0];
-  const timeStr = nowWib.toTimeString().split(" ")[0].slice(0, 5);
-  const currentDayOfWeek = nowWib.getDay();
+    const todayDateStr = nowWib.toISOString().split("T")[0];
+    const timeStr = nowWib.toTimeString().split(" ")[0].slice(0, 5);
+    const currentDayOfWeek = nowWib.getDay();
 
-  const tomorrow = new Date(nowWib);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const isEndOfMonthEve = tomorrow.getDate() === 1;
+    const tomorrow = new Date(nowWib);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const isEndOfMonthEve = tomorrow.getDate() === 1;
 
-  const isTestMode = req.query?.test === "true" || req.query?.mode === "test";
+    const results: Record<string, any> = {
+      status: "active",
+      executedAtWIB: `${todayDateStr} ${timeStr} WIB`,
+      todayDate: todayDateStr,
+      isEndOfMonthEve,
+      isMonday: currentDayOfWeek === 1,
+      isSunday: currentDayOfWeek === 0,
+      isTestMode,
+      tasks: {},
+      notifications: {},
+    };
 
-  const results: Record<string, any> = {
-    status: "active",
-    executedAtWIB: `${todayDateStr} ${timeStr} WIB`,
-    todayDate: todayDateStr,
-    isEndOfMonthEve,
-    isMonday: currentDayOfWeek === 1,
-    isSunday: currentDayOfWeek === 0,
-    isTestMode,
-    tasks: {},
-    notifications: {},
-  };
-
-  let ownerEmails: string[] = [];
+    let ownerEmails: string[] = [];
   let adminEmails: string[] = [];
 
   // 1. Mengambil Pengguna dari Firestore dengan Fallback Aman
@@ -995,23 +1053,18 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   `;
 
   // PREVIEW MODES: Langsung tampilkan di browser tanpa perlu kirim email jika ada query ?preview=...
-  if (req.query?.preview === "pdf") {
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", "inline; filename=\"preview-laporan-tanabrew.pdf\"");
-    if (typeof (res as any).send === "function") {
-      return (res as any).status(200).send(pdfBuffer);
-    }
-    (res as any).statusCode = 200;
-    return (res as any).end(pdfBuffer);
+  if (queryPreview === "pdf") {
+    return sendData(
+      res,
+      200,
+      "application/pdf",
+      pdfBuffer,
+      "inline; filename=\"preview-laporan-tanabrew.pdf\""
+    );
   }
 
-  if (req.query?.preview === "email" || req.query?.preview === "html") {
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
-    if (typeof (res as any).send === "function") {
-      return (res as any).status(200).send(ownerHtml);
-    }
-    (res as any).statusCode = 200;
-    return (res as any).end(ownerHtml);
+  if (queryPreview === "email" || queryPreview === "html") {
+    return sendData(res, 200, "text/html; charset=utf-8", ownerHtml);
   }
 
   // 6. Kirim Email Rekap dengan Lampiran PDF (Hanya ke Danial selama mode test)
@@ -1058,7 +1111,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const rawPass = process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS || "";
   const isGmailConfigured = Boolean(rawPass.replace(/\s+/g, "").trim());
 
-  return res.status(200).json({
+  return sendJson(res, 200, {
     success: true,
     message: "Master Cron Dispatcher Tanabrew berhasil dijalankan.",
     audit: {
@@ -1083,7 +1136,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   });
   } catch (criticalErr: any) {
     console.error("Critical Cron Dispatcher Error:", criticalErr);
-    return res.status(200).json({
+    return sendJson(res, 200, {
       success: false,
       error: criticalErr?.message || String(criticalErr),
       stack: criticalErr?.stack,
