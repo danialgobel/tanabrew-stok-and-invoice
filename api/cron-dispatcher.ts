@@ -531,7 +531,7 @@ const sendEmail = async ({
       for (const recipient of uniqueRecipients) {
         let timerId: NodeJS.Timeout | null = null;
         const sendPromise = transporter.sendMail({
-          from: `"Tanabrew Roastery" <${gmailUser}>`,
+          from: `"Danial Gobel - Tanabrew Roastery" <${gmailUser}>`,
           to: recipient,
           replyTo: gmailUser,
           subject,
@@ -539,9 +539,6 @@ const sendEmail = async ({
           html,
           headers: {
             "X-Entity-Ref-ID": `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-            "X-Priority": "3",
-            Importance: "normal",
-            "Auto-Submitted": "auto-generated",
           },
           attachments: attachments?.map((att) => ({
             filename: att.filename,
@@ -1001,7 +998,7 @@ export default async function handler(req: any, res: any) {
         <!-- Header Bertema Hijau Zamrud Resmi Tanabrew (#2E7D32) -->
         <div style="background-color: #ffffff; padding: 20px 24px; border-bottom: 3px solid #2e7d32; text-align: left;">
           <div style="margin-bottom: 12px;">
-            <img src="https://tanabrew-stok-and-invoice.vercel.app/logo-pricelist.png" alt="Tanabrew Roastery" style="height: 38px; width: auto; display: block;" />
+            <img src="https://tanabrew-stok-and-invoice.vercel.app/logo-pricelist.png" alt="Tanabrew Roastery" width="160" height="38" style="height: 38px; width: 160px; max-width: 160px; display: block; border: 0;" />
           </div>
           <div style="text-align: left; font-size: 11px; color: #49624f; line-height: 1.5;">
             <div style="font-weight: bold; color: #14381c; font-size: 13px;">Laporan Invoice Harian</div>
@@ -1015,7 +1012,7 @@ export default async function handler(req: any, res: any) {
           <p style="margin: 0 0 16px; font-size: 12px; color: #49624f;">Periode: ${todayDateStr} (Penutupan Kasir Harian)</p>
 
           <!-- 3 Kartu Ringkasan (Identik reportPrint.ts) -->
-          <table style="width: 100%; border-collapse: separate; border-spacing: 8px; margin: 12px -8px 20px;">
+          <table style="width: 100%; border-collapse: separate; border-spacing: 8px; margin: 12px 0 20px;">
             <tr>
               <td style="background-color: #f4fbf4; border: 1px solid #a5d6a7; border-radius: 8px; padding: 12px; vertical-align: top;">
                 <div style="font-size: 10px; color: #49624f; text-transform: uppercase; font-weight: bold;">Total Pemasukan</div>

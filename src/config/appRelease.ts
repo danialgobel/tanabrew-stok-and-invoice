@@ -15,34 +15,61 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.3.5",
-  versionLabel: "v3.3.5",
+  version: "3.3.6",
+  versionLabel: "v3.3.6",
   releaseDate: "5 September 2026",
-  title: "Arsitektur Anti-Spam Email Enterprise & Pengiriman Individual Per Penerima (5 September 2026)",
-  subtitle: "Eliminasi Pengelompokan Header Massal, Penambahan Alternatif Plain-Text MIME, dan Optimasi Reputasi Pengirim",
+  title: "Optimasi Pengiriman Email Primer & Eliminasi Pemicu Filter Bot (5 September 2026)",
+  subtitle: "Penyelarasan Identitas Pengirim Resmi, Penghapusan Header Bot Otomatis, dan Sanitasi Heuristik HTML",
   highlights: [
     {
-      title: "Pengiriman Email Individual Per Penerima (Anti-Spam)",
-      desc: "Mengubah pengiriman email laporan dari broadcast massal To: menjadi transmisi 1-on-1 terdedikasi per penerima sehingga filter email kampus (@webmail.uad.ac.id) dan instansi lain tidak menganggapnya sebagai spam broadcast.",
+      title: "Eliminasi Pemicu Penanda Bot (Auto-Submitted)",
+      desc: "Menghapus header machine-generated bot yang menyebabkan gateway email institusi/kampus mendegradasi pesan dari Primary Inbox ke folder Spam/Junk.",
+      badge: "Perbaikan",
+      badgeColor: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/20",
+    },
+    {
+      title: "Penyelarasan Identitas Pengirim (Zero Mismatch)",
+      desc: "Menetapkan format pengirim resmi 'Danial Gobel - Tanabrew Roastery' sehingga identitas akun Gmail dan nama pengirim selaras 100%, mencegah kecurigaan spoofing/phishing.",
       badge: "Peningkatan",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
     {
-      title: "Dukungan Dual MIME (HTML & Plain-Text Fallback)",
-      desc: "Menyertakan versi teks biasa (text) lengkap di samping dokumen HTML resmi, menghapus penalti MIME_HTML_ONLY pada filter SpamAssassin dan gateway email korporat/kampus.",
-      badge: "Fitur",
+      title: "Sanitasi Heuristik CSS & Dimensi Gambar",
+      desc: "Menghapus margin negatif CSS dan melengkapi atribut dimensi gambar resmi untuk melewati audit ketat SpamAssassin tanpa peringatan.",
+      badge: "Peningkatan",
       badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
-    },
-    {
-      title: "Sanitasi Header & Lampiran PDF",
-      desc: "Menyematkan header prioritas normal standar, ID referensi entitas unik, dan sanitasi nama berkas lampiran PDF resmi tanpa spasi mentah.",
-      badge: "Perbaikan",
-      badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20",
     },
   ],
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.3.5",
+    versionLabel: "v3.3.5",
+    releaseDate: "5 September 2026",
+    title: "Arsitektur Anti-Spam Email Enterprise & Pengiriman Individual Per Penerima (5 September 2026)",
+    subtitle: "Eliminasi Pengelompokan Header Massal, Penambahan Alternatif Plain-Text MIME, dan Optimasi Reputasi Pengirim",
+    highlights: [
+      {
+        title: "Pengiriman Email Individual Per Penerima (Anti-Spam)",
+        desc: "Mengubah pengiriman email laporan dari broadcast massal To: menjadi transmisi 1-on-1 terdedikasi per penerima sehingga filter email kampus (@webmail.uad.ac.id) dan instansi lain tidak menganggapnya sebagai spam broadcast.",
+        badge: "Peningkatan",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+      {
+        title: "Dukungan Dual MIME (HTML & Plain-Text Fallback)",
+        desc: "Menyertakan versi teks biasa (text) lengkap di samping dokumen HTML resmi, menghapus penalti MIME_HTML_ONLY pada filter SpamAssassin dan gateway email korporat/kampus.",
+        badge: "Fitur",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      },
+      {
+        title: "Sanitasi Header & Lampiran PDF",
+        desc: "Menyematkan header prioritas normal standar, ID referensi entitas unik, dan sanitasi nama berkas lampiran PDF resmi tanpa spasi mentah.",
+        badge: "Perbaikan",
+        badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20",
+      },
+    ],
+  },
   {
     version: "3.3.4",
     versionLabel: "v3.3.4",
