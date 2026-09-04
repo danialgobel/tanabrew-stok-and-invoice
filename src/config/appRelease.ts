@@ -15,8 +15,8 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.2.5",
-  versionLabel: "v3.2.5",
+  version: "3.2.6",
+  versionLabel: "v3.2.6",
   releaseDate: "5 September 2026",
   title: "Notifikasi Kunjungan Price List & Shopee Pelanggan (5 September 2026)",
   subtitle: "Notifikasi Otomatis ke Seluruh Perangkat Tim saat Ada Pelanggan Membuka Price List atau Mengunjungi Shopee",
