@@ -151,11 +151,9 @@ const pricelistShellHtml = (bodyHtml: string) => {
     }
 
     .header-left img {
-      height: 210px !important; /* Scale up image to make internal graphic large */
+      height: 64px !important;
       width: auto !important;
-      margin-top: -65px !important; /* Crop top blank space */
-      margin-bottom: -65px !important; /* Crop bottom blank space */
-      margin-left: -50px !important; /* Shift left to collapse left blank space */
+      margin: 0 !important;
       object-fit: contain !important;
       display: block !important;
     }
@@ -421,7 +419,7 @@ export const printPricelist = ({ categories, stockLocation, printedBy, roleLabel
         <div class="header">
           <!-- Perfectly Integrated Official High-Resolution Logo from image 2 -->
           <div class="header-left">
-            <img src="/logo-pricelist.png" style="height: 210px !important; width: auto !important; margin-top: -65px !important; margin-bottom: -65px !important; margin-left: -50px !important; display: block !important; object-fit: contain !important;" />
+            <img src="/logo-pricelist.png" style="height: 64px !important; width: auto !important; margin: 0 !important; display: block !important; object-fit: contain !important;" />
           </div>
           <div class="header-right">
             <h1>PRICE LIST</h1>

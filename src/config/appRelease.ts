@@ -15,12 +15,36 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.2.2",
-  versionLabel: "v3.2.2",
-  releaseDate: "3 September 2026",
-  title: "Pembaruan Alur Cetak Faktur & Optimasi Kuota Chat Tim (3 September 2026)",
-  subtitle: "Peningkatan Tombol Kirim WhatsApp pada Pratinjau Dokumen, Navigasi Kembali Anti-Tersangkut, dan Efisiensi Kuota Database",
+  version: "3.2.4",
+  versionLabel: "v3.2.4",
+  releaseDate: "5 September 2026",
+  title: "Pembaruan Tampilan Price List Pelanggan & Integrasi Shopee (5 September 2026)",
+  subtitle: "Penyempurnaan Logo Resmi Tanabrew, Warna Khas Hijau Roastery, Tombol Shopee Official, dan Bebas Pop-up Pelanggan",
   highlights: [
+    {
+      title: "Header Price List Bersih & Elegan dengan Logo Resmi",
+      desc: "Tampilan header menu/price list publik kini tampil bersih dan minimalis terfokus penuh pada kapsul logo resmi Tanabrew Roastery beresolusi tinggi.",
+      badge: "Peningkatan",
+      badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+    },
+    {
+      title: "Warna Hijau Khas Ciri Khas Tanabrew (#00512C)",
+      desc: "Seluruh elemen visual, tombol, badge, dan aksen pada halaman price list telah diselaraskan dengan warna hijau tua khas Tanabrew Roastery.",
+      badge: "Peningkatan",
+      badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
+    },
+    {
+      title: "Tombol Shopee Official Store",
+      desc: "Menambahkan tombol cepat menuju etalase Shopee resmi Tanabrew lengkap dengan logo asli Shopee untuk memudahkan pelanggan bertransaksi secara online.",
+      badge: "Fitur",
+      badgeColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
+    },
+    {
+      title: "Bebas Pop-up Update untuk Pelanggan (QR & Link)",
+      desc: "Notifikasi pembaruan aplikasi otomatis dinonaktifkan pada tautan QR dan URL Price List agar pengalaman membaca menu bagi pelanggan tetap bersih dan nyaman.",
+      badge: "Perbaikan",
+      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+    },
     {
       title: "Tombol Kirim WhatsApp pada Pratinjau Faktur",
       desc: "Halaman cetak faktur kini dilengkapi tombol 'Kirim ke WhatsApp' untuk langsung membagikan invoice ke pelanggan tanpa keluar dari pratinjau dokumen.",

@@ -116,7 +116,7 @@ const AppRoutes = () => {
       </div>
       {showNav && <BottomNav />}
       {!isPublicMenu && <PWAInstallPrompt />}
-      <AppUpdateAnnouncementModal />
+      {!isPublicMenu && <AppUpdateAnnouncementModal />}
       {/* Global Price List Modal — triggered by 5-tap logo on any page/device */}
       <PriceListManagerModal open={showPriceListModal} onOpenChange={setShowPriceListModal} />
     </>

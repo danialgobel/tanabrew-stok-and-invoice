@@ -24,6 +24,13 @@ export const AppUpdateAnnouncementModal = ({
   useEffect(() => {
     if (loading || !currentUser) return;
 
+    // Jangan tampilkan di halaman pricelist/menu publik untuk customer
+    const isPublicPage =
+      typeof window !== "undefined" &&
+      (window.location.pathname.startsWith("/pricelist") ||
+        window.location.pathname.startsWith("/menu"));
+    if (isPublicPage && !forceOpen) return;
+
     try {
       const seenVersion = localStorage.getItem("tanabrew_seen_app_version");
       if (seenVersion !== CURRENT_RELEASE.version) {
@@ -62,7 +69,12 @@ export const AppUpdateAnnouncementModal = ({
 
   const showModal = forceOpen !== undefined ? forceOpen : isOpen;
 
-  if (!showModal) return null;
+  const isPublicPage =
+    typeof window !== "undefined" &&
+    (window.location.pathname.startsWith("/pricelist") ||
+      window.location.pathname.startsWith("/menu"));
+
+  if (!showModal || (isPublicPage && !forceOpen)) return null;
 
   return (
     <div
