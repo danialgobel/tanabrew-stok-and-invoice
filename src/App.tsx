@@ -29,6 +29,7 @@ import { AutoUpdateBanner } from "@/components/AutoUpdateBanner";
 import PriceListManagerModal from "@/components/PriceListManagerModal";
 import { DesktopSidebar } from "@/components/DesktopSidebar";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { Analytics } from "@vercel/analytics/react";
 
 const ProtectedPage = ({ children }: { children: ReactNode }) => (
   <ProtectedRoute>{children}</ProtectedRoute>
@@ -136,8 +137,10 @@ const App = () => (
           </BrowserRouter>
         </AuthProvider>
       </ErrorBoundary>
+      <Analytics />
     </TooltipProvider>
   </QueryClientProvider>
 );
 
 export default App;
+

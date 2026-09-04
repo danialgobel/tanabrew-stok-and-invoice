@@ -72,3 +72,20 @@ Sesuai permintaan operasional, notifikasi otomatis pengunjung **wajib menggunaka
 - Rute `/pricelist` dan `/menu` adalah halaman untuk pelanggan umum.
 - Komponen `AutoUpdateBanner.tsx` dan modal `AppUpdateAnnouncementModal.tsx` **dilarang muncul** di rute ini.
 - Pelanggan yang membaca menu tidak akan pernah terganggu oleh pesan update sistem atau jendela dialog internal.
+
+---
+
+## 🤖 5. Master Cron Dispatcher & Pemetaan Role Notifikasi (`api/cron-dispatcher.ts`)
+
+Sistem dilengkapi tugas otomatis terjadwal yang berjalan setiap malam jam 23:00 WIB (16:00 UTC) melalui Vercel Cron Jobs:
+
+1. **Owner & Webdev (Eksekutif)**:
+   - **Kanal**: Email HTML Resmi (Resend) + Push Notification (OneSignal).
+   - **Isi**: Laporan Tutup Buku Bulanan H-1 akhir bulan, Rekap Omzet Harian jam 23:00 WIB, Peringatan Slow-Moving Beans (tgl 15), dan Audit Kesehatan Database.
+2. **Admin (Manajemen Stok & Tagihan)**:
+   - **Kanal**: Email Ringkasan Operasional + Push Notification HP.
+   - **Isi**: Pengingat Invoice Tempo Jatuh Tempo (Senin), Peringatan Stok Menipis Jogja & Lombok, Instruksi Stock Opname (tgl 28).
+3. **Staff / Kasir (Operasional)**:
+   - **Kanal**: Push Notification HP Saja.
+   - **Isi**: Notifikasi Pengunjung Price List & Shopee, Peringatan Stok Kritis rak kasir, Pengingat Stock Opname fisik. Kasir terisolasi dari email omzet keuangan bisnis demi privasi finansial.
+
