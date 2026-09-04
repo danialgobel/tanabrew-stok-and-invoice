@@ -676,8 +676,13 @@ const Akun = () => {
           <span>Database Realtime</span>
           <span className="font-semibold text-emerald-600 dark:text-emerald-400">Firebase Firestore</span>
         </div>
-        <div className="pt-2 text-center text-[10px] text-muted-foreground border-t border-border/40">
-          Hak Cipta &copy; 2026 Tanabrew Trademark. Hak Cipta Dilindungi.
+        <div className="pt-2 text-center text-[11px] text-muted-foreground border-t border-border/40 space-y-0.5">
+          <p className="font-medium text-foreground">
+            Dibuat & Dikembangkan oleh <span className="font-bold text-primary">Danial Gobel</span>
+          </p>
+          <p className="text-[10px] opacity-70">
+            Hak Cipta &copy; 2026 Tanabrew Trademark. Hak Cipta Dilindungi.
+          </p>
         </div>
       </div>
 

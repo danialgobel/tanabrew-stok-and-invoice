@@ -43,16 +43,9 @@ Aplikasi ini mengusung arsitektur responsif ganda:
    ```
 
 2. Konfigurasi file lingkungan:
-   Buat file `.env` di direktori utama dan lengkapi konfigurasi Firebase dan OneSignal:
-   ```env
-   VITE_FIREBASE_API_KEY=your_api_key
-   VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-   VITE_FIREBASE_PROJECT_ID=your_project_id
-   VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-   VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-   VITE_FIREBASE_APP_ID=your_app_id
-   VITE_ONESIGNAL_APP_ID=your_onesignal_app_id
-   ONESIGNAL_REST_API_KEY=your_onesignal_rest_key
+   Salin berkas konfigurasi template `.env.example` ke `.env` lokal:
+   ```bash
+   cp .env.example .env
    ```
 
 3. Jalankan server pengembangan lokal:
@@ -85,5 +78,14 @@ Rincian mendalam mengenai arsitektur, skema basis data, dan operasional tersedia
 
 ---
 
+## Pengembang Utama (Creator & Lead Developer)
+
+Sistem **Tanabrew Stock & Invoice** dirancang, dibangun dari nol, dan dikembangkan secara penuh oleh:
+
+**Danial Gobel** ([@danialgobel](https://github.com/danialgobel))  
+*Creator & Lead Developer of Tanabrew Stock & Invoice*
+
+---
+
 ## Lisensi
-Hak Cipta © Tanabrew Roastery. Seluruh hak cipta dilindungi.
+Hak Cipta © Tanabrew Roastery & Danial Gobel. Seluruh hak cipta dilindungi.

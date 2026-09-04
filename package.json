@@ -1,7 +1,9 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "tanabrew-stock-and-invoice",
   "private": true,
-  "version": "0.0.0",
+  "version": "3.2.6",
+  "description": "Sistem POS Kasir dan Manajemen Inventaris Multi-Gudang Tanabrew Roastery",
+  "author": "Danial Gobel <https://github.com/danialgobel>",
   "type": "module",
   "scripts": {
     "dev": "vite",
