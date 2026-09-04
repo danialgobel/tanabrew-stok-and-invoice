@@ -259,6 +259,9 @@ const generateReportPdfBuffer = ({
 
   // Kartu 2: Total Invoice
   const c2X = margin + cardW + 3;
+  doc.setFillColor(244, 251, 244); // #F4FBF4
+  doc.setDrawColor(165, 214, 167); // #A5D6A7
+  doc.setLineWidth(0.3);
   doc.roundedRect(c2X, y, cardW, cardH, 2, 2, "FD");
 
   doc.setFont("helvetica", "normal");
@@ -273,6 +276,9 @@ const generateReportPdfBuffer = ({
 
   // Kartu 3: Rincian Cabang & Metode
   const c3X = c2X + cardW + 3;
+  doc.setFillColor(244, 251, 244); // #F4FBF4
+  doc.setDrawColor(165, 214, 167); // #A5D6A7
+  doc.setLineWidth(0.3);
   doc.roundedRect(c3X, y, cardW, cardH, 2, 2, "FD");
 
   doc.setFont("helvetica", "normal");
@@ -476,7 +482,7 @@ const generateReportPdfBuffer = ({
       pageHeight - 7
     );
     doc.text(
-      `Halaman ${i} dari ${totalPages} | Lead Developer: Danial Gobel`,
+      `Halaman ${i} dari ${totalPages} | Developer: Danial Gobel`,
       pageWidth - margin,
       pageHeight - 7,
       { align: "right" }
@@ -524,11 +530,17 @@ const sendEmail = async ({
         })),
       });
 
-      const timeoutPromise = new Promise<{ timeout: true }>((_, reject) =>
-        setTimeout(() => reject(new Error("SMTP connection timeout (8s)")), 8000)
-      );
+      let timerId: NodeJS.Timeout | null = null;
+      const timeoutPromise = new Promise<{ timeout: true }>((_, reject) => {
+        timerId = setTimeout(() => reject(new Error("SMTP connection timeout (8s)")), 8000);
+      });
 
-      const info = (await Promise.race([sendPromise, timeoutPromise])) as any;
+      let info: any;
+      try {
+        info = await Promise.race([sendPromise, timeoutPromise]);
+      } finally {
+        if (timerId) clearTimeout(timerId);
+      }
 
       return {
         sent: true,
@@ -586,7 +598,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return res.status(200).json({ ok: true });
   }
 
-  const nowWib = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
+  try {
+    const nowWib = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
   const todayDateStr = nowWib.toISOString().split("T")[0];
   const timeStr = nowWib.toTimeString().split(" ")[0].slice(0, 5);
   const currentDayOfWeek = nowWib.getDay();
@@ -909,12 +922,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       <div style="max-width: 650px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 14px rgba(46, 125, 50, 0.08); border: 1px solid #a5d6a7;">
         
         <!-- Header Bertema Hijau Zamrud Resmi Tanabrew (#2E7D32) -->
-        <div style="background-color: #ffffff; padding: 20px 24px; border-bottom: 3px solid #2e7d32; display: flex; align-items: center; justify-content: space-between;">
-          <div>
+        <div style="background-color: #ffffff; padding: 20px 24px; border-bottom: 3px solid #2e7d32; text-align: left;">
+          <div style="margin-bottom: 12px;">
             <img src="https://i.ibb.co.com/Q7dCXq9q/logo-tanabrew-hijau.png" alt="Tanabrew Roastery" style="height: 38px; width: auto; display: block;" />
           </div>
-          <div style="text-align: right; font-size: 11px; color: #49624f; line-height: 1.4;">
-            <div><b>Laporan Invoice Harian</b></div>
+          <div style="text-align: left; font-size: 11px; color: #49624f; line-height: 1.5;">
+            <div style="font-weight: bold; color: #14381c; font-size: 13px;">Laporan Invoice Harian</div>
             <div>${todayDateStr} • ${timeStr} WIB</div>
           </div>
         </div>
@@ -974,7 +987,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         <!-- Footer Resmi -->
         <div style="background-color: #f4fbf4; padding: 14px; text-align: center; font-size: 11px; color: #49624f; border-top: 1px solid #a5d6a7;">
           Sistem Manajemen Stok & Invoice Tanabrew Roastery &copy; 2026.<br/>
-          Lead Developer: Danial Gobel.
+          Developer: Danial Gobel.
         </div>
       </div>
     </body>
@@ -985,12 +998,20 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.query?.preview === "pdf") {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", "inline; filename=\"preview-laporan-tanabrew.pdf\"");
-    return res.status(200).send(pdfBuffer);
+    if (typeof (res as any).send === "function") {
+      return (res as any).status(200).send(pdfBuffer);
+    }
+    (res as any).statusCode = 200;
+    return (res as any).end(pdfBuffer);
   }
 
   if (req.query?.preview === "email" || req.query?.preview === "html") {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
-    return res.status(200).send(ownerHtml);
+    if (typeof (res as any).send === "function") {
+      return (res as any).status(200).send(ownerHtml);
+    }
+    (res as any).statusCode = 200;
+    return (res as any).end(ownerHtml);
   }
 
   // 6. Kirim Email Rekap dengan Lampiran PDF (Hanya ke Danial selama mode test)
@@ -1060,4 +1081,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     },
     results,
   });
+  } catch (criticalErr: any) {
+    console.error("Critical Cron Dispatcher Error:", criticalErr);
+    return res.status(200).json({
+      success: false,
+      error: criticalErr?.message || String(criticalErr),
+      stack: criticalErr?.stack,
+    });
+  }
 }

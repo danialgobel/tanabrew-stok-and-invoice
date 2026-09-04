@@ -15,40 +15,61 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.3.1",
-  versionLabel: "v3.3.1",
+  version: "3.3.2",
+  versionLabel: "v3.3.2",
   releaseDate: "5 September 2026",
-  title: "Audit Deliverability Email Anti-Spam & Publikasi Detail Laporan PDF (5 September 2026)",
-  subtitle: "Dukungan Gmail SMTP Langsung, Penghapusan QRIS, Tabel Audit Transaksi Lengkap, dan Auto-Paging Laporan PDF",
+  title: "Penyempurnaan Visual Laporan PDF, Tata Letak Email & Branding (5 September 2026)",
+  subtitle: "Perbaikan Kontras Kartu Metrik PDF, Reorganisasi Header Email Kiri-Atas, Branding Developer, dan Stabilitas Serverless",
   highlights: [
     {
-      title: "Dukungan Langsung Gmail SMTP (Nodemailer) Anti-Spam",
-      desc: "Mengirim email rekap harian resmi langsung lewat server Google SMTP sehingga 100% masuk Inbox Utama dan dapat dikirim ke seluruh anggota tim tanpa batas sandbox.",
-      badge: "Baru",
-      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
-    },
-    {
-      title: "Publikasi Dokumen PDF Sangat Detail",
-      desc: "PDF kini menyajikan audit transaksi lengkap per faktur: nomor invoice, nama pelanggan, cabang gudang, kasir, rincian item/biji kopi yang dibeli, dan nilai pesanan.",
-      badge: "Fitur",
-      badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-    },
-    {
-      title: "Penyelarasan Metode Pembayaran Resmi Tanabrew",
-      desc: "Menghapus QRIS dari seluruh sistem laporan dan menyelaraskan pencatatan hanya pada metode resmi Tanabrew: Tunai, Transfer Bank (Seabank/BSI), dan Tempo.",
+      title: "Perbaikan Kontras & Warna Kartu Ringkasan PDF",
+      desc: "Menyelaraskan warna latar ketiga kartu ringkasan penjualan (Total Pemasukan, Total Invoice, dan Rincian Cabang) dengan warna pastel hijau cerah (#F4FBF4) sehingga seluruh teks terbaca tajam dan elegan.",
       badge: "Perbaikan",
       badgeColor: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/20",
     },
     {
-      title: "Statistik Biji Kopi Terlaris & Auto-Paging",
-      desc: "Laporan PDF dilengkapi ringkasan biji kopi terlaris hari ini serta dukungan pemecahan halaman otomatis (multi-page) untuk volume transaksi tinggi.",
+      title: "Tata Letak Header Email Rapi & Proporsional",
+      desc: "Menata teks Laporan Invoice Harian dan stempel tanggal-jam di pojok kiri atas di bawah logo Tanabrew agar tidak bertabrakan secara horizontal dan nyaman dipandang.",
       badge: "Peningkatan",
       badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
+    },
+    {
+      title: "Penyesuaian Branding Developer",
+      desc: "Memperbarui stempel resmi catatan kaki pada dokumen PDF dan template email menjadi Developer: Danial Gobel.",
+      badge: "Baru",
+      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+    },
+    {
+      title: "Stabilitas Eksekusi & Anti-Crash Vercel Serverless",
+      desc: "Memperbaiki penanganan timer background SMTP dan menambahkan wrapper global try-catch agar pemanggilan cron dan pratinjau PDF/Email selalu berjalan mulus.",
+      badge: "Peningkatan",
+      badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
   ],
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.3.1",
+    versionLabel: "v3.3.1",
+    releaseDate: "5 September 2026",
+    title: "Audit Deliverability Email Anti-Spam & Publikasi Detail Laporan PDF (5 September 2026)",
+    subtitle: "Dukungan Gmail SMTP Langsung, Penghapusan QRIS, Tabel Audit Transaksi Lengkap, dan Auto-Paging Laporan PDF",
+    highlights: [
+      {
+        title: "Dukungan Langsung Gmail SMTP (Nodemailer) Anti-Spam",
+        desc: "Mengirim email rekap harian resmi langsung lewat server Google SMTP sehingga 100% masuk Inbox Utama dan dapat dikirim ke seluruh anggota tim tanpa batas sandbox.",
+        badge: "Baru",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      },
+      {
+        title: "Publikasi Dokumen PDF Sangat Detail",
+        desc: "PDF kini menyajikan audit transaksi lengkap per faktur: nomor invoice, nama pelanggan, cabang gudang, kasir, rincian item/biji kopi yang dibeli, dan nilai pesanan.",
+        badge: "Fitur",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+    ],
+  },
   {
     version: "3.3.0",
     versionLabel: "v3.3.0",
