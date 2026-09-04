@@ -548,7 +548,7 @@ const sendEmail = async ({
         });
 
         const timeoutPromise = new Promise<{ timeout: true }>((_, reject) => {
-          timerId = setTimeout(() => reject(new Error("SMTP connection timeout (8s)")), 8000);
+          timerId = setTimeout(() => reject(new Error("SMTP connection timeout (5s)")), 5000);
         });
 
         let info: any;
@@ -1663,23 +1663,24 @@ Developer: Danial Gobel.
     return sendData(res, 200, "text/html; charset=utf-8", targetReports[0].html);
   }
 
-  // 6. Eksekusi Pengiriman Email
-  const reportsSent: any[] = [];
-  for (const rep of targetReports) {
-    const emailResult = await sendEmail({
-      to: recipientEmails,
-      subject: rep.subject,
-      html: rep.html,
-      text: rep.text,
-      attachments: rep.attachments,
-    });
-    reportsSent.push({
-      reportType: rep.type,
-      reportName: rep.name,
-      subject: rep.subject,
-      ...emailResult,
-    });
-  }
+  // 6. Eksekusi Pengiriman Email secara Paralel (Cepat & Anti-Timeout)
+  const reportsSent = await Promise.all(
+    targetReports.map(async (rep) => {
+      const emailResult = await sendEmail({
+        to: recipientEmails,
+        subject: rep.subject,
+        html: rep.html,
+        text: rep.text,
+        attachments: rep.attachments,
+      });
+      return {
+        reportType: rep.type,
+        reportName: rep.name,
+        subject: rep.subject,
+        ...emailResult,
+      };
+    })
+  );
 
   results.notifications.emailDelivery = {
     recipients: recipientEmails,
