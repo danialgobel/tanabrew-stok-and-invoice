@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useLocation } from "react-router-dom";
 import { RefreshCw, Sparkles, X } from "lucide-react";
 import { CURRENT_RELEASE } from "@/config/appRelease";
 import { triggerHaptic } from "@/lib/haptics";
@@ -13,31 +12,62 @@ interface VersionResponse {
   releaseDate?: string;
 }
 
+/**
+ * Memeriksa apakah versi remote strictly lebih baru dibandingkan versi lokal
+ * Menggunakan Semantic Versioning (contoh: 3.3.11 > 3.3.10)
+ */
+export function isNewerVersion(remote?: string | null, local?: string | null): boolean {
+  if (!remote || !local) return false;
+  const clean = (v: string) => String(v).replace(/^[^\d]*/, "").trim();
+  const rParts = clean(remote).split(".").map((n) => parseInt(n, 10) || 0);
+  const lParts = clean(local).split(".").map((n) => parseInt(n, 10) || 0);
+  const maxLen = Math.max(rParts.length, lParts.length);
+  for (let i = 0; i < maxLen; i++) {
+    const r = rParts[i] || 0;
+    const l = lParts[i] || 0;
+    if (r > l) return true;
+    if (r < l) return false;
+  }
+  return false;
+}
+
 export const AutoUpdateBanner = () => {
-  const location = useLocation();
   const { userProfile } = useAuth();
   const [newVersion, setNewVersion] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
-  const [countdown, setCountdown] = useState<number>(6);
-  const [isPaused, setIsPaused] = useState(false);
   const lastCheckTime = useRef<number>(0);
-
-  // Periksa apakah user sedang berada di halaman kasir/cetak invoice yang sedang ada input
-  const isSafeToAutoReload = location.pathname !== "/cetak-invoice";
 
   const handleApplyUpdate = useCallback(() => {
     triggerHaptic(20);
     setIsUpdating(true);
-    // Reload halaman secara instan - sesi login Firebase tetap utuh di IndexedDB
+    if (newVersion) {
+      try {
+        sessionStorage.setItem("tanabrew_applied_update", newVersion);
+      } catch {
+        // Abaikan error storage
+      }
+    }
+    // Reload halaman secara manual ketika user siap - sesi login Firebase tetap utuh di IndexedDB
     setTimeout(() => {
       window.location.reload();
-    }, 300);
-  }, []);
+    }, 250);
+  }, [newVersion]);
+
+  const handleDismiss = useCallback(() => {
+    triggerHaptic(10);
+    if (newVersion) {
+      try {
+        sessionStorage.setItem("tanabrew_dismissed_update", newVersion);
+      } catch {
+        // Abaikan error storage
+      }
+    }
+    setNewVersion(null);
+  }, [newVersion]);
 
   const checkForUpdate = useCallback(async () => {
     const now = Date.now();
-    if (now - lastCheckTime.current < 12000) return;
+    if (now - lastCheckTime.current < 20000) return;
     lastCheckTime.current = now;
 
     try {
@@ -51,8 +81,13 @@ export const AutoUpdateBanner = () => {
       if (!res.ok) return;
 
       const data = (await res.json()) as VersionResponse;
-      if (data?.version && data.version !== CURRENT_RELEASE.version) {
-        setNewVersion(data.versionLabel || `v${data.version}`);
+      if (data?.version && isNewerVersion(data.version, CURRENT_RELEASE.version)) {
+        const v = data.versionLabel || `v${data.version}`;
+        const dismissed = sessionStorage.getItem("tanabrew_dismissed_update");
+        const applied = sessionStorage.getItem("tanabrew_applied_update");
+        if (dismissed !== v && applied !== v) {
+          setNewVersion(v);
+        }
       }
     } catch {
       // Abaikan jika offline / koneksi sementara terputus
@@ -77,14 +112,19 @@ export const AutoUpdateBanner = () => {
     }
   }, [userProfile]);
 
-  // 2. Realtime Listener Firestore: Bangunkan semua tab browser yang sedang terbuka secara seketika!
+  // 2. Realtime Listener Firestore: Deteksi pembaruan jika versi di server strictly lebih baru
   useEffect(() => {
     try {
       const unsub = onSnapshot(doc(db, "system", "app_version"), (snap) => {
         if (snap.exists()) {
           const data = snap.data();
-          if (data?.version && data.version !== CURRENT_RELEASE.version) {
-            setNewVersion(data.versionLabel || `v${data.version}`);
+          if (data?.version && isNewerVersion(data.version, CURRENT_RELEASE.version)) {
+            const v = data.versionLabel || `v${data.version}`;
+            const dismissed = sessionStorage.getItem("tanabrew_dismissed_update");
+            const applied = sessionStorage.getItem("tanabrew_applied_update");
+            if (dismissed !== v && applied !== v) {
+              setNewVersion(v);
+            }
           }
         }
       });
@@ -94,15 +134,15 @@ export const AutoUpdateBanner = () => {
     }
   }, []);
 
-  // 3. Pengecekan berkala (interval 30 detik), fokus tab, dan saat user berpindah halaman
+  // 3. Pengecekan berkala (interval 60 detik) dan saat fokus tab kembali
   useEffect(() => {
     const initialTimer = setTimeout(() => {
       void checkForUpdate();
-    }, 2000);
+    }, 4000);
 
     const interval = setInterval(() => {
       void checkForUpdate();
-    }, 30000);
+    }, 60000);
 
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
@@ -122,33 +162,7 @@ export const AutoUpdateBanner = () => {
     };
   }, [checkForUpdate]);
 
-  // 4. Cek setiap kali user berganti menu navigasi
-  useEffect(() => {
-    void checkForUpdate();
-  }, [location.pathname, checkForUpdate]);
-
-  // 5. Hitung mundur auto-reload otomatis (6 detik) jika aman
-  useEffect(() => {
-    if (!newVersion || dismissed || isUpdating || isPaused) return;
-
-    if (!isSafeToAutoReload) {
-      // Di kasir, tunda auto-reload agar tidak mengganggu transaksi kasir yang sedang diketik
-      return;
-    }
-
-    if (countdown <= 0) {
-      handleApplyUpdate();
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setCountdown((prev) => prev - 1);
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [newVersion, dismissed, isUpdating, isPaused, countdown, isSafeToAutoReload, handleApplyUpdate]);
-
-  if (!newVersion || dismissed) return null;
+  if (!newVersion) return null;
 
   return (
     <div
@@ -172,9 +186,7 @@ export const AutoUpdateBanner = () => {
               </p>
             </div>
             <p className="text-[11px] text-emerald-100/95 truncate font-medium mt-0.5">
-              {isSafeToAutoReload && !isPaused
-                ? `Memperbarui otomatis dalam ${countdown} dtk...`
-                : "Siap dipasang tanpa perlu login ulang."}
+              Versi baru tersedia. Klik perbarui saat siap.
             </p>
           </div>
         </div>
@@ -187,25 +199,19 @@ export const AutoUpdateBanner = () => {
             className="flex items-center gap-1.5 rounded-xl bg-white text-[#00512C] px-3 py-2 text-xs font-black hover:bg-emerald-50 active:scale-95 transition-all shadow-md cursor-pointer disabled:opacity-75"
           >
             <RefreshCw size={13} className={isUpdating ? "animate-spin" : ""} />
-            <span>{isUpdating ? "Memuat..." : isSafeToAutoReload && !isPaused ? `Perbarui (${countdown}s)` : "Perbarui"}</span>
+            <span>{isUpdating ? "Memuat..." : "Perbarui"}</span>
           </button>
           <button
             type="button"
-            onClick={() => {
-              triggerHaptic(10);
-              setIsPaused(true);
-              setDismissed(true);
-            }}
-            className="p-1.5 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-            title="Tunda pembaruan"
-            aria-label="Tutup"
+            onClick={handleDismiss}
+            className="p-1.5 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            title="Tutup nontifikasi"
+            aria-label="Tutup pembaruan"
           >
-            <X size={15} />
+            <X size={16} />
           </button>
         </div>
       </div>
     </div>
   );
 };
-
-export default AutoUpdateBanner;
