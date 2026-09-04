@@ -496,11 +496,13 @@ const sendEmail = async ({
   to,
   subject,
   html,
+  text,
   attachments,
 }: {
   to: string[];
   subject: string;
   html: string;
+  text?: string;
   attachments?: Array<{ filename: string; content: Buffer }>;
 }) => {
   const gmailUser = (process.env.GMAIL_USER || process.env.SMTP_USER || "danialgobel26@gmail.com").trim();
@@ -519,34 +521,52 @@ const sendEmail = async ({
         },
       });
 
-      const sendPromise = transporter.sendMail({
-        from: `Tanabrew Roastery <${gmailUser}>`,
-        to: to.join(", "),
-        subject,
-        html,
-        attachments: attachments?.map((att) => ({
-          filename: att.filename,
-          content: att.content,
-        })),
-      });
+      const sendDeliveries: any[] = [];
+      const uniqueRecipients = Array.from(
+        new Set(to.map((e) => (typeof e === "string" ? e.trim().toLowerCase() : "")).filter(Boolean))
+      );
 
-      let timerId: NodeJS.Timeout | null = null;
-      const timeoutPromise = new Promise<{ timeout: true }>((_, reject) => {
-        timerId = setTimeout(() => reject(new Error("SMTP connection timeout (8s)")), 8000);
-      });
+      // Kirim secara individual per penerima:
+      // Mencegah email dianggap "broadcast massal" oleh filter email kampus/institusi (seperti @webmail.uad.ac.id)
+      for (const recipient of uniqueRecipients) {
+        let timerId: NodeJS.Timeout | null = null;
+        const sendPromise = transporter.sendMail({
+          from: `"Tanabrew Roastery" <${gmailUser}>`,
+          to: recipient,
+          replyTo: gmailUser,
+          subject,
+          text: text || "Laporan Rekapitulasi Invoice Penjualan Tanabrew Roastery.",
+          html,
+          headers: {
+            "X-Entity-Ref-ID": `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            "X-Priority": "3",
+            Importance: "normal",
+            "Auto-Submitted": "auto-generated",
+          },
+          attachments: attachments?.map((att) => ({
+            filename: att.filename,
+            content: att.content,
+            contentType: (att as any).contentType || "application/pdf",
+          })),
+        });
 
-      let info: any;
-      try {
-        info = await Promise.race([sendPromise, timeoutPromise]);
-      } finally {
-        if (timerId) clearTimeout(timerId);
+        const timeoutPromise = new Promise<{ timeout: true }>((_, reject) => {
+          timerId = setTimeout(() => reject(new Error("SMTP connection timeout (8s)")), 8000);
+        });
+
+        let info: any;
+        try {
+          info = await Promise.race([sendPromise, timeoutPromise]);
+          sendDeliveries.push({ recipient, messageId: info?.messageId, accepted: info?.accepted });
+        } finally {
+          if (timerId) clearTimeout(timerId);
+        }
       }
 
       return {
         sent: true,
         provider: "gmail-smtp",
-        messageId: info.messageId,
-        accepted: info.accepted,
+        deliveries: sendDeliveries,
       };
     } catch (err: any) {
       console.warn("Gmail SMTP notice:", err?.message);
@@ -561,23 +581,22 @@ const sendEmail = async ({
       const fromEmail = process.env.RESEND_FROM_EMAIL || "Tanabrew System <onboarding@resend.dev>";
       const sender = fromEmail.includes("@") ? fromEmail : "onboarding@resend.dev";
 
-      const payload: any = {
-        from: sender,
-        to,
-        subject,
-        html,
-      };
+      for (const recipient of to) {
+        const payload: any = {
+          from: sender,
+          to: [recipient],
+          subject,
+          text: text || "Laporan Rekapitulasi Invoice Penjualan Tanabrew Roastery.",
+          html,
+        };
 
-      if (attachments && attachments.length > 0) {
-        payload.attachments = attachments;
+        if (attachments && attachments.length > 0) {
+          payload.attachments = attachments;
+        }
+
+        await resend.emails.send(payload);
       }
-
-      const { data, error } = await resend.emails.send(payload);
-
-      if (error) {
-        return { sent: false, provider: "resend", error: error.message };
-      }
-      return { sent: true, provider: "resend", id: data?.id };
+      return { sent: true, provider: "resend" };
     } catch (err: any) {
       return { sent: false, provider: "resend", error: err?.message };
     }
@@ -982,7 +1001,7 @@ export default async function handler(req: any, res: any) {
         <!-- Header Bertema Hijau Zamrud Resmi Tanabrew (#2E7D32) -->
         <div style="background-color: #ffffff; padding: 20px 24px; border-bottom: 3px solid #2e7d32; text-align: left;">
           <div style="margin-bottom: 12px;">
-            <img src="https://i.ibb.co.com/Q7dCXq9q/logo-tanabrew-hijau.png" alt="Tanabrew Roastery" style="height: 38px; width: auto; display: block;" />
+            <img src="https://tanabrew-stok-and-invoice.vercel.app/logo-pricelist.png" alt="Tanabrew Roastery" style="height: 38px; width: auto; display: block;" />
           </div>
           <div style="text-align: left; font-size: 11px; color: #49624f; line-height: 1.5;">
             <div style="font-weight: bold; color: #14381c; font-size: 13px;">Laporan Invoice Harian</div>
@@ -1052,6 +1071,28 @@ export default async function handler(req: any, res: any) {
     </html>
   `;
 
+  const ownerText = `
+LAPORAN REKAPITULASI INVOICE PENJUALAN TANABREW ROASTERY
+Periode: ${todayDateStr} (${timeStr} WIB) - Penutupan Kasir Harian
+
+RINGKASAN PENJUALAN:
+- Total Pemasukan: ${formatRupiah(todayOmzet)}
+- Total Invoice: ${todayCount} Invoice
+- Rincian Cabang Jogja: ${formatRupiah(jogjaOmzet)}
+- Rincian Cabang Lombok: ${formatRupiah(lombokOmzet)}
+
+Metode Pembayaran:
+- Tunai: ${tunaiCount} Transaksi (${formatRupiah(tunaiOmzet)})
+- Transfer Bank: ${transferCount} Transaksi (${formatRupiah(transferOmzet)})
+- Tempo: ${tempoCount} Transaksi (${formatRupiah(tempoOmzet)})
+
+Lampiran dokumen PDF resmi siap dicetak telah disertakan dalam email ini.
+Akses Riwayat Penjualan: https://tanabrew-stok-and-invoice.vercel.app/riwayat
+
+Dokumen resmi Tanabrew Roastery • Sistem Manajemen Stok & Invoice.
+Developer: Danial Gobel.
+  `.trim();
+
   // PREVIEW MODES: Langsung tampilkan di browser tanpa perlu kirim email jika ada query ?preview=...
   if (queryPreview === "pdf") {
     return sendData(
@@ -1068,15 +1109,17 @@ export default async function handler(req: any, res: any) {
   }
 
   // 6. Kirim Email Rekap dengan Lampiran PDF (Hanya ke Danial selama mode test)
-  const emailSubject = `Laporan Penjualan Hari Ini: ${formatRupiah(todayOmzet)} (${todayDateStr})`;
+  const emailSubject = `Laporan Rekapitulasi Penjualan Harian - Tanabrew Roastery (${todayDateStr})`;
   const emailResult = await sendEmail({
     to: recipientEmails,
     subject: emailSubject,
     html: ownerHtml,
+    text: ownerText,
     attachments: [
       {
-        filename: `Laporan-Invoice-Tanabrew-${todayDateStr}.pdf`,
+        filename: `Laporan-Invoice-Tanabrew-${todayDateStr.replace(/[^a-zA-Z0-9-]/g, "-")}.pdf`,
         content: pdfBuffer,
+        contentType: "application/pdf",
       },
     ],
   });

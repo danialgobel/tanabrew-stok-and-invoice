@@ -15,28 +15,55 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.3.4",
-  versionLabel: "v3.3.4",
+  version: "3.3.5",
+  versionLabel: "v3.3.5",
   releaseDate: "5 September 2026",
-  title: "Inlining Asset Logo Mandiri & Perbaikan Total Vercel Deployment (5 September 2026)",
-  subtitle: "Penyelesaian Masalah Modul Eksternal Vercel, Eliminasi Ketergantungan Path Relatif, dan Kesiapan Penuh Pengiriman Email",
+  title: "Arsitektur Anti-Spam Email Enterprise & Pengiriman Individual Per Penerima (5 September 2026)",
+  subtitle: "Eliminasi Pengelompokan Header Massal, Penambahan Alternatif Plain-Text MIME, dan Optimasi Reputasi Pengirim",
   highlights: [
     {
-      title: "Penyelesaian Definitif ERR_MODULE_NOT_FOUND",
-      desc: "Menyematkan aset logo base64 resmi langsung di dalam cron dispatcher tanpa ketergantungan berkas lintas-direktori, menjamin fungsi berjalan 100% tanpa kegagalan impor di Vercel.",
-      badge: "Perbaikan",
-      badgeColor: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/20",
+      title: "Pengiriman Email Individual Per Penerima (Anti-Spam)",
+      desc: "Mengubah pengiriman email laporan dari broadcast massal To: menjadi transmisi 1-on-1 terdedikasi per penerima sehingga filter email kampus (@webmail.uad.ac.id) dan instansi lain tidak menganggapnya sebagai spam broadcast.",
+      badge: "Peningkatan",
+      badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
     {
-      title: "Dukungan Penuh Kredensial Gmail SMTP & OneSignal",
-      desc: "Menghubungkan variabel GMAIL_USER dan GMAIL_APP_PASSWORD yang telah terkonfigurasi di Vercel untuk pengiriman laporan penutupan kasir anti-spam ke seluruh Owner dan Admin.",
+      title: "Dukungan Dual MIME (HTML & Plain-Text Fallback)",
+      desc: "Menyertakan versi teks biasa (text) lengkap di samping dokumen HTML resmi, menghapus penalti MIME_HTML_ONLY pada filter SpamAssassin dan gateway email korporat/kampus.",
       badge: "Fitur",
-      badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+    },
+    {
+      title: "Sanitasi Header & Lampiran PDF",
+      desc: "Menyematkan header prioritas normal standar, ID referensi entitas unik, dan sanitasi nama berkas lampiran PDF resmi tanpa spasi mentah.",
+      badge: "Perbaikan",
+      badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20",
     },
   ],
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.3.4",
+    versionLabel: "v3.3.4",
+    releaseDate: "5 September 2026",
+    title: "Inlining Asset Logo Mandiri & Perbaikan Total Vercel Deployment (5 September 2026)",
+    subtitle: "Penyelesaian Masalah Modul Eksternal Vercel, Eliminasi Ketergantungan Path Relatif, dan Kesiapan Penuh Pengiriman Email",
+    highlights: [
+      {
+        title: "Penyelesaian Definitif ERR_MODULE_NOT_FOUND",
+        desc: "Menyematkan aset logo base64 resmi langsung di dalam cron dispatcher tanpa ketergantungan berkas lintas-direktori, menjamin fungsi berjalan 100% tanpa kegagalan impor di Vercel.",
+        badge: "Perbaikan",
+        badgeColor: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/20",
+      },
+      {
+        title: "Dukungan Penuh Kredensial Gmail SMTP & OneSignal",
+        desc: "Menghubungkan variabel GMAIL_USER dan GMAIL_APP_PASSWORD yang telah terkonfigurasi di Vercel untuk pengiriman laporan penutupan kasir anti-spam ke seluruh Owner dan Admin.",
+        badge: "Fitur",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+    ],
+  },
   {
     version: "3.3.3",
     versionLabel: "v3.3.3",
