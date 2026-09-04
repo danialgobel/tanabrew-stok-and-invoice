@@ -98,19 +98,54 @@ const verifyRequester = async (authorization: string) => {
   const auth = await getAdminAuth();
   const decodedToken = await auth.verifyIdToken(token);
   const uid = decodedToken.uid;
+  const email = (decodedToken.email || "").toLowerCase().trim();
+
+  // 1. Otorisasi master developer dan owner Tanabrew
+  const isMasterDev =
+    email === "danialgobel26@gmail.com" ||
+    email === "tanabrewofficial@gmail.com";
 
   const db = await getAdminDb();
-  const userDoc = await db.collection("users").doc(uid).get();
-  const userData = userDoc.exists ? userDoc.data() : null;
+  let userDoc = await db.collection("users").doc(uid).get();
+  let userData = userDoc.exists ? userDoc.data() : null;
 
-  if (!userData || (userData.role !== "webdev" && userData.role !== "owner")) {
+  // Jika master developer belum memiliki dokumen di Firestore, inisialisasi otomatis dengan role 'webdev'
+  if (isMasterDev && (!userDoc.exists || !userData?.role)) {
+    const { FieldValue } = await import("firebase-admin/firestore");
+    await db.collection("users").doc(uid).set(
+      {
+        uid,
+        email,
+        name: decodedToken.name || "Developer",
+        role: "webdev",
+        updated_at: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+    userDoc = await db.collection("users").doc(uid).get();
+    userData = userDoc.data() || null;
+  }
+
+  const role = (userData?.role || "").toLowerCase().trim();
+  const isAuthorizedRole = ["webdev", "developer", "dev", "godmode", "owner"].includes(role);
+
+  if (!isMasterDev && !isAuthorizedRole) {
     throw new Error("Akses ditolak: Hanya role Developer atau Owner yang diizinkan.");
   }
 
-  return { uid, userData };
+  return { uid, userData, email };
 };
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).json({ success: true });
+  }
+
   const authorization = getHeader(req, "authorization") || "";
   if (!authorization.startsWith("Bearer ") || authorization.length < 24) {
     return res.status(401).json({ success: false, error: "Authorization token is required." });
@@ -164,21 +199,38 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
 
     if (action === "update_role") {
-      if (!newRole || !["owner", "admin", "staff", "webdev"].includes(newRole)) {
-        return res.status(400).json({ success: false, error: "Role tidak valid." });
+      let targetRole = (newRole || "").toLowerCase().trim();
+      if (targetRole === "developer" || targetRole === "dev" || targetRole === "godmode") {
+        targetRole = "webdev";
+      }
+
+      if (!["owner", "admin", "staff", "webdev"].includes(targetRole)) {
+        return res.status(400).json({ success: false, error: `Role '${newRole}' tidak valid.` });
       }
 
       try {
         const { FieldValue } = await import("firebase-admin/firestore");
         await db.collection("users").doc(userId).set(
           {
-            role: newRole,
+            role: targetRole,
             updated_at: FieldValue.serverTimestamp(),
           },
           { merge: true }
         );
 
-        return res.status(200).json({ success: true, message: `Role berhasil diubah menjadi ${newRole}` });
+        // Sinkronkan custom claims auth jika didukung
+        try {
+          const auth = await getAdminAuth();
+          await auth.setCustomUserClaims(userId, { role: targetRole });
+        } catch {
+          // Abaikan jika setCustomUserClaims opsional
+        }
+
+        return res.status(200).json({
+          success: true,
+          message: `Role berhasil diubah menjadi ${targetRole}`,
+          role: targetRole,
+        });
       } catch (err: any) {
         return res.status(500).json({ success: false, error: err.message });
       }

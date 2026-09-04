@@ -338,10 +338,12 @@ const GodMode = () => {
     try {
       if (!currentUser) throw new Error("Tidak ada user yang login.");
 
-      // Coba Admin SDK API terlebih dahulu
+      const token = await currentUser.getIdToken(true);
       let updated = false;
+      let lastError = "";
+
+      // 1. Eksekusi melalui Admin SDK Serverless API (Akses Administratif Penuh)
       try {
-        const token = await currentUser.getIdToken(true);
         const res = await fetch("/api/admin-users", {
           method: "POST",
           headers: {
@@ -350,15 +352,20 @@ const GodMode = () => {
           },
           body: JSON.stringify({ action: "update_role", userId, newRole }),
         });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success) updated = true;
+
+        const data = await res.json().catch(() => null);
+        if (res.ok && data?.success) {
+          updated = true;
+        } else {
+          lastError = data?.error || `HTTP ${res.status}: ${res.statusText}`;
+          addLog(`Admin SDK respon: ${lastError}`, "warn");
         }
-      } catch {
-        addLog("Admin SDK tidak tersedia, mencoba Firestore SDK...", "warn");
+      } catch (apiErr: any) {
+        lastError = apiErr.message || "Gagal menghubungi Admin SDK";
+        addLog(`Koneksi Admin SDK error: ${lastError}`, "warn");
       }
 
-      // Fallback 1: Firestore SDK client updateDoc
+      // 2. Fallback: Firestore Client SDK (jika diizinkan oleh rules)
       if (!updated) {
         try {
           await updateDoc(doc(db, "users", userId), {
@@ -366,33 +373,13 @@ const GodMode = () => {
             updated_at: serverTimestamp(),
           });
           updated = true;
-        } catch {
-          addLog("Firestore SDK gagal, mencoba Firestore REST API...", "warn");
+        } catch (clientErr: any) {
+          addLog(`Firestore Client updateDoc gagal: ${clientErr.message}`, "warn");
         }
       }
 
-      // Fallback 2: Firestore REST API PATCH dengan user ID token
       if (!updated) {
-        const token = await currentUser.getIdToken(true);
-        const projectId = "tanabrew";
-        const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${userId}?updateMask.fieldPaths=role`;
-        const patchRes = await fetch(url, {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            fields: {
-              role: { stringValue: newRole },
-            },
-          }),
-        });
-        if (!patchRes.ok) {
-          const errText = await patchRes.text();
-          throw new Error(`Firestore REST PATCH: ${patchRes.status} — ${errText}`);
-        }
-        updated = true;
+        throw new Error(lastError || "Gagal memperbarui role di server.");
       }
 
       setUsersList((prev) =>

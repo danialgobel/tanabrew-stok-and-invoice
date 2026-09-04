@@ -15,28 +15,43 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.3.11",
-  versionLabel: "v3.3.11",
+  version: "3.3.12",
+  versionLabel: "v3.3.12",
   releaseDate: "5 September 2026",
-  title: "Perbaikan Bug Loop Timer Pembaruan & Penghapusan Auto-Reload Paksa (5 September 2026)",
-  subtitle: "Eliminasi Hitung Mundur 6 Detik, Perbandingan Versi SemVer Ketat, dan Sinkronisasi Otomatis",
+  title: "Perbaikan Hak Akses Ubah Role Pengguna untuk Developer & Admin API (5 September 2026)",
+  subtitle: "Otorisasi Penuh Developer, Normalisasi Alias Role, dan Penanganan CORS Preflight OPTIONS",
   highlights: [
     {
-      title: "Eliminasi Timer Auto-Reload Paksa 6 Detik",
-      desc: "Menghapus loop reload otomatis yang mengganggu. Nontifikasi pembaruan kini tampil sopan tanpa memaksa muat ulang halaman, dengan tombol aksi 'Perbarui' manual dan tombol tutup 'X'.",
+      title: "Otorisasi Penuh Developer & Dukungan CORS Admin API",
+      desc: "Memperbaiki endpoint /api/admin-users dengan dukungan preflight CORS OPTIONS, normalisasi alias role (developer/webdev), dan bypass otentikasi master developer agar pengubahan role di panel admin berjalan mulus tanpa error 403.",
       badge: "Perbaikan",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-    },
-    {
-      title: "Sinkronisasi Versi Otomatis & SemVer Strict",
-      desc: "Menerapkan perbandingan versi SemVer ketat agar rilis lama tidak memicu banner palsu, serta otomatisasi sinkronisasi version.json dan package.json saat proses build.",
-      badge: "Peningkatan",
-      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
   ],
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.3.11",
+    versionLabel: "v3.3.11",
+    releaseDate: "5 September 2026",
+    title: "Perbaikan Bug Loop Timer Pembaruan & Penghapusan Auto-Reload Paksa (5 September 2026)",
+    subtitle: "Eliminasi Hitung Mundur 6 Detik, Perbandingan Versi SemVer Ketat, dan Sinkronisasi Otomatis",
+    highlights: [
+      {
+        title: "Eliminasi Timer Auto-Reload Paksa 6 Detik",
+        desc: "Menghapus loop reload otomatis yang mengganggu. Nontifikasi pembaruan kini tampil sopan tanpa memaksa muat ulang halaman, dengan tombol aksi 'Perbarui' manual dan tombol tutup 'X'.",
+        badge: "Perbaikan",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+      {
+        title: "Sinkronisasi Versi Otomatis & SemVer Strict",
+        desc: "Menerapkan perbandingan versi SemVer ketat agar rilis lama tidak memicu banner palsu, serta otomatisasi sinkronisasi version.json dan package.json saat proses build.",
+        badge: "Peningkatan",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      },
+    ],
+  },
   {
     version: "3.3.10",
     versionLabel: "v3.3.10",
