@@ -15,28 +15,49 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.3.7",
-  versionLabel: "v3.3.7",
+  version: "3.3.8",
+  versionLabel: "v3.3.8",
   releaseDate: "5 September 2026",
-  title: "Dukungan Penerima Multi-User Fallback & Penanganan Kuota Firestore (5 September 2026)",
-  subtitle: "Dukungan Variabel RECIPIENT_EMAILS, Pengiriman Otomatis ke Seluruh Tim Saat Overquota, dan Audit Diagnostik Eksekusi",
+  title: "Ekspansi Penerima Laporan Otomatis ke Seluruh Pengguna (5 September 2026)",
+  subtitle: "Inklusi Penuh Seluruh Pengguna Terdaftar (Owner, Admin, Staff, Kasir) dan Dukungan Pengujian Instan (?all=true)",
   highlights: [
     {
-      title: "Dukungan Penerima Multi-User Fallback",
-      desc: "Menambahkan dukungan variabel RECIPIENT_EMAILS dan fallback multi-user ke seluruh tim saat kuota harian Firestore habis, mencegah pengiriman hanya ke 1 orang.",
-      badge: "Peningkatan",
+      title: "Inklusi Penuh Seluruh Role Pengguna",
+      desc: "Memperluas penerima email laporan otomatis harian agar mencakup SELURUH pengguna terdaftar aktif (Owner, Admin, Staff, dan Kasir) tanpa terkecuali.",
+      badge: "Fitur",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
     {
-      title: "Audit Menyeluruh Eksekusi Otomatis",
-      desc: "Mengidentifikasi akar kendala otomatisasi Vercel (Firestore overquota 8 RESOURCE_EXHAUSTED) dan memastikan email tetap terkirim secara terisolasi 1-on-1.",
-      badge: "Perbaikan",
+      title: "Dukungan Parameter Distribusi Langsung (?all=true)",
+      desc: "Menambahkan kemampuan pengiriman laporan langsung ke seluruh pengguna terdaftar saat uji coba live menggunakan parameter ?all=true.",
+      badge: "Peningkatan",
       badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
   ],
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.3.7",
+    versionLabel: "v3.3.7",
+    releaseDate: "5 September 2026",
+    title: "Dukungan Penerima Multi-User Fallback & Penanganan Kuota Firestore (5 September 2026)",
+    subtitle: "Dukungan Variabel RECIPIENT_EMAILS, Pengiriman Otomatis ke Seluruh Tim Saat Overquota, dan Audit Diagnostik Eksekusi",
+    highlights: [
+      {
+        title: "Dukungan Penerima Multi-User Fallback",
+        desc: "Menambahkan dukungan variabel RECIPIENT_EMAILS dan fallback multi-user ke seluruh tim saat kuota harian Firestore habis, mencegah pengiriman hanya ke 1 orang.",
+        badge: "Peningkatan",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+      {
+        title: "Audit Menyeluruh Eksekusi Otomatis",
+        desc: "Mengidentifikasi akar kendala otomatisasi Vercel (Firestore overquota 8 RESOURCE_EXHAUSTED) dan memastikan email tetap terkirim secara terisolasi 1-on-1.",
+        badge: "Perbaikan",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      },
+    ],
+  },
   {
     version: "3.3.6",
     versionLabel: "v3.3.6",

@@ -697,58 +697,72 @@ export default async function handler(req: any, res: any) {
     };
 
     let ownerEmails: string[] = [];
-  let adminEmails: string[] = [];
+    let adminEmails: string[] = [];
+    let staffEmails: string[] = [];
+    let allUserEmails: string[] = [];
 
-  // 1. Mengambil Pengguna dari Firestore dengan Fallback Aman
-  try {
-    const adminApp = await getFirebaseAdmin();
-    if (adminApp) {
-      const { getFirestore } = await import("firebase-admin/firestore");
-      const db = getFirestore(adminApp);
-      const usersSnap = await db.collection("users").get();
-      usersSnap.forEach((doc) => {
-        const data = doc.data() as UserProfile;
-        if (data.email && data.isActive !== false) {
-          if (data.role === "owner" || data.role === "webdev") {
-            ownerEmails.push(data.email);
-          } else if (data.role === "admin") {
-            adminEmails.push(data.email);
+    // 1. Mengambil SELURUH Pengguna Aktif dari Firestore (Owner, Admin, Staff, Kasir)
+    try {
+      const adminApp = await getFirebaseAdmin();
+      if (adminApp) {
+        const { getFirestore } = await import("firebase-admin/firestore");
+        const db = getFirestore(adminApp);
+        const usersSnap = await db.collection("users").get();
+        usersSnap.forEach((doc) => {
+          const data = doc.data() as UserProfile;
+          const email = (data.email || "").trim().toLowerCase();
+          if (email && email.includes("@") && (data as any).isActive !== false) {
+            allUserEmails.push(email);
+            if (data.role === "owner" || data.role === "webdev") {
+              ownerEmails.push(email);
+            } else if (data.role === "admin") {
+              adminEmails.push(email);
+            } else {
+              staffEmails.push(email);
+            }
           }
-        }
-      });
-      results.tasks.usersFetched = {
-        totalOwners: ownerEmails.length,
-        totalAdmins: adminEmails.length,
-      };
+        });
+        results.tasks.usersFetched = {
+          totalAllUsers: allUserEmails.length,
+          totalOwners: ownerEmails.length,
+          totalAdmins: adminEmails.length,
+          totalStaff: staffEmails.length,
+        };
+      }
+    } catch (err: any) {
+      results.tasks.usersError = `Firestore users notice: ${err?.message || "Quota limit"}. Menggunakan fallback email tim.`;
     }
-  } catch (err: any) {
-    results.tasks.usersError = `Firestore users notice: ${err?.message || "Quota limit"}. Menggunakan fallback email.`;
-  }
 
-  // ATURAN PENGIRIMAN EMAIL PENERIMA (ANTI-SPAM KE TIM LAIN):
-  let recipientEmails: string[] = [];
-  const envRecipients = (process.env.RECIPIENT_EMAILS || process.env.CRON_EMAILS || "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
+    // ATURAN PENGIRIMAN EMAIL PENERIMA KE SELURUH PENGGUNA (ALL USERS):
+    let recipientEmails: string[] = [];
+    const envRecipients = (process.env.RECIPIENT_EMAILS || process.env.CRON_EMAILS || "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
 
-  if (isTestMode) {
-    const customQueryEmail = typeof req.query?.email === "string" ? req.query.email.trim() : null;
-    if (customQueryEmail) {
-      recipientEmails = [customQueryEmail];
+    const isSendToAllExplicit = req.query?.all === "true" || req.query?.target === "all" || req.query?.sendToAll === "true";
+
+    if (isTestMode && !isSendToAllExplicit) {
+      const customQueryEmail = typeof req.query?.email === "string" ? req.query.email.trim() : null;
+      if (customQueryEmail) {
+        recipientEmails = [customQueryEmail];
+      } else {
+        // Mode test standar: kirim ke akun pengembang
+        recipientEmails = ["danialgobel26@gmail.com", "2300018377@webmail.uad.ac.id"];
+      }
     } else {
-      recipientEmails = ["danialgobel26@gmail.com", "2300018377@webmail.uad.ac.id"];
+      // Mode Otomatis Terjadwal (23:00 WIB) atau Eksekusi Langsung ke Seluruh Tim:
+      // Mengirimkan ke SELURUH pengguna terdaftar (Owner, Admin, Staff, Webdev)
+      recipientEmails = Array.from(
+        new Set([...allUserEmails, ...envRecipients])
+      );
+      // Jika Firestore overquota sehingga users tidak bisa diambil, pastikan email seluruh tim tetap terkirim:
+      if (!recipientEmails.length) {
+        recipientEmails = Array.from(
+          new Set(["danialgobel26@gmail.com", "2300018377@webmail.uad.ac.id", ...envRecipients])
+        );
+      }
     }
-  } else {
-    // Mode Otomatis / Terjadwal:
-    recipientEmails = Array.from(
-      new Set([...ownerEmails, ...adminEmails, ...envRecipients])
-    );
-    // Jika Firestore overquota sehingga users tidak bisa diambil, pastikan email tim tetap terkirim:
-    if (!recipientEmails.length) {
-      recipientEmails = ["danialgobel26@gmail.com", "2300018377@webmail.uad.ac.id"];
-    }
-  }
 
   // 2. Mengambil Invoices & Menghitung Agregat Penjualan
   let todayOmzet = 0;
@@ -1167,13 +1181,17 @@ Developer: Danial Gobel.
       gmailAppPasswordConfigured: isGmailConfigured,
       currentRecipients: recipientEmails,
       allRegisteredRecipients: {
+        all: allUserEmails,
         owners: ownerEmails,
         admins: adminEmails,
+        staff: staffEmails,
+        totalAllUsers: allUserEmails.length,
         totalOwner: ownerEmails.length,
         totalAdmin: adminEmails.length,
-        policy: isTestMode
-          ? "Mode Test Aktif: Email HANYA dikirimkan ke akun Danial Gobel agar tidak mengganggu anggota tim lain."
-          : "Mode Terjadwal 23:00 WIB: Email dikirim ke seluruh Owner & Admin terdaftar.",
+        totalStaff: staffEmails.length,
+        policy: isTestMode && !isSendToAllExplicit
+          ? "Mode Test Aktif: Email dikirimkan ke akun pengembang (Danial Gobel). Tambahkan ?all=true untuk mengirimkan ke seluruh tim terdaftar."
+          : "Mode Terjadwal 23:00 WIB: Email dikirimkan ke SELURUH pengguna terdaftar (Owner, Admin, Staff, & Kasir).",
       },
       previewLinks: {
         viewPdfInBrowser: "https://tanabrew-stok-and-invoice.vercel.app/api/cron-dispatcher?preview=pdf&test=true",
