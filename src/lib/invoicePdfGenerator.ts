@@ -12,27 +12,7 @@ const formatCurrency = (val?: number) =>
 const fmtNumber = (val?: number) =>
   new Intl.NumberFormat("id-ID").format(val || 0);
 
-let cachedLogoBase64: string | null = null;
-const getBrowserLogoBase64 = async (): Promise<string | null> => {
-  if (cachedLogoBase64) return cachedLogoBase64;
-  if (typeof window === "undefined") return null;
-  try {
-    const res = await fetch("/logo-pricelist.png");
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        cachedLogoBase64 = reader.result as string;
-        resolve(cachedLogoBase64);
-      };
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
-    });
-  } catch {
-    return null;
-  }
-};
+import { TANABREW_LOGO_BASE64 } from "@/lib/tanabrewLogoBase64";
 
 export async function generateInvoicePdfBlob(invoice: Invoice): Promise<{ blob: Blob; base64: string; fileName: string }> {
   const doc = new jsPDF({
@@ -53,14 +33,13 @@ export async function generateInvoicePdfBlob(invoice: Invoice): Promise<{ blob: 
   cursorY += 6;
 
   // 1. Company Brand & Invoice Meta Info (Official Tanabrew Logo)
-  const logoData = await getBrowserLogoBase64();
-  if (logoData) {
-    doc.addImage(logoData, "PNG", margin, cursorY - 1, 48, 14.5);
+  try {
+    doc.addImage(TANABREW_LOGO_BASE64, "PNG", margin, cursorY - 1, 44, 13.3);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
-    doc.setTextColor(100, 116, 139);
-    doc.text("Roastery & Coffee Specialty", margin, cursorY + 18);
-  } else {
+    doc.setTextColor(73, 98, 79);
+    doc.text("Roastery & Coffee Specialty", margin, cursorY + 17);
+  } catch {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(22);
     doc.setTextColor(46, 125, 50);
