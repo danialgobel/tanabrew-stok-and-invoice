@@ -15,34 +15,55 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.3.6",
-  versionLabel: "v3.3.6",
+  version: "3.3.7",
+  versionLabel: "v3.3.7",
   releaseDate: "5 September 2026",
-  title: "Optimasi Pengiriman Email Primer & Eliminasi Pemicu Filter Bot (5 September 2026)",
-  subtitle: "Penyelarasan Identitas Pengirim Resmi, Penghapusan Header Bot Otomatis, dan Sanitasi Heuristik HTML",
+  title: "Dukungan Penerima Multi-User Fallback & Penanganan Kuota Firestore (5 September 2026)",
+  subtitle: "Dukungan Variabel RECIPIENT_EMAILS, Pengiriman Otomatis ke Seluruh Tim Saat Overquota, dan Audit Diagnostik Eksekusi",
   highlights: [
     {
-      title: "Eliminasi Pemicu Penanda Bot (Auto-Submitted)",
-      desc: "Menghapus header machine-generated bot yang menyebabkan gateway email institusi/kampus mendegradasi pesan dari Primary Inbox ke folder Spam/Junk.",
-      badge: "Perbaikan",
-      badgeColor: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/20",
-    },
-    {
-      title: "Penyelarasan Identitas Pengirim (Zero Mismatch)",
-      desc: "Menetapkan format pengirim resmi 'Danial Gobel - Tanabrew Roastery' sehingga identitas akun Gmail dan nama pengirim selaras 100%, mencegah kecurigaan spoofing/phishing.",
+      title: "Dukungan Penerima Multi-User Fallback",
+      desc: "Menambahkan dukungan variabel RECIPIENT_EMAILS dan fallback multi-user ke seluruh tim saat kuota harian Firestore habis, mencegah pengiriman hanya ke 1 orang.",
       badge: "Peningkatan",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
     {
-      title: "Sanitasi Heuristik CSS & Dimensi Gambar",
-      desc: "Menghapus margin negatif CSS dan melengkapi atribut dimensi gambar resmi untuk melewati audit ketat SpamAssassin tanpa peringatan.",
-      badge: "Peningkatan",
+      title: "Audit Menyeluruh Eksekusi Otomatis",
+      desc: "Mengidentifikasi akar kendala otomatisasi Vercel (Firestore overquota 8 RESOURCE_EXHAUSTED) dan memastikan email tetap terkirim secara terisolasi 1-on-1.",
+      badge: "Perbaikan",
       badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
   ],
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.3.6",
+    versionLabel: "v3.3.6",
+    releaseDate: "5 September 2026",
+    title: "Optimasi Pengiriman Email Primer & Eliminasi Pemicu Filter Bot (5 September 2026)",
+    subtitle: "Penyelarasan Identitas Pengirim Resmi, Penghapusan Header Bot Otomatis, dan Sanitasi Heuristik HTML",
+    highlights: [
+      {
+        title: "Eliminasi Pemicu Penanda Bot (Auto-Submitted)",
+        desc: "Menghapus header machine-generated bot yang menyebabkan gateway email institusi/kampus mendegradasi pesan dari Primary Inbox ke folder Spam/Junk.",
+        badge: "Perbaikan",
+        badgeColor: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/20",
+      },
+      {
+        title: "Penyelarasan Identitas Pengirim (Zero Mismatch)",
+        desc: "Menetapkan format pengirim resmi 'Danial Gobel - Tanabrew Roastery' sehingga identitas akun Gmail dan nama pengirim selaras 100%, mencegah kecurigaan spoofing/phishing.",
+        badge: "Peningkatan",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+      {
+        title: "Sanitasi Heuristik CSS & Dimensi Gambar",
+        desc: "Menghapus margin negatif CSS dan melengkapi atribut dimensi gambar resmi untuk melewati audit ketat SpamAssassin tanpa peringatan.",
+        badge: "Peningkatan",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      },
+    ],
+  },
   {
     version: "3.3.5",
     versionLabel: "v3.3.5",

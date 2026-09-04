@@ -726,8 +726,12 @@ export default async function handler(req: any, res: any) {
   }
 
   // ATURAN PENGIRIMAN EMAIL PENERIMA (ANTI-SPAM KE TIM LAIN):
-  // Jika sedang mode test (?test=true), HANYA kirim ke Danial Gobel agar tidak mengganggu anggota tim lain.
   let recipientEmails: string[] = [];
+  const envRecipients = (process.env.RECIPIENT_EMAILS || process.env.CRON_EMAILS || "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+
   if (isTestMode) {
     const customQueryEmail = typeof req.query?.email === "string" ? req.query.email.trim() : null;
     if (customQueryEmail) {
@@ -736,9 +740,13 @@ export default async function handler(req: any, res: any) {
       recipientEmails = ["danialgobel26@gmail.com", "2300018377@webmail.uad.ac.id"];
     }
   } else {
-    recipientEmails = [...ownerEmails, ...adminEmails];
+    // Mode Otomatis / Terjadwal:
+    recipientEmails = Array.from(
+      new Set([...ownerEmails, ...adminEmails, ...envRecipients])
+    );
+    // Jika Firestore overquota sehingga users tidak bisa diambil, pastikan email tim tetap terkirim:
     if (!recipientEmails.length) {
-      recipientEmails = ["danialgobel26@gmail.com"];
+      recipientEmails = ["danialgobel26@gmail.com", "2300018377@webmail.uad.ac.id"];
     }
   }
 
