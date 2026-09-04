@@ -5,6 +5,11 @@
       "schedule": "0 16 * * *"
     }
   ],
+  "functions": {
+    "api/cron-dispatcher.ts": {
+      "maxDuration": 60
+    }
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",

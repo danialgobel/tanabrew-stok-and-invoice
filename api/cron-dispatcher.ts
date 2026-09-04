@@ -14,6 +14,7 @@ type ApiRequest = {
 type ApiResponse = {
   status: (code: number) => ApiResponse;
   json: (body: unknown) => void;
+  send: (body: unknown) => void;
   setHeader: (name: string, value: string | string[]) => void;
 };
 
@@ -512,7 +513,7 @@ const sendEmail = async ({
         },
       });
 
-      const info = await transporter.sendMail({
+      const sendPromise = transporter.sendMail({
         from: `Tanabrew Roastery <${gmailUser}>`,
         to: to.join(", "),
         subject,
@@ -522,6 +523,12 @@ const sendEmail = async ({
           content: att.content,
         })),
       });
+
+      const timeoutPromise = new Promise<{ timeout: true }>((_, reject) =>
+        setTimeout(() => reject(new Error("SMTP connection timeout (8s)")), 8000)
+      );
+
+      const info = (await Promise.race([sendPromise, timeoutPromise])) as any;
 
       return {
         sent: true,
@@ -974,6 +981,18 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     </html>
   `;
 
+  // PREVIEW MODES: Langsung tampilkan di browser tanpa perlu kirim email jika ada query ?preview=...
+  if (req.query?.preview === "pdf") {
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "inline; filename=\"preview-laporan-tanabrew.pdf\"");
+    return res.status(200).send(pdfBuffer);
+  }
+
+  if (req.query?.preview === "email" || req.query?.preview === "html") {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    return res.status(200).send(ownerHtml);
+  }
+
   // 6. Kirim Email Rekap dengan Lampiran PDF (Hanya ke Danial selama mode test)
   const emailSubject = `Laporan Penjualan Hari Ini: ${formatRupiah(todayOmzet)} (${todayDateStr})`;
   const emailResult = await sendEmail({
@@ -1024,11 +1043,20 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     audit: {
       provider: emailResult.sent ? (emailResult as any).provider : "none",
       gmailAppPasswordConfigured: isGmailConfigured,
-      recipients: recipientEmails,
-      isTestMode,
-      notice: isTestMode
-        ? "Mode Uji Coba: Email HANYA dikirimkan ke akun Danial Gobel agar tidak menimbulkan spam ke anggota tim lain."
-        : "Mode Produksi: Email dikirim ke seluruh Owner & Admin terdaftar.",
+      currentRecipients: recipientEmails,
+      allRegisteredRecipients: {
+        owners: ownerEmails,
+        admins: adminEmails,
+        totalOwner: ownerEmails.length,
+        totalAdmin: adminEmails.length,
+        policy: isTestMode
+          ? "Mode Test Aktif: Email HANYA dikirimkan ke akun Danial Gobel agar tidak mengganggu anggota tim lain."
+          : "Mode Terjadwal 23:00 WIB: Email dikirim ke seluruh Owner & Admin terdaftar.",
+      },
+      previewLinks: {
+        viewPdfInBrowser: "https://tanabrew-stok-and-invoice.vercel.app/api/cron-dispatcher?preview=pdf&test=true",
+        viewEmailInBrowser: "https://tanabrew-stok-and-invoice.vercel.app/api/cron-dispatcher?preview=email&test=true",
+      },
     },
     results,
   });
