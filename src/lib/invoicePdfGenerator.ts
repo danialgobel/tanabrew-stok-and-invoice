@@ -12,6 +12,28 @@ const formatCurrency = (val?: number) =>
 const fmtNumber = (val?: number) =>
   new Intl.NumberFormat("id-ID").format(val || 0);
 
+let cachedLogoBase64: string | null = null;
+const getBrowserLogoBase64 = async (): Promise<string | null> => {
+  if (cachedLogoBase64) return cachedLogoBase64;
+  if (typeof window === "undefined") return null;
+  try {
+    const res = await fetch("/logo-pricelist.png");
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        cachedLogoBase64 = reader.result as string;
+        resolve(cachedLogoBase64);
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+};
+
 export async function generateInvoicePdfBlob(invoice: Invoice): Promise<{ blob: Blob; base64: string; fileName: string }> {
   const doc = new jsPDF({
     orientation: "portrait",
@@ -30,16 +52,25 @@ export async function generateInvoicePdfBlob(invoice: Invoice): Promise<{ blob: 
 
   cursorY += 6;
 
-  // 1. Company Brand & Invoice Meta Info
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(22);
-  doc.setTextColor(46, 125, 50);
-  doc.text("TANABREW", margin, cursorY + 6);
+  // 1. Company Brand & Invoice Meta Info (Official Tanabrew Logo)
+  const logoData = await getBrowserLogoBase64();
+  if (logoData) {
+    doc.addImage(logoData, "PNG", margin, cursorY - 1, 48, 14.5);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(100, 116, 139);
+    doc.text("Roastery & Coffee Specialty", margin, cursorY + 18);
+  } else {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.setTextColor(46, 125, 50);
+    doc.text("TANABREW", margin, cursorY + 6);
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(100, 116, 139);
-  doc.text("Roastery & Coffee Specialty", margin, cursorY + 11);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    doc.text("Roastery & Coffee Specialty", margin, cursorY + 11);
+  }
 
   // Right Meta Info
   doc.setFontSize(9);

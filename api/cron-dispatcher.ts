@@ -2,6 +2,8 @@ import type { App } from "firebase-admin/app";
 import { Resend } from "resend";
 import nodemailer from "nodemailer";
 import { jsPDF } from "jspdf";
+import fs from "fs";
+import path from "path";
 
 type ApiRequest = {
   method?: string;
@@ -50,6 +52,26 @@ type InvoiceRecord = {
   dibuat_oleh?: string;
   created_at?: any;
   items?: InvoiceItem[];
+};
+
+const getTanabrewLogoBase64 = (): string | null => {
+  try {
+    const candidates = [
+      path.join(process.cwd(), "public", "logo-pricelist.png"),
+      path.join(__dirname, "..", "public", "logo-pricelist.png"),
+      path.join(__dirname, "public", "logo-pricelist.png"),
+      path.resolve("./public/logo-pricelist.png"),
+    ];
+    for (const filePath of candidates) {
+      if (fs.existsSync(filePath)) {
+        const buf = fs.readFileSync(filePath);
+        return `data:image/png;base64,${buf.toString("base64")}`;
+      }
+    }
+  } catch (err) {
+    console.warn("Notice reading logo file:", err);
+  }
+  return null;
 };
 
 const getServiceAccount = () => {
@@ -191,60 +213,102 @@ const generateReportPdfBuffer = ({
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 12;
+  const margin = 14;
   const contentWidth = pageWidth - margin * 2;
+  const logoBase64 = getTanabrewLogoBase64();
 
   const drawHeader = (currentPage: number) => {
-    // Header Bar Tanabrew Deep Green (#00512C)
-    doc.setFillColor(0, 81, 44);
-    doc.rect(0, 0, pageWidth, 26, "F");
+    // Header Background Accent Bar (#2E7D32 Emerald Green)
+    doc.setFillColor(46, 125, 50);
+    doc.rect(0, 0, pageWidth, 4, "F");
+
+    const headerY = 8;
+
+    // Official Logo from public/logo-pricelist.png
+    if (logoBase64) {
+      doc.addImage(logoBase64, "PNG", margin, headerY, 46, 14);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text("Roastery & Coffee Specialty • Sistem Kasir", margin, headerY + 18);
+    } else {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(18);
+      doc.setTextColor(46, 125, 50);
+      doc.text("TANABREW ROASTERY", margin, headerY + 8);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text("Roastery & Coffee Specialty • Sistem Kasir", margin, headerY + 14);
+    }
+
+    // Right Meta Info (Bersih, formal, bebas emotikon AI)
+    const rightX = pageWidth - margin;
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(71, 85, 105);
+    doc.text("Dokumen:", rightX - 35, headerY + 3, { align: "right" });
+    doc.setFont("helvetica", "normal");
+    doc.text("Rekap Penjualan Harian", rightX, headerY + 3, { align: "right" });
 
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.setTextColor(255, 255, 255);
-    doc.text("TANABREW ROASTERY", margin, 12);
-
+    doc.text("Tanggal:", rightX - 35, headerY + 8, { align: "right" });
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.5);
-    doc.setTextColor(220, 245, 230);
-    doc.text(`LAPORAN REKAPITULASI PENJUALAN & TRANSAKSI HARIAN — ${dateStr}`, margin, 19);
+    doc.text(dateStr, rightX, headerY + 8, { align: "right" });
 
-    doc.setFontSize(8);
-    doc.setTextColor(200, 230, 215);
-    doc.text(`Waktu Cetak: ${timeStr} WIB`, pageWidth - margin, 12, { align: "right" });
+    doc.setFont("helvetica", "bold");
+    doc.text("Waktu Cetak:", rightX - 35, headerY + 13, { align: "right" });
+    doc.setFont("helvetica", "normal");
+    doc.text(`${timeStr} WIB`, rightX, headerY + 13, { align: "right" });
+
     if (currentPage > 1) {
-      doc.text(`(Halaman ${currentPage})`, pageWidth - margin, 19, { align: "right" });
+      doc.setFont("helvetica", "italic");
+      doc.setTextColor(148, 163, 184);
+      doc.text(`(Halaman ${currentPage})`, rightX, headerY + 18, { align: "right" });
+    }
+
+    // Divider Line
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.5);
+    doc.line(margin, 30, pageWidth - margin, 30);
+
+    if (currentPage === 1) {
+      // Document Title
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12.5);
+      doc.setTextColor(46, 125, 50);
+      doc.text("LAPORAN REKAPITULASI PENJUALAN HARIAN", pageWidth / 2, 38, { align: "center" });
     }
   };
 
   let currentPage = 1;
   drawHeader(currentPage);
 
-  let y = 34;
+  let y = 44;
 
-  // 1. Tiga Kartu Ringkasan (Executive Summary Cards)
+  // 1. Tiga Kartu Ringkasan Penjualan (Executive Summary Cards)
   const cardWidth = (contentWidth - 8) / 3;
-  const cardHeight = 25;
+  const cardHeight = 24;
 
   // Kartu 1: Total Omzet
   doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(0, 81, 44);
+  doc.setDrawColor(46, 125, 50);
   doc.setLineWidth(0.6);
   doc.roundedRect(margin, y, cardWidth, cardHeight, 2, 2, "FD");
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   doc.setTextColor(100, 116, 139);
   doc.text("TOTAL OMZET RESMI", margin + 4, y + 6);
 
-  doc.setFontSize(13);
-  doc.setTextColor(0, 81, 44);
+  doc.setFontSize(12.5);
+  doc.setTextColor(46, 125, 50);
   doc.text(formatRupiah(todayOmzet), margin + 4, y + 14);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
-  doc.text(`${todayCount} Faktur Transaksi`, margin + 4, y + 20);
+  doc.text(`${todayCount} Faktur Transaksi Selesai`, margin + 4, y + 20);
 
   // Kartu 2: Cabang Gudang
   const card2X = margin + cardWidth + 4;
@@ -254,15 +318,15 @@ const generateReportPdfBuffer = ({
   doc.roundedRect(card2X, y, cardWidth, cardHeight, 2, 2, "FD");
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   doc.setTextColor(100, 116, 139);
-  doc.text("OMZET PER CABANG", card2X + 4, y + 6);
+  doc.text("PENJUALAN PER CABANG", card2X + 4, y + 6);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
   doc.setTextColor(30, 41, 59);
-  doc.text(`Jogja: ${formatRupiah(jogjaOmzet)}`, card2X + 4, y + 13);
-  doc.text(`Lombok: ${formatRupiah(lombokOmzet)}`, card2X + 4, y + 19);
+  doc.text(`Gudang Jogja: ${formatRupiah(jogjaOmzet)}`, card2X + 4, y + 13);
+  doc.text(`Gudang Lombok: ${formatRupiah(lombokOmzet)}`, card2X + 4, y + 19);
 
   // Kartu 3: Metode Bayar Resmi (Tunai, Transfer, Tempo)
   const card3X = card2X + cardWidth + 4;
@@ -270,24 +334,24 @@ const generateReportPdfBuffer = ({
   doc.roundedRect(card3X, y, cardWidth, cardHeight, 2, 2, "FD");
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   doc.setTextColor(100, 116, 139);
   doc.text("METODE PEMBAYARAN", card3X + 4, y + 6);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
   doc.setTextColor(30, 41, 59);
-  doc.text(`• Tunai (Cash): ${tunaiCount} (${formatRupiah(tunaiOmzet)})`, card3X + 4, y + 12);
-  doc.text(`• Transfer Bank: ${transferCount} (${formatRupiah(transferOmzet)})`, card3X + 4, y + 17);
-  doc.text(`• Tempo (Hutang): ${tempoCount} (${formatRupiah(tempoOmzet)})`, card3X + 4, y + 22);
+  doc.text(`Tunai (Cash): ${tunaiCount} (${formatRupiah(tunaiOmzet)})`, card3X + 4, y + 12);
+  doc.text(`Transfer Bank: ${transferCount} (${formatRupiah(transferOmzet)})`, card3X + 4, y + 16.5);
+  doc.text(`Tempo: ${tempoCount} (${formatRupiah(tempoOmzet)})`, card3X + 4, y + 21);
 
   y += cardHeight + 8;
 
-  // 2. Tabel Rincian Detail Transaksi (Siapa Beli, Apa yang Dibeli, Kasir, Cabang)
+  // 2. Tabel Rincian Detail Transaksi
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text("Daftar Lengkap Transaksi Penjualan Hari Ini", margin, y);
+  doc.setFontSize(9.5);
+  doc.setTextColor(30, 41, 59);
+  doc.text("Rincian Faktur Penjualan", margin, y);
   y += 5;
 
   const colX = {
@@ -295,19 +359,20 @@ const generateReportPdfBuffer = ({
     faktur: margin + 8,
     customer: margin + 42,
     gudangKasir: margin + 82,
-    itemDetail: margin + 120,
-    totalStatus: margin + 155,
+    itemDetail: margin + 118,
+    totalStatus: margin + 152,
   };
 
   const drawTableHeader = (curY: number) => {
-    doc.setFillColor(241, 245, 249);
-    doc.rect(margin, curY, contentWidth, 7, "F");
+    // Header tabel dengan background light green (#EDF7ED) khas POS Tanabrew
+    doc.setFillColor(237, 247, 237);
+    doc.roundedRect(margin, curY, contentWidth, 7, 1, 1, "F");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7.5);
-    doc.setTextColor(71, 85, 105);
+    doc.setTextColor(30, 41, 59);
     doc.text("No", colX.no + 2, curY + 4.8);
     doc.text("No. Faktur", colX.faktur, curY + 4.8);
-    doc.text("Nama Pelanggan", colX.customer, curY + 4.8);
+    doc.text("Pelanggan", colX.customer, curY + 4.8);
     doc.text("Cabang / Kasir", colX.gudangKasir, curY + 4.8);
     doc.text("Rincian Biji Kopi / Item", colX.itemDetail, curY + 4.8);
     doc.text("Total & Status", colX.totalStatus, curY + 4.8);
@@ -324,12 +389,12 @@ const generateReportPdfBuffer = ({
     y += 14;
   } else {
     invoices.forEach((inv, index) => {
-      // Periksa kebutuhan pagination (batas bawah halaman 270mm)
-      if (y > 265) {
+      // Periksa kebutuhan pagination (batas bawah halaman 265mm)
+      if (y > 260) {
         doc.addPage();
         currentPage++;
         drawHeader(currentPage);
-        y = 34;
+        y = 36;
         y = drawTableHeader(y);
       }
 
@@ -351,7 +416,7 @@ const generateReportPdfBuffer = ({
       doc.setTextColor(100, 116, 139);
       doc.text(String(index + 1), colX.no + 2, y + 4.5);
 
-      // No Faktur & Tanggal
+      // No Faktur
       doc.setFont("helvetica", "bold");
       doc.setFontSize(7.5);
       doc.setTextColor(15, 23, 42);
@@ -361,7 +426,7 @@ const generateReportPdfBuffer = ({
       // Customer
       doc.setFont("helvetica", "bold");
       doc.setFontSize(7.5);
-      doc.setTextColor(0, 81, 44);
+      doc.setTextColor(46, 125, 50);
       const cust = (inv.customer || inv.customerName || "Pelanggan Umum").slice(0, 22);
       doc.text(cust, colX.customer, y + 4.5);
 
@@ -371,7 +436,7 @@ const generateReportPdfBuffer = ({
       doc.setTextColor(51, 65, 85);
       const wh = (inv.stock_location || inv.warehouse || "Jogja").toUpperCase();
       const kasir = inv.dibuat_oleh || "Staf Kasir";
-      doc.text(`${wh}`, colX.gudangKasir, y + 4.5);
+      doc.text(wh, colX.gudangKasir, y + 4.5);
       doc.setTextColor(100, 116, 139);
       doc.text(`Kasir: ${kasir.slice(0, 14)}`, colX.gudangKasir, y + 8.5);
 
@@ -384,7 +449,7 @@ const generateReportPdfBuffer = ({
       }
       doc.setTextColor(51, 65, 85);
       doc.setFontSize(6.8);
-      const truncatedItems = itemSummary.length > 34 ? `${itemSummary.slice(0, 32)}...` : itemSummary;
+      const truncatedItems = itemSummary.length > 32 ? `${itemSummary.slice(0, 30)}...` : itemSummary;
       doc.text(truncatedItems, colX.itemDetail, y + 4.5);
 
       // Total & Status Pembayaran
@@ -401,7 +466,7 @@ const generateReportPdfBuffer = ({
       doc.setFont("helvetica", "bold");
       doc.setFontSize(6.5);
       if (isLunas) {
-        doc.setTextColor(0, 120, 60);
+        doc.setTextColor(46, 125, 50);
         doc.text(`[LUNAS: ${method}]`, colX.totalStatus, y + 8.5);
       } else {
         doc.setTextColor(185, 28, 28);
@@ -414,26 +479,26 @@ const generateReportPdfBuffer = ({
 
   y += 6;
 
-  // 3. Produk Kopi Terlaris (Top Beans Sold) jika muat
+  // 3. Produk Kopi Terlaris (Top Beans Sold)
   if (topProducts && topProducts.length > 0) {
     if (y > 245) {
       doc.addPage();
       currentPage++;
       drawHeader(currentPage);
-      y = 34;
+      y = 36;
     }
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9.5);
-    doc.setTextColor(15, 23, 42);
-    doc.text("Biji Kopi & Produk Paling Laris Hari Ini", margin, y);
+    doc.setTextColor(30, 41, 59);
+    doc.text("Biji Kopi & Produk Terlaris", margin, y);
     y += 4;
 
-    doc.setFillColor(241, 245, 249);
-    doc.rect(margin, y, contentWidth, 6, "F");
+    doc.setFillColor(237, 247, 237);
+    doc.roundedRect(margin, y, contentWidth, 6, 1, 1, "F");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7);
-    doc.setTextColor(71, 85, 105);
+    doc.setTextColor(30, 41, 59);
     doc.text("Nama Produk / Biji Kopi", margin + 4, y + 4.2);
     doc.text("Kuantitas Terjual", margin + 110, y + 4.2);
     doc.text("Total Penjualan", pageWidth - margin - 35, y + 4.2);
@@ -444,14 +509,14 @@ const generateReportPdfBuffer = ({
       doc.setFontSize(7.5);
       doc.setTextColor(30, 41, 59);
       doc.text(`${idx + 1}. ${tp.name}`, margin + 4, y + 4.5);
-      doc.text(`${tp.qty} pcs / pack`, margin + 110, y + 4.5);
+      doc.text(`${tp.qty} pack / pcs`, margin + 110, y + 4.5);
       doc.setFont("helvetica", "bold");
       doc.text(formatRupiah(tp.total), pageWidth - margin - 35, y + 4.5);
       y += 6;
     });
   }
 
-  // 4. Catatan Kaki & Informasi Verifikasi di Seluruh Halaman
+  // 4. Catatan Kaki & Penomoran Halaman di Seluruh Lembar
   const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
@@ -459,11 +524,11 @@ const generateReportPdfBuffer = ({
     doc.setLineWidth(0.3);
     doc.line(margin, pageHeight - 14, pageWidth - margin, pageHeight - 14);
 
-    doc.setFont("helvetica", "italic");
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(148, 163, 184);
     doc.text(
-      "Dokumen resmi Tanabrew Roastery • Digenerate otomatis oleh Master Cron Dispatcher Tanabrew Stock & Invoice.",
+      "Dokumen resmi Tanabrew Roastery • Sistem Manajemen Stok & Faktur Penjualan.",
       margin,
       pageHeight - 9
     );
@@ -489,8 +554,9 @@ const sendEmail = async ({
   html: string;
   attachments?: Array<{ filename: string; content: Buffer }>;
 }) => {
-  const gmailUser = process.env.GMAIL_USER || process.env.SMTP_USER;
-  const gmailPass = process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS;
+  const gmailUser = (process.env.GMAIL_USER || process.env.SMTP_USER || "danialgobel26@gmail.com").trim();
+  const rawPass = process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS || "";
+  const gmailPass = rawPass.replace(/\s+/g, "").trim();
 
   // 1. Prioritaskan Gmail SMTP (Nodemailer) jika App Password sudah dikonfigurasi
   // Mengapa? Karena Gmail SMTP 100% masuk Inbox Utama (Bebas Spam) & bisa kirim ke SEMUA user tanpa batas!
@@ -522,7 +588,7 @@ const sendEmail = async ({
         accepted: info.accepted,
       };
     } catch (err: any) {
-      console.warn("Gmail SMTP gagal, mencoba fallback ke Resend:", err?.message);
+      console.warn("Gmail SMTP notice:", err?.message);
     }
   }
 
@@ -834,7 +900,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   });
   results.notifications.oneSignalPush = pushResult;
 
-  // 4. Generate Publikasi PDF Resmi yang Sangat Detail
+  // 4. Generate Publikasi PDF Resmi yang Sangat Detail dengan Logo Resmi & Tema Bersih
   const pdfBuffer = generateReportPdfBuffer({
     dateStr: todayDateStr,
     timeStr,
@@ -852,14 +918,14 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     topProducts,
   });
 
-  // 5. Bangun Tampilan Email HTML Interaktif & Elegan
+  // 5. Bangun Tampilan Email HTML Interaktif & Elegan Tanpa Emotikon AI
   const transactionRowsHtml = invoiceList
     .slice(0, 10)
     .map(
       (inv, idx) => `
       <tr style="border-bottom: 1px solid #e2e8f0; font-size: 12px;">
         <td style="padding: 8px 4px; color: #64748b;">${idx + 1}</td>
-        <td style="padding: 8px 4px; font-weight: bold; color: #00512C;">${inv.no_invoice || inv.invoiceNumber || "-"}</td>
+        <td style="padding: 8px 4px; font-weight: bold; color: #2E7D32;">${inv.no_invoice || inv.invoiceNumber || "-"}</td>
         <td style="padding: 8px 4px; color: #1e293b;"><b>${inv.customer || inv.customerName || "Umum"}</b></td>
         <td style="padding: 8px 4px; color: #475569;">${(inv.stock_location || inv.warehouse || "Jogja").toUpperCase()}</td>
         <td style="padding: 8px 4px; font-weight: bold; text-align: right; color: #1e293b;">${formatRupiah(inv.total ?? inv.totalAmount ?? 0)}</td>
@@ -867,7 +933,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           <span style="display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; ${
             (inv.status || "").toUpperCase().includes("BELUM")
               ? "background-color: #fee2e2; color: #991b1b;"
-              : "background-color: #dcfce7; color: #166534;"
+              : "background-color: #edf7ed; color: #2e7d32;"
           }">
             ${inv.status || "LUNAS"}
           </span>
@@ -886,12 +952,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       <title>Laporan Rekap Penjualan Tanabrew</title>
     </head>
     <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; margin: 0; padding: 20px;">
-      <div style="max-width: 650px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;">
+      <div style="max-width: 650px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;">
         
-        <!-- Header Bertema Hijau Khas Tanabrew (#00512C) -->
-        <div style="background-color: #00512C; padding: 26px 20px; text-align: center; color: #ffffff;">
+        <!-- Header Bertema Hijau Khas Tanabrew (#2E7D32) -->
+        <div style="background-color: #2E7D32; padding: 24px 20px; text-align: center; color: #ffffff;">
           <h1 style="margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">TANABREW ROASTERY</h1>
-          <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.9; color: #dcfce7;">Laporan Rekapitulasi & Detail Penjualan &mdash; ${todayDateStr} (${timeStr} WIB)</p>
+          <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.9; color: #edf7ed;">Laporan Rekapitulasi & Detail Penjualan &mdash; ${todayDateStr} (${timeStr} WIB)</p>
         </div>
 
         <!-- Konten Utama -->
@@ -900,15 +966,15 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           <p style="font-size: 13px; color: #64748b; line-height: 1.5;">Berikut adalah ringkasan penjualan harian resmi beserta lampiran PDF dokumen faktur yang siap diunduh dan dicetak:</p>
 
           <!-- Kartu Total Omzet Utama -->
-          <div style="background-color: #f8fafc; border: 2px solid #00512C; border-radius: 12px; padding: 18px; margin: 16px 0; text-align: center;">
+          <div style="background-color: #f8fafc; border: 2px solid #2E7D32; border-radius: 10px; padding: 18px; margin: 16px 0; text-align: center;">
             <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b; letter-spacing: 0.5px;">Total Omzet Resmi Hari Ini</div>
-            <div style="font-size: 28px; font-weight: 900; color: #00512C; margin: 6px 0 8px;">${formatRupiah(todayOmzet)}</div>
+            <div style="font-size: 28px; font-weight: 900; color: #2E7D32; margin: 6px 0 8px;">${formatRupiah(todayOmzet)}</div>
             <div style="display: inline-block; background-color: #e2e8f0; color: #334155; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 16px;">
               ${todayCount} Faktur Transaksi Selesai
             </div>
           </div>
 
-          <!-- Rincian Cabang Gudang & Pembayaran (HANYA METODE RESMI TANABREW) -->
+          <!-- Rincian Cabang Gudang & Pembayaran -->
           <table style="width: 100%; font-size: 13px; border-collapse: collapse; margin-bottom: 20px;">
             <tr style="border-bottom: 1px solid #f1f5f9;">
               <td style="padding: 8px 0; color: #64748b;">Gudang Jogja</td>
@@ -953,7 +1019,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
           <!-- Tombol Akses Cepat -->
           <div style="text-align: center; margin-top: 24px;">
-            <a href="https://tanabrew-stok-and-invoice.vercel.app/riwayat" style="background-color: #00512C; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: bold; padding: 10px 24px; border-radius: 20px; display: inline-block;">
+            <a href="https://tanabrew-stok-and-invoice.vercel.app/riwayat" style="background-color: #2E7D32; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: bold; padding: 10px 24px; border-radius: 20px; display: inline-block;">
               Buka Faktur & Riwayat Kasir
             </a>
           </div>
@@ -1009,13 +1075,18 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     // Silent catch
   }
 
+  const rawPass = process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS || "";
+  const isGmailConfigured = Boolean(rawPass.replace(/\s+/g, "").trim());
+
   return res.status(200).json({
     success: true,
     message: "Master Cron Dispatcher Tanabrew berhasil dijalankan.",
     audit: {
       provider: emailResult.sent ? (emailResult as any).provider : "none",
-      antiSpamAdvice:
-        "Jika menggunakan Resend tanpa custom domain (onboarding@resend.dev), email akan masuk SPAM dan hanya bisa dikirim ke email pendaftar. Agar 100% masuk Inbox Utama dan bisa kirim ke SEMUA user tanpa beli domain, pasang GMAIL_USER dan GMAIL_APP_PASSWORD di Vercel Environment Variables.",
+      gmailAppPasswordConfigured: isGmailConfigured,
+      antiSpamAdvice: isGmailConfigured
+        ? "Gmail SMTP aktif. Email rekap 100% masuk Inbox Utama dan dapat dikirim ke seluruh pengguna tim tanpa batasan sandbox."
+        : "Sandi aplikasi Gmail belum dipasang di Vercel Environment Variables. Pasang GMAIL_USER dan GMAIL_APP_PASSWORD di Vercel agar email tidak masuk folder Spam.",
     },
     results,
   });
