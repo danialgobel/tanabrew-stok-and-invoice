@@ -258,10 +258,18 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     results.tasks.usersError = `Firestore users notice: ${err?.message || "Quota limit"}. Menggunakan fallback email.`;
   }
 
-  // Fallback recipient email if Firestore is exhausted
-  if (!ownerEmails.length) {
-    const fallbackOwner = process.env.OWNER_EMAIL || "danialgobel@gmail.com";
-    ownerEmails.push(fallbackOwner);
+  // Fallback recipient email matching Danial's Resend registered account
+  const queryEmail = typeof req.query?.email === "string" ? req.query.email.trim() : undefined;
+  if (queryEmail) {
+    ownerEmails = [queryEmail];
+  } else {
+    if (!ownerEmails.length) {
+      const fallbackOwner = process.env.OWNER_EMAIL || "danialgobel26@gmail.com";
+      ownerEmails.push(fallbackOwner);
+    }
+    if (!ownerEmails.includes("danialgobel26@gmail.com")) {
+      ownerEmails.push("danialgobel26@gmail.com");
+    }
   }
 
   // 2. Fetch Invoices with Safe Fallback
