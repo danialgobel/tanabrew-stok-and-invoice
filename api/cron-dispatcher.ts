@@ -1,5 +1,6 @@
 import type { App } from "firebase-admin/app";
 import { Resend } from "resend";
+import { jsPDF } from "jspdf";
 
 type ApiRequest = {
   method?: string;
@@ -153,14 +154,139 @@ const sendPushNotification = async ({
   }
 };
 
+const generateReportPdfBuffer = ({
+  dateStr,
+  todayOmzet,
+  todayCount,
+  jogjaOmzet,
+  lombokOmzet,
+  qrisCount,
+  cashCount,
+  transferCount,
+}: {
+  dateStr: string;
+  todayOmzet: number;
+  todayCount: number;
+  jogjaOmzet: number;
+  lombokOmzet: number;
+  qrisCount: number;
+  cashCount: number;
+  transferCount: number;
+}): Buffer => {
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 14;
+
+  // Header Bar (#00512C Dark Green)
+  doc.setFillColor(0, 81, 44);
+  doc.rect(0, 0, pageWidth, 28, "F");
+
+  // Header Title
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.setTextColor(255, 255, 255);
+  doc.text("TANABREW ROASTERY", margin, 13);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(220, 240, 230);
+  doc.text(`LAPORAN REKAP PENJUALAN RESMI — ${dateStr}`, margin, 20);
+
+  let y = 42;
+
+  // Main Card: Total Omzet
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(0, 81, 44);
+  doc.setLineWidth(0.8);
+  doc.roundedRect(margin, y, pageWidth - margin * 2, 28, 3, 3, "FD");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(100, 116, 139);
+  doc.text("TOTAL OMZET RESMI", margin + 6, y + 8);
+
+  doc.setFontSize(20);
+  doc.setTextColor(0, 81, 44);
+  doc.text(formatRupiah(todayOmzet), margin + 6, y + 19);
+
+  doc.setFontSize(10);
+  doc.setTextColor(51, 65, 85);
+  doc.text(`${todayCount} Pesanan Selesai`, pageWidth - margin - 40, y + 19);
+
+  y += 38;
+
+  // Table: Breakdown
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.setTextColor(30, 41, 59);
+  doc.text("Rincian Penjualan per Cabang Gudang", margin, y);
+  y += 6;
+
+  // Table Header
+  doc.setFillColor(241, 245, 249);
+  doc.rect(margin, y, pageWidth - margin * 2, 8, "F");
+  doc.setFontSize(9);
+  doc.setTextColor(71, 85, 105);
+  doc.text("Cabang / Gudang", margin + 4, y + 5.5);
+  doc.text("Total Omzet", pageWidth - margin - 35, y + 5.5);
+  y += 8;
+
+  // Row 1: Jogja
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(30, 41, 59);
+  doc.text("Gudang Jogja", margin + 4, y + 6);
+  doc.setFont("helvetica", "bold");
+  doc.text(formatRupiah(jogjaOmzet), pageWidth - margin - 35, y + 6);
+  y += 9;
+
+  // Row 2: Lombok
+  doc.setFont("helvetica", "normal");
+  doc.text("Gudang Lombok", margin + 4, y + 6);
+  doc.setFont("helvetica", "bold");
+  doc.text(formatRupiah(lombokOmzet), pageWidth - margin - 35, y + 6);
+  y += 14;
+
+  // Payment Methods Box
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.setTextColor(30, 41, 59);
+  doc.text("Metode Pembayaran", margin, y);
+  y += 6;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(71, 85, 105);
+  doc.text(`• QRIS: ${qrisCount} transaksi`, margin + 4, y + 5);
+  doc.text(`• Tunai (Cash): ${cashCount} transaksi`, margin + 65, y + 5);
+  doc.text(`• Transfer: ${transferCount} transaksi`, margin + 125, y + 5);
+  y += 24;
+
+  // Footer Note
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(8);
+  doc.setTextColor(148, 163, 184);
+  doc.text("Dokumen ini digenerate otomatis oleh Master Cron Dispatcher Tanabrew Stock & Invoice.", margin, 275);
+  doc.text("Lead Developer: Danial Gobel | Hak Cipta © 2026 Tanabrew Roastery.", margin, 280);
+
+  return Buffer.from(doc.output("arraybuffer"));
+};
+
 const sendEmail = async ({
   to,
   subject,
   html,
+  attachments,
 }: {
   to: string[];
   subject: string;
   html: string;
+  attachments?: Array<{ filename: string; content: Buffer }>;
 }) => {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
@@ -179,12 +305,18 @@ const sendEmail = async ({
     const fromEmail = process.env.RESEND_FROM_EMAIL || "Tanabrew System <onboarding@resend.dev>";
     const sender = fromEmail.includes("@") ? fromEmail : "onboarding@resend.dev";
 
-    const { data, error } = await resend.emails.send({
+    const payload: any = {
       from: sender,
       to,
       subject,
       html,
-    });
+    };
+
+    if (attachments && attachments.length > 0) {
+      payload.attachments = attachments;
+    }
+
+    const { data, error } = await resend.emails.send(payload);
 
     if (error) {
       return { sent: false, error: error.message };
@@ -398,10 +530,27 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     </html>
   `;
 
+  const pdfBuffer = generateReportPdfBuffer({
+    dateStr: todayDateStr,
+    todayOmzet,
+    todayCount,
+    jogjaOmzet,
+    lombokOmzet,
+    qrisCount,
+    cashCount,
+    transferCount,
+  });
+
   const emailResult = await sendEmail({
     to: ownerEmails,
     subject: `[Tanabrew] Rekap Penjualan Harian: ${formatRupiah(todayOmzet)} (${todayDateStr})`,
     html: ownerHtml,
+    attachments: [
+      {
+        filename: `Laporan-Penjualan-Tanabrew-${todayDateStr}.pdf`,
+        content: pdfBuffer,
+      },
+    ],
   });
   results.notifications.emailDelivery = {
     recipients: ownerEmails,
