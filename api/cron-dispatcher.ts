@@ -1036,7 +1036,7 @@ export default async function handler(req: any, res: any) {
         <!-- Header Bertema Hijau Zamrud Resmi Tanabrew (#2E7D32) -->
         <div style="background-color: #ffffff; padding: 20px 24px; border-bottom: 3px solid #2e7d32; text-align: left;">
           <div style="margin-bottom: 12px;">
-            <img src="https://tanabrew-stok-and-invoice.vercel.app/logo-pricelist.png" alt="Tanabrew Roastery" width="160" height="38" style="height: 38px; width: 160px; max-width: 160px; display: block; border: 0;" />
+            <img src="https://tanabrew-stok-and-invoice.vercel.app/logo-pricelist.png" alt="Tanabrew Roastery" width="160" height="48" style="width: 160px; max-width: 160px; height: 48px; max-height: 48px; object-fit: contain; display: block; border: 0;" />
           </div>
           <div style="text-align: left; font-size: 11px; color: #49624f; line-height: 1.5;">
             <div style="font-weight: bold; color: #14381c; font-size: 13px;">Laporan Invoice Harian [1/5]</div>
@@ -1144,7 +1144,7 @@ Developer: Danial Gobel.
         
         <div style="background-color: #ffffff; padding: 20px 24px; border-bottom: 3px solid #2e7d32; text-align: left;">
           <div style="margin-bottom: 12px;">
-            <img src="https://tanabrew-stok-and-invoice.vercel.app/logo-pricelist.png" alt="Tanabrew Roastery" width="160" height="38" style="height: 38px; width: 160px; max-width: 160px; display: block; border: 0;" />
+            <img src="https://tanabrew-stok-and-invoice.vercel.app/logo-pricelist.png" alt="Tanabrew Roastery" width="160" height="48" style="width: 160px; max-width: 160px; height: 48px; max-height: 48px; object-fit: contain; display: block; border: 0;" />
           </div>
           <div style="text-align: left; font-size: 11px; color: #49624f; line-height: 1.5;">
             <div style="font-weight: bold; color: #14381c; font-size: 13px;">Laporan Tutup Buku Bulanan [2/5]</div>
@@ -1269,7 +1269,7 @@ Developer: Danial Gobel.
         
         <div style="background-color: #ffffff; padding: 20px 24px; border-bottom: 3px solid #2e7d32; text-align: left;">
           <div style="margin-bottom: 12px;">
-            <img src="https://tanabrew-stok-and-invoice.vercel.app/logo-pricelist.png" alt="Tanabrew Roastery" width="160" height="38" style="height: 38px; width: 160px; max-width: 160px; display: block; border: 0;" />
+            <img src="https://tanabrew-stok-and-invoice.vercel.app/logo-pricelist.png" alt="Tanabrew Roastery" width="160" height="48" style="width: 160px; max-width: 160px; height: 48px; max-height: 48px; object-fit: contain; display: block; border: 0;" />
           </div>
           <div style="text-align: left; font-size: 11px; color: #49624f; line-height: 1.5;">
             <div style="font-weight: bold; color: #14381c; font-size: 13px;">Peringatan Tagihan & Invoice Tempo [3/5]</div>
@@ -1378,7 +1378,7 @@ Developer: Danial Gobel.
         
         <div style="background-color: #ffffff; padding: 20px 24px; border-bottom: 3px solid #2e7d32; text-align: left;">
           <div style="margin-bottom: 12px;">
-            <img src="https://tanabrew-stok-and-invoice.vercel.app/logo-pricelist.png" alt="Tanabrew Roastery" width="160" height="38" style="height: 38px; width: 160px; max-width: 160px; display: block; border: 0;" />
+            <img src="https://tanabrew-stok-and-invoice.vercel.app/logo-pricelist.png" alt="Tanabrew Roastery" width="160" height="48" style="width: 160px; max-width: 160px; height: 48px; max-height: 48px; object-fit: contain; display: block; border: 0;" />
           </div>
           <div style="text-align: left; font-size: 11px; color: #49624f; line-height: 1.5;">
             <div style="font-weight: bold; color: #14381c; font-size: 13px;">Peringatan Stok Menipis & Beans [4/5]</div>
@@ -1489,7 +1489,7 @@ Developer: Danial Gobel.
         
         <div style="background-color: #ffffff; padding: 20px 24px; border-bottom: 3px solid #2e7d32; text-align: left;">
           <div style="margin-bottom: 12px;">
-            <img src="https://tanabrew-stok-and-invoice.vercel.app/logo-pricelist.png" alt="Tanabrew Roastery" width="160" height="38" style="height: 38px; width: 160px; max-width: 160px; display: block; border: 0;" />
+            <img src="https://tanabrew-stok-and-invoice.vercel.app/logo-pricelist.png" alt="Tanabrew Roastery" width="160" height="48" style="width: 160px; max-width: 160px; height: 48px; max-height: 48px; object-fit: contain; display: block; border: 0;" />
           </div>
           <div style="text-align: left; font-size: 11px; color: #49624f; line-height: 1.5;">
             <div style="font-weight: bold; color: #14381c; font-size: 13px;">Instruksi Stock Opname Gudang [5/5]</div>
@@ -1642,7 +1642,7 @@ Developer: Danial Gobel.
         </head>
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f4fbf4; margin: 0; padding: 24px; color: #14381c;">
           <div style="max-width: 650px; margin: 0 auto; background: #ffffff; padding: 24px; border-radius: 12px; border: 1px solid #a5d6a7;">
-            <img src="https://tanabrew-stok-and-invoice.vercel.app/logo-pricelist.png" alt="Tanabrew" width="160" height="38" style="margin-bottom: 12px;" />
+            <img src="https://tanabrew-stok-and-invoice.vercel.app/logo-pricelist.png" alt="Tanabrew Roastery" width="160" height="48" style="width: 160px; max-width: 160px; height: 48px; object-fit: contain; display: block; border: 0; margin-bottom: 12px;" />
             <h2 style="color: #2e7d32; margin-top: 0;">Pratinjau 5 Model Laporan Otomatis Tanabrew</h2>
             <p style="color: #49624f; font-size: 13px;">Klik salah satu laporan di bawah untuk melihat pratinjau tampilan dokumen email secara langsung:</p>
             <ol style="line-height: 2.2; font-size: 14px;">
