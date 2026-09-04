@@ -2,6 +2,15 @@
 
 Dokumen ini adalah **panduan wajib (*mandatory SOP*)** bagi seluruh AI Assistant / AI Coding Agent dan Developer yang bekerja pada repositori **Tanabrew Stok & Invoice**.
 
+### 📚 Direktori Modul Dokumentasi Teknis
+Untuk rincian arsitektur mendalam, silakan rujuk modul dokumentasi berikut:
+* [Arsitektur & Desain Sistem](docs/ARCHITECTURE.md)
+* [Kamus Basis Data & Skema Firestore](docs/DATABASE_SCHEMA.md)
+* [Sistem Notifikasi & Pelacakan Pengunjung](docs/NOTIFICATION_SYSTEM.md)
+* [Panduan Deployment & Operasional Jangka Panjang](docs/DEPLOYMENT_AND_OPERATIONS.md)
+* [Aturan Kestabilan Kode & Anti-Crash](.agents/rules/code-stability.md)
+* [Aturan Kueri & Optimasi Kuota Firestore](.agents/rules/firestore-best-practices.md)
+
 ---
 
 ## 🏛️ 1. Arsitektur & Teknologi Proyek
@@ -26,9 +35,10 @@ Setiap kali Anda melakukan pembaruan, menambahkan fitur baru, mengubah tampilan 
    - Gunakan Semantic Versioning (contoh: `3.0.0` ➔ `3.0.1` untuk perbaikan bug / tweak, atau `3.1.0` untuk fitur baru).
 2. **Perbarui Tanggal Rilis (`releaseDate`)**:
    - Tulis tanggal lokal Indonesia saat update dilakukan (contoh: `"2 September 2026"`).
-3. **Perbarui Daftar Catatan Pembaruan (`highlights`)**:
-   - Tuliskan **seluruh poin pembaruan** secara jelas, singkat, dan padat per item.
-   - Pop-up modal sudah memiliki wadah scroll vertikal yang halus (*smooth scrolling*), sehingga seluruh poin pembaruan dapat dimuat tanpa terpotong.
+3. **Perbarui Daftar Catatan Pembaruan (`highlights`) — Khusus Pembaruan Hari Ini (Per Hari)**:
+   - Tuliskan **hanya poin-poin pembaruan yang dikerjakan pada hari/rilis tersebut** secara jelas, singkat, dan padat per item.
+   - Pindahkan poin-poin rilis versi sebelumnya ke array `RELEASE_HISTORY` agar modal pop-up tetap fokus, ringkas, dan tidak menumpuk riwayat hari-hari yang lalu.
+   - Pop-up modal sudah memiliki wadah scroll vertikal yang halus (*smooth scrolling*), sehingga seluruh poin pembaruan hari tersebut dapat dibaca dengan nyaman tanpa terpotong.
    - Gunakan badge yang sesuai:
      - `"Baru"` (untuk fitur / tampilan baru)
      - `"Peningkatan"` (untuk optimalisasi UI & performa)
