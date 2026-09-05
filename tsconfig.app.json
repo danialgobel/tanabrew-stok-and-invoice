@@ -1,3 +1,4 @@
+/* Tanabrew Roastery - Application TypeScript Configuration */
 {
   "compilerOptions": {
     "types": ["vitest/globals"],

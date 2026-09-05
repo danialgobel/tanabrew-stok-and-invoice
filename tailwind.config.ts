@@ -1,3 +1,4 @@
+// Tanabrew Roastery - Tailwind CSS Configuration
 import type { Config } from "tailwindcss";
 
 export default {

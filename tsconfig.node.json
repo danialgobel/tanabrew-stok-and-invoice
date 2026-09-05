@@ -1,4 +1,5 @@
 {
+  /* Tanabrew Roastery - Node TypeScript Configuration */
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2023"],
