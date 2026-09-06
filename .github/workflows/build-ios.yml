@@ -23,10 +23,10 @@ jobs:
       - name: 1. Checkout Repository
         uses: actions/checkout@v4
 
-      - name: 2. Setup Node.js 22 (LTS)
+      - name: 2. Setup Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
           cache: 'npm'
 
       - name: 3. Install NPM Dependencies
@@ -35,14 +35,14 @@ jobs:
       - name: 4. Build Web Production Bundle (dist)
         run: npm run build
 
-      - name: 5. Sync Capacitor iOS Platform
-        run: npx cap sync ios
+      - name: 5. Sync Capacitor iOS & Install CocoaPods
+        run: |
+          npx cap sync ios
 
-      - name: 6. Archive Xcode Project (Unsigned for Sideloading)
+      - name: 6. Archive Xcode Workspace (Unsigned for Sideloading)
         working-directory: ios/App
         run: |
-          xcodebuild -resolvePackageDependencies -project App.xcodeproj
-          xcodebuild -project App.xcodeproj \
+          xcodebuild -workspace App.xcworkspace \
             -scheme App \
             -configuration Release \
             -destination 'generic/platform=iOS' \
