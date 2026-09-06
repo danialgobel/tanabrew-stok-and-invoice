@@ -11,6 +11,7 @@ on:
       - 'public/**'
       - 'package.json'
       - 'capacitor.config.ts'
+      - '.github/workflows/build-ios.yml'
 
 jobs:
   build-ios:
@@ -22,10 +23,10 @@ jobs:
       - name: 1. Checkout Repository
         uses: actions/checkout@v4
 
-      - name: 2. Setup Node.js 20
+      - name: 2. Setup Node.js 22 (LTS)
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: 3. Install NPM Dependencies
@@ -40,6 +41,7 @@ jobs:
       - name: 6. Archive Xcode Project (Unsigned for Sideloading)
         working-directory: ios/App
         run: |
+          xcodebuild -resolvePackageDependencies -project App.xcodeproj
           xcodebuild -project App.xcodeproj \
             -scheme App \
             -configuration Release \
