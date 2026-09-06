@@ -15,34 +15,61 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.4.3",
-  versionLabel: "v3.4.3",
+  version: "3.4.4",
+  versionLabel: "v3.4.4",
   releaseDate: "6 September 2026",
-  title: "Perbaikan Kestabilan Rendering Global & Penyelarasan Sesi Pengguna (6 September 2026)",
-  subtitle: "Eliminasi Kesalahan 'currentUser is not defined' pada AutoUpdateBanner dan Pencegahan Konflik Lintas Platform",
+  title: "Penyempurnaan Web PWA: Aktivasi Notifikasi Langsung & Penataan Urutan Beranda HP (6 September 2026)",
+  subtitle: "Tombol Izin Notifikasi Langsung Responsif, Panduan Buka Blokir Izin Situs, dan Susunan Prioritas Beranda Mobile",
   highlights: [
     {
-      title: "Perbaikan Bug 'currentUser is not defined'",
-      desc: "Memperbaiki destrukturisasi variabel currentUser di komponen AutoUpdateBanner global agar aplikasi tidak crash dan rendering halaman berjalan mulus di semua perangkat (Web, Android, iOS).",
+      title: "Tombol Aktifkan Notifikasi Langsung Responsif (Anti-Macet)",
+      desc: "Memperbaiki tombol izin notifikasi di Web & Web PWA agar langsung memicu dialog izin asli browser di dalam user gesture tanpa jeda CDN, serta mencegah tombol macet/terkunci saat status izin ditolak.",
       badge: "Perbaikan",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
     {
-      title: "Pencegahan Konflik Lintas Platform (Web, Android, iOS)",
-      desc: "Memastikan logika pencetakan, notifikasi, dan autentikasi berjalan independen tanpa saling bertabrakan atau merusak fungsionalitas antar platform.",
+      title: "Banner Notifikasi Otomatis di Paling Atas Layar HP",
+      desc: "Menempatkan banner aktivasi notifikasi di posisi paling atas layar smartphone jika user belum mengaktifkannya, lengkap dengan tombol interaktif dan modal panduan buka blokir izin situs browser.",
       badge: "Peningkatan",
       badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
     {
-      title: "Pencetakan Tangguh iOS AirPrint & Akses Penuh Developer",
-      desc: "Fallback pencetakan iframe tersembunyi dan hak akses mutlak bagi peran Developer tetap aktif dan terproteksi di seluruh modul aplikasi.",
-      badge: "Fitur",
+      title: "Penataan Ulang Susunan Tampilan Beranda Smartphone",
+      desc: "Menyempurnakan urutan tampilan mobile: Banner Notifikasi di paling atas, disusul UI Akun Pengguna, Ticker Aktivitas, Metrik 4 Kartu Stok & Ringkasan Hari Ini, Analitik Toko, Pengingat Admin, dan Tabel Stok Inventaris.",
+      badge: "Peningkatan",
       badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
     },
   ],
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.4.3",
+    versionLabel: "v3.4.3",
+    releaseDate: "6 September 2026",
+    title: "Perbaikan Kestabilan Rendering Global & Penyelarasan Sesi Pengguna (6 September 2026)",
+    subtitle: "Eliminasi Kesalahan 'currentUser is not defined' pada AutoUpdateBanner dan Pencegahan Konflik Lintas Platform",
+    highlights: [
+      {
+        title: "Perbaikan Bug 'currentUser is not defined'",
+        desc: "Memperbaiki destrukturisasi variabel currentUser di komponen AutoUpdateBanner global agar aplikasi tidak crash dan rendering halaman berjalan mulus di semua perangkat (Web, Android, iOS).",
+        badge: "Perbaikan",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+      {
+        title: "Pencegahan Konflik Lintas Platform (Web, Android, iOS)",
+        desc: "Memastikan logika pencetakan, notifikasi, dan autentikasi berjalan independen tanpa saling bertabrakan atau merusak fungsionalitas antar platform.",
+        badge: "Peningkatan",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      },
+      {
+        title: "Pencetakan Tangguh iOS AirPrint & Akses Penuh Developer",
+        desc: "Fallback pencetakan iframe tersembunyi dan hak akses mutlak bagi peran Developer tetap aktif dan terproteksi di seluruh modul aplikasi.",
+        badge: "Fitur",
+        badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
+      },
+    ],
+  },
   {
     version: "3.4.2",
     versionLabel: "v3.4.2",

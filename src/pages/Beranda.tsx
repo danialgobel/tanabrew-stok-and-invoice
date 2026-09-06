@@ -104,6 +104,7 @@ const Beranda = () => {
   const [announcementLoading, setAnnouncementLoading] = useState(false);
   const [logoClickCount, setLogoClickCount] = useState(0);
   const [showOwnerCommandMode, setShowOwnerCommandMode] = useState(false);
+  const [showNotificationHelpModal, setShowNotificationHelpModal] = useState(false);
   const shouldShowWelcomeFromRoute = Boolean((location.state as { showWelcomeAnimation?: boolean } | null)?.showWelcomeAnimation);
   const shouldShowWelcome = shouldShowWelcomeFromRoute || hasWelcomeAnimationFlag();
   const [showWelcomeAnimation, setShowWelcomeAnimation] = useState(() => shouldShowWelcome);
@@ -226,12 +227,7 @@ const Beranda = () => {
         };
     }
   }, [notificationStatus]);
-  const notificationButtonDisabled =
-    notificationLoading
-    || notificationStatus === "granted"
-    || notificationStatus === "denied"
-    || notificationStatus === "unsupported"
-    || notificationStatus === "missing_app_id";
+  const notificationButtonDisabled = notificationLoading || notificationStatus === "granted";
   const notificationTestDisabled = notificationTestLoading || notificationStatus !== "granted";
   const notificationSyncDisabled =
     notificationSyncLoading
@@ -486,6 +482,13 @@ const Beranda = () => {
       return;
     }
 
+    triggerHaptic(10);
+    const currentState = getNotificationPermissionState();
+    if (currentState === "denied" || currentState === "unsupported") {
+      setShowNotificationHelpModal(true);
+      return;
+    }
+
     setNotificationLoading(true);
     try {
       const status = await requestNotificationPermission();
@@ -493,18 +496,21 @@ const Beranda = () => {
 
       if (status === "granted") {
         try {
-          await syncCurrentNotificationIdentity();
-          toast({ title: "Notifikasi aktif", description: "Identitas notifikasi berhasil disinkronkan." });
+          if (currentUser && userProfile) {
+            await syncCurrentNotificationIdentity();
+          }
+          toast({ title: "Notifikasi Aktif", description: "Perangkat siap menerima pemberitahuan pesanan & stok." });
         } catch (error) {
           console.warn("Gagal menyinkronkan identitas setelah notifikasi aktif", error);
-          toast({ title: "Perhatian", description: "Notifikasi aktif, tetapi identitas user gagal disinkronkan." });
+          toast({ title: "Notifikasi Aktif", description: "Izin diberikan, sinkronisasi berjalan di background." });
         }
       } else if (status === "denied") {
-        toast({ title: "Notifikasi diblokir", description: "Aktifkan kembali izin dari pengaturan browser.", variant: "destructive" });
+        setShowNotificationHelpModal(true);
+        toast({ title: "Notifikasi Diblokir", description: "Izin notifikasi diblokir browser. Buka setelan izin situs.", variant: "destructive" });
       } else if (status === "unsupported") {
-        toast({ title: "Tidak didukung", description: "Browser ini belum mendukung Web Push.", variant: "destructive" });
+        setShowNotificationHelpModal(true);
       } else {
-        toast({ title: "Belum aktif", description: "Izin notifikasi belum diberikan." });
+        toast({ title: "Belum Aktif", description: "Izin notifikasi belum diberikan." });
       }
     } catch {
       toast({ title: "Error", description: "Gagal mengaktifkan notifikasi.", variant: "destructive" });
@@ -534,20 +540,7 @@ const Beranda = () => {
     if (!currentUser || !userProfile) return;
 
     const currentState = getNotificationPermissionState();
-    if (currentState === "default") {
-      const timer = setTimeout(async () => {
-        try {
-          const status = await requestNotificationPermission();
-          setNotificationStatus(status);
-          if (status === "granted") {
-            await syncCurrentNotificationIdentity();
-          }
-        } catch (err) {
-          console.warn("Auto request notification skipped:", err);
-        }
-      }, 1500);
-      return () => clearTimeout(timer);
-    } else if (currentState === "granted") {
+    if (currentState === "granted") {
       syncCurrentNotificationIdentity().catch(() => {});
     }
   }, [currentUser, userProfile, syncCurrentNotificationIdentity]);
@@ -715,6 +708,94 @@ const Beranda = () => {
     { label: "Stok Lombok", value: stokLombok, clickable: true, key: "lombok" as const },
   ];
 
+  const renderNotificationBanner = (isMobileTop = false) => {
+    if (notificationStatus === "granted" || showWelcomeAnimation) return null;
+
+    const isDenied = notificationStatus === "denied";
+    const isUnsupported = notificationStatus === "unsupported";
+
+    return (
+      <div
+        className={`tanabrew-card-enter rounded-2xl border p-4 shadow-sm transition-all ${
+          isDenied
+            ? "border-destructive/30 bg-destructive/5"
+            : "border-amber-500/30 bg-amber-50/70 dark:bg-amber-950/20"
+        } ${isMobileTop ? "lg:hidden mb-5" : "hidden lg:block"}`}
+        style={{ animationDelay: "20ms" }}
+      >
+        <div className="flex items-start gap-3">
+          <span
+            className={`mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-bold shadow-xs ${
+              isDenied
+                ? "bg-destructive/15 text-destructive border border-destructive/25"
+                : "bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/25"
+            }`}
+          >
+            <Bell size={18} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-2">
+              <p
+                className={`text-xs font-extrabold ${
+                  isDenied ? "text-destructive" : "text-amber-900 dark:text-amber-300"
+                }`}
+              >
+                {isDenied
+                  ? "Izin Notifikasi Diblokir"
+                  : isUnsupported
+                  ? "Web Push Belum Aktif di Browser Ini"
+                  : "Notifikasi Belum Diaktifkan"}
+              </p>
+              <span
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  isDenied
+                    ? "bg-destructive/15 text-destructive"
+                    : "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                }`}
+              >
+                {isDenied ? "Diblokir" : isUnsupported ? "Perlu Setup" : "Penting"}
+              </span>
+            </div>
+
+            <p className="mt-1 text-xs text-foreground/80 leading-relaxed">
+              {isDenied
+                ? "Izin notifikasi diblokir browser. Ketuk panduan di bawah untuk membuka setelan izin situs."
+                : isUnsupported
+                ? "Untuk iPhone / iPad, pasang ke Home Screen terlebih dahulu agar notifikasi dapat diterima."
+                : "Aktifkan notifikasi agar info invoice baru dicetak dan arahan owner langsung masuk ke HP."}
+            </p>
+
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleEnableNotifications}
+                disabled={notificationLoading}
+                className={`inline-flex min-h-8 items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer ${
+                  isDenied
+                    ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    : "bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/20"
+                }`}
+              >
+                {notificationLoading ? (
+                  "Mengaktifkan..."
+                ) : isDenied ? (
+                  "Buka Panduan Izin Situs ⚙️"
+                ) : isUnsupported ? (
+                  "Panduan Pasang Home Screen 📱"
+                ) : (
+                  <>
+                    <Bell size={13} />
+                    Aktifkan Notifikasi Sekarang
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
       <PullToRefresh onRefresh={handleSafeRefresh} disabled={Boolean(modal || summaryModal || overviewModal || profileModalOpen)} />
@@ -740,6 +821,9 @@ const Beranda = () => {
           </h1>
           <p className="text-sm text-muted-foreground">Trademark</p>
         </div>
+
+        {/* Mobile Top Notification Activation Banner (Shown at very top of Mobile when not granted) */}
+        {renderNotificationBanner(true)}
 
         {/* Desktop Welcome Banner */}
         <div className="hidden lg:flex items-center justify-between gap-4 mb-6 bg-card/70 backdrop-blur-md rounded-2xl border border-border/80 p-5 shadow-sm">
@@ -783,7 +867,7 @@ const Beranda = () => {
           {/* Main Area (Desktop: 8 Cols) */}
           <div className="contents lg:block lg:col-span-8 lg:space-y-6">
             {/* Grid 4 Kartu Stok Metrik */}
-            <div className="tanabrew-waterfall-2 grid grid-cols-2 sm:grid-cols-4 gap-3.5 order-4 lg:order-none">
+            <div className="tanabrew-waterfall-2 grid grid-cols-2 sm:grid-cols-4 gap-3.5 order-3 lg:order-none">
               {loading ? (
                 <>
                   <CardSkeleton lines={2} />
@@ -810,7 +894,7 @@ const Beranda = () => {
             </div>
 
             {/* Analitik & Performa Toko */}
-            <div className="tanabrew-waterfall-3 tanabrew-dashboard-panel rounded-2xl border border-border bg-card p-5 shadow-sm space-y-5 order-2 lg:order-none">
+            <div className="tanabrew-waterfall-3 tanabrew-dashboard-panel rounded-2xl border border-border bg-card p-5 shadow-sm space-y-5 order-5 lg:order-none">
               <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
                 <div>
                   <h2 className="text-sm font-bold text-foreground">Analitik & Performa Toko</h2>
@@ -992,7 +1076,7 @@ const Beranda = () => {
             </div>
 
             {/* Tabel Stok */}
-            <div className="tanabrew-waterfall-4 rounded-2xl border border-border overflow-hidden bg-card shadow-sm order-7 lg:order-none">
+            <div className="tanabrew-waterfall-4 rounded-2xl border border-border overflow-hidden bg-card shadow-sm order-8 lg:order-none">
               <div className="bg-primary/10 px-4 py-3 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-primary">Tabel Stok Inventaris</h2>
                 <button
@@ -1104,7 +1188,7 @@ const Beranda = () => {
 
             {/* Kapsul Ticker Aktivitas Terbaru (Ultra-Compact 1 Baris) */}
             {displayActivities.length > 0 && currentTickerActivity && (
-              <div className="tanabrew-waterfall-2 rounded-xl border border-emerald-500/25 bg-emerald-50/70 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 px-3.5 py-2 transition-all flex items-center justify-between gap-2.5 shadow-sm order-3 lg:order-none">
+              <div className="tanabrew-waterfall-2 rounded-xl border border-emerald-500/25 bg-emerald-50/70 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 px-3.5 py-2 transition-all flex items-center justify-between gap-2.5 shadow-sm order-2 lg:order-none">
                 <button
                   type="button"
                   onClick={() => {
@@ -1156,7 +1240,7 @@ const Beranda = () => {
             )}
 
             {/* Ringkasan Cepat Hari Ini (Today's Quick Overview) */}
-            <div className="tanabrew-waterfall-3 grid grid-cols-3 lg:grid-cols-1 gap-2.5 order-5 lg:order-none">
+            <div className="tanabrew-waterfall-3 grid grid-cols-3 lg:grid-cols-1 gap-2.5 order-4 lg:order-none">
               <div 
                 onClick={() => {
                   triggerHaptic(10);
@@ -1209,32 +1293,11 @@ const Beranda = () => {
               </div>
             </div>
 
-            {notificationStatus !== "granted" && !showWelcomeAnimation && (
-              <div className="tanabrew-card-enter rounded-2xl border border-yellow-200 bg-yellow-50/70 p-4 shadow-sm order-6 lg:order-none" style={{ animationDelay: "20ms" }}>
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-yellow-100 text-yellow-800">
-                    <Bell size={16} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-yellow-900">Notifikasi Belum Aktif</p>
-                    <p className="mt-1 text-xs text-yellow-800 leading-relaxed">
-                      Aktifkan notifikasi agar info invoice dan arahan owner langsung masuk ke HP.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={handleEnableNotifications}
-                      disabled={notificationLoading}
-                      className="mt-3 inline-flex min-h-8 items-center justify-center rounded-lg bg-yellow-800 hover:bg-yellow-900 text-white px-4 py-1.5 text-xs font-bold shadow-sm disabled:opacity-50"
-                    >
-                      {notificationLoading ? "Mengaktifkan..." : "Aktifkan Notifikasi"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Desktop Notification Banner (Right Sidebar) */}
+            {renderNotificationBanner(false)}
 
             {isOwner && showOwnerCommandMode && (
-              <div className="tanabrew-card-enter rounded-2xl border border-amber-500/50 bg-amber-50/40 dark:bg-amber-950/10 p-5 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300 order-6 lg:order-none" style={{ animationDelay: "50ms" }}>
+              <div className="tanabrew-card-enter rounded-2xl border border-amber-500/50 bg-amber-50/40 dark:bg-amber-950/10 p-5 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300 order-7 lg:order-none" style={{ animationDelay: "50ms" }}>
                 <div className="flex items-center justify-between mb-4 border-b border-amber-500/20 pb-2">
                   <div className="flex items-center gap-2">
                     <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-900/40 px-2.5 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">
@@ -1297,7 +1360,7 @@ const Beranda = () => {
             )}
 
             {isAdmin && (
-              <div className="tanabrew-card-enter rounded-2xl border border-border bg-card p-4 shadow-sm" style={{ animationDelay: "70ms" }}>
+              <div className="tanabrew-card-enter rounded-2xl border border-border bg-card p-4 shadow-sm order-6 lg:order-none" style={{ animationDelay: "70ms" }}>
                 <h2 className="text-sm font-bold text-primary mb-3">Pengingat Admin</h2>
 
                 {!hasAdminWarning ? (
@@ -1877,6 +1940,137 @@ const Beranda = () => {
             </div>
           );
         })()}
+
+        {/* MODAL PANDUAN IZIN NOTIFIKASI */}
+        {showNotificationHelpModal && (
+          <div
+            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+            onClick={() => setShowNotificationHelpModal(false)}
+          >
+            <div
+              className="bg-card w-full max-w-md rounded-2xl border border-border p-5 sm:p-6 shadow-xl tanabrew-card-enter space-y-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold">
+                    <Bell size={18} />
+                  </span>
+                  <div>
+                    <h3 className="text-sm font-bold text-foreground">
+                      {notificationStatus === "denied"
+                        ? "Buka Blokir Izin Notifikasi"
+                        : notificationStatus === "unsupported"
+                        ? "Panduan Web Push iOS"
+                        : "Panduan Izin Notifikasi"}
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground">Ikuti petunjuk di bawah untuk mengaktifkan</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowNotificationHelpModal(false)}
+                  className="rounded-full p-1 text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {notificationStatus === "denied" ? (
+                <div className="space-y-3 text-xs text-foreground/90">
+                  <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-destructive space-y-1">
+                    <p className="font-bold flex items-center gap-1.5">
+                      <AlertCircle size={14} />
+                      Izin Diblokir oleh Browser
+                    </p>
+                    <p className="text-[11px] text-destructive/90 leading-relaxed">
+                      Browser Anda saat ini memblokir notifikasi untuk situs Tanabrew.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2.5 pt-1">
+                    <p className="font-bold text-foreground">Cara Mengaktifkan di HP:</p>
+                    <div className="flex gap-2.5 items-start">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-[10px]">1</span>
+                      <p className="leading-snug">Ketuk ikon <b>Gembok / Setelan Situs</b> (🔒) di address bar browser Anda (di samping tautan URL).</p>
+                    </div>
+                    <div className="flex gap-2.5 items-start">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-[10px]">2</span>
+                      <p className="leading-snug">Pilih menu <b>Izin Situs (Permissions)</b>.</p>
+                    </div>
+                    <div className="flex gap-2.5 items-start">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-[10px]">3</span>
+                      <p className="leading-snug">Cari <b>Notifikasi</b> dan ubah pilihannya menjadi <b>Izinkan (Allow)</b>.</p>
+                    </div>
+                    <div className="flex gap-2.5 items-start">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-[10px]">4</span>
+                      <p className="leading-snug">Kembali ke halaman ini lalu ketuk tombol <b>Muat Ulang Halaman</b> di bawah.</p>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSafeRefresh}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary text-primary-foreground py-2.5 text-xs font-bold shadow-sm hover:bg-primary/90 transition-all cursor-pointer active:scale-95"
+                    >
+                      Muat Ulang Halaman (Refresh)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowNotificationHelpModal(false)}
+                      className="rounded-xl border border-border bg-muted px-4 py-2.5 text-xs font-bold text-muted-foreground hover:bg-muted/80 transition-colors cursor-pointer"
+                    >
+                      Tutup
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3 text-xs text-foreground/90">
+                  <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 text-blue-700 dark:text-blue-400 space-y-1">
+                    <p className="font-bold flex items-center gap-1.5">
+                      <Sparkles size={14} />
+                      Pasang Tanabrew ke Home Screen
+                    </p>
+                    <p className="text-[11px] leading-relaxed">
+                      Pada perangkat iPhone / iPad (iOS 16.4+), Apple mewajibkan aplikasi web dipasang ke Home Screen agar push notifikasi dapat bekerja.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2.5 pt-1">
+                    <p className="font-bold text-foreground">Langkah Pemasangan di iPhone:</p>
+                    <div className="flex gap-2.5 items-start">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-[10px]">1</span>
+                      <p className="leading-snug">Buka situs Tanabrew menggunakan browser <b>Safari</b>.</p>
+                    </div>
+                    <div className="flex gap-2.5 items-start">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-[10px]">2</span>
+                      <p className="leading-snug">Ketuk tombol <b>Bagikan (Share)</b> — ikon kotak dengan tanda panah ke atas di bilah bawah Safari.</p>
+                    </div>
+                    <div className="flex gap-2.5 items-start">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-[10px]">3</span>
+                      <p className="leading-snug">Gulir ke bawah dan ketuk <b>"Tambahkan ke Layar Utama" (Add to Home Screen)</b>.</p>
+                    </div>
+                    <div className="flex gap-2.5 items-start">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-[10px]">4</span>
+                      <p className="leading-snug">Buka aplikasi Tanabrew dari ikon Layar Utama HP Anda, lalu login dan aktifkan notifikasi.</p>
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowNotificationHelpModal(false)}
+                      className="w-full inline-flex items-center justify-center rounded-xl bg-primary text-primary-foreground py-2.5 text-xs font-bold shadow-sm hover:bg-primary/90 transition-all cursor-pointer active:scale-95"
+                    >
+                      Saya Mengerti
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* MODAL PENGATURAN PRICE LIST RAHASIA (5-TAP LOGO) */}
         <PriceListManagerModal

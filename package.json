@@ -1,7 +1,7 @@
 {
   "name": "tanabrew-stock-and-invoice",
   "private": true,
-  "version": "3.4.3",
+  "version": "3.4.4",
   "description": "Sistem POS Kasir dan Manajemen Inventaris Multi-Gudang Tanabrew Roastery",
   "author": "Danial Gobel <https://github.com/danialgobel>",
   "type": "module",

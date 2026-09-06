@@ -90,12 +90,20 @@ const ensureOneSignalScript = () =>
 
     const script = existingScript || document.createElement("script");
 
+    const timer = setTimeout(() => {
+      reject(new Error("Timeout memuat OneSignal SDK."));
+    }, 6000);
+
     const handleLoad = () => {
+      clearTimeout(timer);
       script.dataset.loaded = "true";
       resolve();
     };
 
-    const handleError = () => reject(new Error("Gagal memuat OneSignal SDK."));
+    const handleError = () => {
+      clearTimeout(timer);
+      reject(new Error("Gagal memuat OneSignal SDK."));
+    };
 
     script.addEventListener("load", handleLoad, { once: true });
     script.addEventListener("error", handleError, { once: true });
@@ -116,12 +124,23 @@ const withOneSignal = <T>(callback: (OneSignal: OneSignalSDK) => T | Promise<T>)
     }
 
     window.OneSignalDeferred = window.OneSignalDeferred || [];
-    void ensureOneSignalScript().catch(reject);
+
+    const timeoutTimer = setTimeout(() => {
+      reject(new Error("Timeout mengeksekusi perintah OneSignal."));
+    }, 7000);
+
+    void ensureOneSignalScript().catch((err) => {
+      clearTimeout(timeoutTimer);
+      reject(err);
+    });
 
     window.OneSignalDeferred.push(async (OneSignal) => {
       try {
-        resolve(await callback(OneSignal));
+        const res = await callback(OneSignal);
+        clearTimeout(timeoutTimer);
+        resolve(res);
       } catch (error) {
+        clearTimeout(timeoutTimer);
         reject(error);
       }
     });
@@ -203,18 +222,34 @@ export const requestNotificationPermission = async (): Promise<OneSignalPermissi
     return currentState;
   }
 
-  await initOneSignal();
-  await withOneSignal(async (OneSignal) => {
-    if (OneSignal.Notifications?.isPushSupported && !OneSignal.Notifications.isPushSupported()) return;
-
-    await OneSignal.Notifications?.requestPermission?.();
-
-    if (Notification.permission === "granted") {
-      await OneSignal.User?.PushSubscription?.optIn?.();
+  // Panggil Notification.requestPermission() secara langsung di dalam user gesture
+  let nativePermission: NotificationPermission = "default";
+  if (typeof window !== "undefined" && "Notification" in window) {
+    try {
+      nativePermission = await Notification.requestPermission();
+    } catch {
+      nativePermission = await new Promise<NotificationPermission>((resolve) => {
+        Notification.requestPermission((p) => resolve(p));
+      });
     }
-  });
+  }
 
-  return getNotificationPermissionState();
+  if (nativePermission === "granted") {
+    // Sinkronkan OneSignal di background tanpa menghambat respons langsung UI
+    void (async () => {
+      try {
+        await initOneSignal();
+        await withOneSignal(async (OneSignal) => {
+          await OneSignal.User?.PushSubscription?.optIn?.();
+        });
+      } catch (err) {
+        console.warn("[Tanabrew OneSignal] optIn background warning:", err);
+      }
+    })();
+    return "granted";
+  }
+
+  return nativePermission as OneSignalPermissionState;
 };
 
 export const logoutOneSignalUser = async () => {
