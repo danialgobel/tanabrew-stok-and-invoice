@@ -71,8 +71,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     let profileUnsubscribe: (() => void) | null = null;
+    let authSettled = false;
+
+    // Safety timeout: jika Firebase Auth lambat/hang pada lingkungan Webview native iOS/Android,
+    // lepaskan status loading dalam 2 detik agar pengguna langsung dialihkan ke halaman Login.
+    const safetyTimer = setTimeout(() => {
+      if (!authSettled) {
+        console.warn("[AuthContext] Inisialisasi auth mencapai batas waktu (timeout 2s), membuka rute login.");
+        setLoading(false);
+      }
+    }, 2000);
 
     const authUnsubscribe = onAuthStateChanged(auth, async (user) => {
+      authSettled = true;
+      clearTimeout(safetyTimer);
       setLoading(true);
       setCurrentUser(user);
 
@@ -116,6 +128,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => {
+      clearTimeout(safetyTimer);
       authUnsubscribe();
       if (profileUnsubscribe) profileUnsubscribe();
     };

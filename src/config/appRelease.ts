@@ -15,34 +15,61 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.4.0",
-  versionLabel: "v3.4.0",
+  version: "3.4.1",
+  versionLabel: "v3.4.1",
   releaseDate: "6 September 2026",
-  title: "Peluncuran Resmi Tanabrew iOS Edition & Integrasi Native Apple (6 September 2026)",
-  subtitle: "Dukungan Container iOS, Taptic Engine Haptic, Native Share Sheet WhatsApp, dan Cloud Build GitHub Actions",
+  title: "Penyempurnaan Logo Resmi iOS & Optimalisasi Autentikasi WKWebView (6 September 2026)",
+  subtitle: "Pembaruan Ikon Resmi AppIcon 1024px, Dual Persistence Firebase Auth Native, dan Anti-Hang Layar Pemuatan",
   highlights: [
     {
-      title: "Peluncuran Tanabrew iOS Native Edition",
-      desc: "Membawa Tanabrew ke perangkat iPhone dengan integrasi Capacitor 6 resmi, dukungan safe-area notch & Dynamic Island, serta performa WebKit GPU terakselerasi.",
-      badge: "Fitur",
-      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      title: "Logo Resmi Tanabrew untuk iPhone",
+      desc: "Menyematkan berkas AppIcon resmi resolusi tinggi 1024x1024 ke dalam katalog aset iOS, menggantikan ikon default Capacitor menjadi logo Tanabrew hijau klasik.",
+      badge: "Baru",
+      badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20",
     },
     {
-      title: "Sensasi Taptic Engine Fisik Apple",
-      desc: "Sentuhan tombol kasir POS, Quick Cash, dan navigasi tab kini memicu umpan balik getar taktil renyah langsung dari motor getar Taptic Engine fisik iPhone.",
-      badge: "Peningkatan",
+      title: "Optimalisasi Autentikasi Native iOS (Anti-Hang)",
+      desc: "Menerapkan initializeAuth dengan persistensi ganda (IndexedDB + Browser Local) serta batas waktu aman 2 detik untuk mencegah aplikasi tertahan lama di layar 'Memuat...'.",
+      badge: "Perbaikan",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
     {
-      title: "iOS Native Share Sheet untuk Faktur",
-      desc: "Tombol kirim faktur di iPhone kini otomatis membuka dialog resmi Apple (UIActivityViewController), memudahkan pengiriman nota PDF langsung ke WhatsApp, AirDrop, atau Simpan ke File.",
-      badge: "Baru",
-      badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20",
+      title: "Layar Pemuatan Sesi Interaktif",
+      desc: "Memperbarui ProtectedRoute dengan spinner modern dan tautan darurat untuk langsung membuka formulir login jika koneksi awal perangkat lambat.",
+      badge: "Peningkatan",
+      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
   ],
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.4.0",
+    versionLabel: "v3.4.0",
+    releaseDate: "6 September 2026",
+    title: "Peluncuran Resmi Tanabrew iOS Edition & Integrasi Native Apple (6 September 2026)",
+    subtitle: "Dukungan Container iOS, Taptic Engine Haptic, Native Share Sheet WhatsApp, dan Cloud Build GitHub Actions",
+    highlights: [
+      {
+        title: "Peluncuran Tanabrew iOS Native Edition",
+        desc: "Membawa Tanabrew ke perangkat iPhone dengan integrasi Capacitor 6 resmi, dukungan safe-area notch & Dynamic Island, serta performa WebKit GPU terakselerasi.",
+        badge: "Fitur",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      },
+      {
+        title: "Sensasi Taptic Engine Fisik Apple",
+        desc: "Sentuhan tombol kasir POS, Quick Cash, dan navigasi tab kini memicu umpan balik getar taktil renyah langsung dari motor getar Taptic Engine fisik iPhone.",
+        badge: "Peningkatan",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+      {
+        title: "iOS Native Share Sheet untuk Faktur",
+        desc: "Tombol kirim faktur di iPhone kini otomatis membuka dialog resmi Apple (UIActivityViewController), memudahkan pengiriman nota PDF langsung ke WhatsApp, AirDrop, atau Simpan ke File.",
+        badge: "Baru",
+        badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20",
+      },
+    ],
+  },
   {
     version: "3.3.12",
     versionLabel: "v3.3.12",
