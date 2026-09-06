@@ -5,6 +5,7 @@ import { triggerHaptic } from "@/lib/haptics";
 import { doc, onSnapshot, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
+import { isAdminRole } from "@/lib/roleUtils";
 
 interface VersionResponse {
   version?: string;
@@ -97,8 +98,7 @@ export const AutoUpdateBanner = () => {
   // 1. Sinkronkan nomor versi ke Firestore 'system/app_version' jika user adalah role admin/owner/webdev
   useEffect(() => {
     if (!userProfile) return;
-    const role = userProfile.role;
-    if (role === "owner" || role === "webdev" || role === "admin") {
+    if (isAdminRole(userProfile.role, currentUser?.email)) {
       void setDoc(
         doc(db, "system", "app_version"),
         {

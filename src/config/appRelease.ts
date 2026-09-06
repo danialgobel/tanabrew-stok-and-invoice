@@ -15,34 +15,61 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.4.1",
-  versionLabel: "v3.4.1",
+  version: "3.4.2",
+  versionLabel: "v3.4.2",
   releaseDate: "6 September 2026",
-  title: "Penyempurnaan Logo Resmi iOS & Optimalisasi Autentikasi WKWebView (6 September 2026)",
-  subtitle: "Pembaruan Ikon Resmi AppIcon 1024px, Dual Persistence Firebase Auth Native, dan Anti-Hang Layar Pemuatan",
+  title: "Pencetakan Tangguh iOS AirPrint, Hak Akses Mutlak Developer, & Auto-Prompt Notifikasi (6 September 2026)",
+  subtitle: "Solusi Cetak Iframe iOS WKWebView, Hak Akses Penuh Master Developer, dan Permintaan Izin Notifikasi Otomatis",
   highlights: [
     {
-      title: "Logo Resmi Tanabrew untuk iPhone",
-      desc: "Menyematkan berkas AppIcon resmi resolusi tinggi 1024x1024 ke dalam katalog aset iOS, menggantikan ikon default Capacitor menjadi logo Tanabrew hijau klasik.",
-      badge: "Baru",
-      badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20",
-    },
-    {
-      title: "Optimalisasi Autentikasi Native iOS (Anti-Hang)",
-      desc: "Menerapkan initializeAuth dengan persistensi ganda (IndexedDB + Browser Local) serta batas waktu aman 2 detik untuk mencegah aplikasi tertahan lama di layar 'Memuat...'.",
+      title: "Pencetakan Lintas Platform iOS AirPrint (Anti-Blokir Popup)",
+      desc: "Menghadirkan fallback pencetakan berbasis iframe tersembunyi untuk invoice, laporan berkala, dan price list. Mengatasi pesan kesalahan 'Gagal membuka jendela cetak' di iPhone dan peramban seluler secara tuntas.",
       badge: "Perbaikan",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
     {
-      title: "Layar Pemuatan Sesi Interaktif",
-      desc: "Memperbarui ProtectedRoute dengan spinner modern dan tautan darurat untuk langsung membuka formulir login jika koneksi awal perangkat lambat.",
+      title: "Hak Akses Mutlak & Tak Tertandingi untuk Developer",
+      desc: "Menstandarkan seluruh pengecekan peran melalui roleUtils terpusat. Akun Developer kini memiliki akses mutlak 100% untuk mencetak, mengedit, menghapus faktur, mengelola stok, dan mengakses Developer Center tanpa batasan.",
       badge: "Peningkatan",
+      badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
+    },
+    {
+      title: "Permintaan Izin Notifikasi Otomatis",
+      desc: "Sistem kini secara otomatis memicu dialog izin notifikasi saat pengguna masuk ke Beranda tanpa perlu menekan tombol 'Aktifkan Notifikasi' secara manual pada perangkat yang didukung.",
+      badge: "Fitur",
       badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
   ],
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.4.1",
+    versionLabel: "v3.4.1",
+    releaseDate: "6 September 2026",
+    title: "Penyempurnaan Logo Resmi iOS & Optimalisasi Autentikasi WKWebView (6 September 2026)",
+    subtitle: "Pembaruan Ikon Resmi AppIcon 1024px, Dual Persistence Firebase Auth Native, dan Anti-Hang Layar Pemuatan",
+    highlights: [
+      {
+        title: "Logo Resmi Tanabrew untuk iPhone",
+        desc: "Menyematkan berkas AppIcon resmi resolusi tinggi 1024x1024 ke dalam katalog aset iOS, menggantikan ikon default Capacitor menjadi logo Tanabrew hijau klasik.",
+        badge: "Baru",
+        badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20",
+      },
+      {
+        title: "Optimalisasi Autentikasi Native iOS (Anti-Hang)",
+        desc: "Menerapkan initializeAuth dengan persistensi ganda (IndexedDB + Browser Local) serta batas waktu aman 2 detik untuk mencegah aplikasi tertahan lama di layar 'Memuat...'.",
+        badge: "Perbaikan",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+      {
+        title: "Layar Pemuatan Sesi Interaktif",
+        desc: "Memperbarui ProtectedRoute dengan spinner modern dan tautan darurat untuk langsung membuka formulir login jika koneksi awal perangkat lambat.",
+        badge: "Peningkatan",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      },
+    ],
+  },
   {
     version: "3.4.0",
     versionLabel: "v3.4.0",

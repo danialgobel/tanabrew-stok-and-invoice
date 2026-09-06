@@ -29,6 +29,7 @@ import { useProducts } from "@/hooks/useProducts";
 import { useToast } from "@/hooks/use-toast";
 import { sendTanabrewNotification } from "@/lib/notificationSender";
 import { openReportWindow, printInvoiceReport, printStockReport, printTanabrewReport, writeReportError } from "@/lib/reportPrint";
+import { isDeveloperRole, isOwnerRole, isAdminRole, canPrintDocument, canModifyInvoice, getCleanRoleLabel } from "@/lib/roleUtils";
 import { deleteInvoiceWithStock } from "@/lib/invoiceNumber";
 import { downloadCsv, monthFileStamp } from "@/lib/csvExport";
 import { generateInvoicePdfBlob } from "@/lib/invoicePdfGenerator";
@@ -75,10 +76,7 @@ const formatCurrency = (value?: number) =>
   }).format(value || 0);
 
 const formatRole = (role?: string) => {
-  if (role === "owner") return "Owner";
-  if (role === "admin") return "Admin";
-  if (role === "staff") return "Staff";
-  return role || "Tidak diketahui";
+  return getCleanRoleLabel(role);
 };
 
 const formatDate = (value: unknown) => formatDateTime(value);
@@ -292,11 +290,12 @@ const Riwayat = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
 
-  const isOwner = userProfile?.role === "owner";
-  const isDev = userProfile?.role === "webdev";
-  const isOwnerOrDev = isOwner || isDev;
-  const isAdmin = userProfile?.role === "admin" || isOwnerOrDev;
-  const canPrint = isAdmin;
+  const isDev = isDeveloperRole(userProfile?.role, currentUser?.email);
+  const isOwner = isOwnerRole(userProfile?.role, currentUser?.email);
+  const isOwnerOrDev = isOwner;
+  const isAdmin = isAdminRole(userProfile?.role, currentUser?.email);
+  const canPrint = canPrintDocument(userProfile?.role, currentUser?.email);
+  const canEditOrDelete = canModifyInvoice(userProfile?.role, currentUser?.email);
 
   const initialTab = useMemo<ActiveTab>(() => {
     const paramTab = searchParams.get("tab") as ActiveTab | null;
@@ -583,11 +582,8 @@ const Riwayat = () => {
   };
 
   const handlePrintInvoiceReport = async () => {
+    // Coba buka jendela baru (untuk browser desktop). Pada iOS WKWebView akan bernilai null dan beralih otomatis ke cetak iframe.
     const reportWindow = openReportWindow();
-    if (!reportWindow) {
-      toast({ title: "Error", description: "Gagal membuka jendela cetak. Izinkan pop-up untuk situs ini.", variant: "destructive" });
-      return;
-    }
 
     setLoadingReport("invoice");
 
@@ -605,7 +601,9 @@ const Riwayat = () => {
         toast({ title: "Error", description: "Gagal membuka jendela cetak laporan invoice.", variant: "destructive" });
       }
     } catch {
-      writeReportError(reportWindow, "Gagal menyiapkan laporan invoice.");
+      if (reportWindow) {
+        writeReportError(reportWindow, "Gagal menyiapkan laporan invoice.");
+      }
       toast({ title: "Error", description: "Gagal menyiapkan laporan invoice.", variant: "destructive" });
     } finally {
       setLoadingReport(null);
@@ -655,10 +653,6 @@ const Riwayat = () => {
 
   const handlePrintStockReport = () => {
     const reportWindow = openReportWindow();
-    if (!reportWindow) {
-      toast({ title: "Error", description: "Gagal membuka jendela cetak. Izinkan pop-up untuk situs ini.", variant: "destructive" });
-      return;
-    }
 
     setLoadingReport("stok");
 
@@ -674,7 +668,9 @@ const Riwayat = () => {
         toast({ title: "Error", description: "Gagal membuka jendela cetak laporan stok.", variant: "destructive" });
       }
     } catch {
-      writeReportError(reportWindow, "Gagal menyiapkan laporan stok.");
+      if (reportWindow) {
+        writeReportError(reportWindow, "Gagal menyiapkan laporan stok.");
+      }
       toast({ title: "Error", description: "Gagal menyiapkan laporan stok.", variant: "destructive" });
     } finally {
       setLoadingReport(null);
@@ -702,10 +698,6 @@ const Riwayat = () => {
 
   const handlePrintCombinedReport = async () => {
     const reportWindow = openReportWindow();
-    if (!reportWindow) {
-      toast({ title: "Error", description: "Gagal membuka jendela cetak. Izinkan pop-up untuk situs ini.", variant: "destructive" });
-      return;
-    }
 
     setLoadingReport("gabungan");
 
@@ -735,7 +727,9 @@ const Riwayat = () => {
       const description = error instanceof Error && error.message
         ? error.message
         : "Gagal menyiapkan laporan gabungan.";
-      writeReportError(reportWindow, description);
+      if (reportWindow) {
+        writeReportError(reportWindow, description);
+      }
       toast({ title: "Error", description, variant: "destructive" });
     } finally {
       setLoadingReport(null);
@@ -754,7 +748,7 @@ const Riwayat = () => {
     }
 
     if (!isOwner) {
-      toast({ title: "Akses Ditolak", description: "Hanya Owner yang berhak menghapus invoice.", variant: "destructive" });
+      toast({ title: "Akses Ditolak", description: "Hanya Owner atau Developer yang berhak menghapus invoice.", variant: "destructive" });
       return;
     }
 
@@ -1039,8 +1033,8 @@ const Riwayat = () => {
       return;
     }
 
-    if (userProfile.role !== "admin" && userProfile.role !== "owner" && userProfile.role !== "webdev") {
-      toast({ title: "Akses Ditolak", description: "Hanya Admin/Owner/Developer yang dapat mengirim invoice ke WhatsApp.", variant: "destructive" });
+    if (!isAdminRole(userProfile.role, currentUser?.email)) {
+      toast({ title: "Akses Ditolak", description: "Hanya Admin, Owner, atau Developer yang dapat mengirim invoice ke WhatsApp.", variant: "destructive" });
       return;
     }
 

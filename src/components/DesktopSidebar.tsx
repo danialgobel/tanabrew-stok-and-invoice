@@ -22,6 +22,7 @@ import { db } from "@/lib/firebase";
 import { CURRENT_RELEASE } from "@/config/appRelease";
 import { openAppChangelogModal } from "@/components/AppUpdateAnnouncementModal";
 import { useUnreadChat } from "@/hooks/useUnreadChat";
+import { isOwnerRole, getCleanRoleLabel } from "@/lib/roleUtils";
 
 interface DesktopSidebarProps {
   onSecretLogoClick?: () => void;
@@ -105,7 +106,7 @@ export const DesktopSidebar = ({ onSecretLogoClick }: DesktopSidebarProps) => {
     });
   };
 
-  const isOwnerOrDev = userProfile?.role === "owner" || userProfile?.role === "webdev";
+  const isOwnerOrDev = isOwnerRole(userProfile?.role, currentUser?.email);
 
   const navItems = [
     { path: "/", label: "Beranda", icon: Home, desc: "Dashboard & Metrik" },
@@ -129,14 +130,7 @@ export const DesktopSidebar = ({ onSecretLogoClick }: DesktopSidebarProps) => {
   };
 
   const displayName = userProfile?.name || currentUser?.email || "User";
-  const roleLabel =
-    userProfile?.role === "owner"
-      ? "Owner"
-      : userProfile?.role === "webdev"
-      ? "Developer"
-      : userProfile?.role === "admin"
-      ? "Admin"
-      : "Staff";
+  const roleLabel = getCleanRoleLabel(userProfile?.role, currentUser?.email);
 
   return (
     <aside

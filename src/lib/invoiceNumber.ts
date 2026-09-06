@@ -1,6 +1,7 @@
 import { collection, doc, runTransaction, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { buildStockMovementData } from "@/lib/stockMovement";
+import { isOwnerRole } from "@/lib/roleUtils";
 
 const padInvoiceNumber = (value: number) => String(value).padStart(4, "0");
 
@@ -233,8 +234,8 @@ export const updateInvoiceWithStock = async ({
     }
     const oldInvoice = invoiceSnap.data();
 
-    // Check if printed or paid (only allow edit if not printed and not paid, unless they are owner or webdev)
-    const isOwnerOrWebdev = user.role === "owner" || user.role === "webdev";
+    // Check if printed or paid (only allow edit if not printed and not paid, unless they are owner or developer)
+    const isOwnerOrWebdev = isOwnerRole(user.role);
     if (!isOwnerOrWebdev && (oldInvoice.is_printed || oldInvoice.status === "LUNAS")) {
       throw new Error("Invoice yang sudah dicetak atau lunas tidak dapat diedit.");
     }
@@ -409,9 +410,9 @@ export const deleteInvoiceWithStock = async ({
     }
     const invoice = invoiceSnap.data();
 
-    const isOwnerOrWebdev = user.role === "owner" || user.role === "webdev";
+    const isOwnerOrWebdev = isOwnerRole(user.role);
     if (!isOwnerOrWebdev) {
-      throw new Error("Hanya Owner yang memiliki akses untuk menghapus invoice.");
+      throw new Error("Hanya Owner atau Developer yang memiliki akses untuk menghapus invoice.");
     }
 
     const stockLocation = (invoice.stock_location as "Jogja" | "Lombok") || "Jogja";

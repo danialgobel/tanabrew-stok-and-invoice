@@ -14,6 +14,7 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import PullToRefresh from "@/components/PullToRefresh";
 import { printPricelist, type PricelistCategory, type PricelistItem } from "@/lib/pricelistPrint";
 import { triggerHaptic } from "@/lib/haptics";
+import { isOwnerRole, isAdminRole, canPrintDocument, getCleanRoleLabel } from "@/lib/roleUtils";
 
 export const PRODUCT_CATEGORIES = [
   "Kopi Biji (Beans)",
@@ -57,7 +58,9 @@ const UpdateStok = () => {
   const { products, loading } = useProducts();
   const { currentUser, userProfile } = useAuth();
   const { toast } = useToast();
-  const isOwner = userProfile?.role === "owner" || userProfile?.role === "webdev";
+  const isOwner = isOwnerRole(userProfile?.role, currentUser?.email);
+  const isAdmin = isAdminRole(userProfile?.role, currentUser?.email);
+  const canPrint = canPrintDocument(userProfile?.role, currentUser?.email);
   const [form, setForm] = useState(emptyForm);
   const [editId, setEditId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -586,10 +589,7 @@ const UpdateStok = () => {
   };
 
   const formatRole = (role?: string) => {
-    if (role === "owner") return "Owner";
-    if (role === "admin") return "Admin";
-    if (role === "staff") return "Staff";
-    return role || "Tidak diketahui";
+    return getCleanRoleLabel(role);
   };
 
   const getStockFilterLabel = () => {

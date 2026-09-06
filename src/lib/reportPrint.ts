@@ -1,4 +1,5 @@
 import type { Invoice, Product } from "@/types";
+import { printHtmlViaIframe } from "./printUtils";
 
 interface CombinedReportSummary {
   totalInvoice: number;
@@ -379,11 +380,31 @@ export const writeReportError = (reportWindow: ReportWindow, message: string) =>
 const openPrintWindow = (title: string, bodyHtml: string, reportWindow?: ReportWindow) => {
   const html = reportShellHtml(title, bodyHtml);
 
-  const popup = reportWindow || openReportWindow();
-  if (!popup) return false;
-  popup.document.open();
-  popup.document.write(html);
-  popup.document.close();
+  if (reportWindow) {
+    try {
+      reportWindow.document.open();
+      reportWindow.document.write(html);
+      reportWindow.document.close();
+      return true;
+    } catch {
+      // Jika penulisan ke popup gagal, gunakan fallback iframe
+    }
+  }
+
+  const popup = openReportWindow();
+  if (popup) {
+    try {
+      popup.document.open();
+      popup.document.write(html);
+      popup.document.close();
+      return true;
+    } catch {
+      // Fallback ke iframe jika popup dicegah
+    }
+  }
+
+  // Fallback tangguh untuk iOS WKWebView dan pop-up yang diblokir oleh browser
+  void printHtmlViaIframe(html);
   return true;
 };
 

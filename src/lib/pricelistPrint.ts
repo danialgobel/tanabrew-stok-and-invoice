@@ -1,3 +1,5 @@
+import { printHtmlViaIframe } from "./printUtils";
+
 export interface PricelistItem {
   id?: string;
   nama_barang: string;
@@ -474,11 +476,30 @@ export const printPricelist = ({ categories, stockLocation, printedBy, roleLabel
 
   const html = pricelistShellHtml(pageHtml);
   
-  const popup = reportWindow || window.open("", "_blank");
-  if (!popup) return false;
-  
-  popup.document.open();
-  popup.document.write(html);
-  popup.document.close();
+  if (reportWindow) {
+    try {
+      reportWindow.document.open();
+      reportWindow.document.write(html);
+      reportWindow.document.close();
+      return true;
+    } catch {
+      // Jika penulisan popup gagal, lanjut ke fallback
+    }
+  }
+
+  const popup = window.open("", "_blank");
+  if (popup) {
+    try {
+      popup.document.open();
+      popup.document.write(html);
+      popup.document.close();
+      return true;
+    } catch {
+      // Lanjut ke fallback iframe jika popup dicegah
+    }
+  }
+
+  // Fallback tangguh untuk iOS WKWebView dan browser seluler
+  void printHtmlViaIframe(html);
   return true;
 };

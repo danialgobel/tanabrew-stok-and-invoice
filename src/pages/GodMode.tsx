@@ -19,6 +19,7 @@ import { Skeleton } from "@/components/Skeleton";
 import { sendTanabrewNotification } from "@/lib/notificationSender";
 import { getNotificationPermissionState, requestNotificationPermission } from "@/lib/onesignal";
 import { addActivityLog } from "@/lib/activityLog";
+import { isOwnerRole } from "@/lib/roleUtils";
 import {
   Terminal as TerminalIcon,
   ShieldAlert,
@@ -121,7 +122,7 @@ const GodMode = () => {
 
   // Access check
   useEffect(() => {
-    if (userProfile && userProfile.role !== "webdev" && userProfile.role !== "owner") {
+    if (userProfile && !isOwnerRole(userProfile.role, currentUser?.email)) {
       toast({
         title: "Akses Ditolak",
         description: "Halaman ini hanya untuk Developer dan Owner.",
@@ -129,7 +130,7 @@ const GodMode = () => {
       });
       navigate("/");
     }
-  }, [userProfile, navigate, toast]);
+  }, [userProfile, currentUser, navigate, toast]);
 
   const addLog = useCallback((message: string, type: LogEntry["type"] = "info") => {
     const time = new Date().toLocaleTimeString("id-ID", { hour12: false });
@@ -842,7 +843,7 @@ const GodMode = () => {
     });
   }, [explorerData, searchQuery]);
 
-  if (userProfile?.role !== "webdev" && userProfile?.role !== "owner") {
+  if (!isOwnerRole(userProfile?.role, currentUser?.email)) {
     return (
       <div className="mx-auto w-full max-w-lg px-4 py-16 text-center space-y-4">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-destructive/10 text-destructive border border-destructive/20">

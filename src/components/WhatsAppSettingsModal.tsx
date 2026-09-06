@@ -6,6 +6,7 @@ import {
   saveWhatsAppTargetGroup,
   type WhatsAppStatusResponse,
 } from "@/lib/whatsappClient";
+import { isAdminRole } from "@/lib/roleUtils";
 import {
   Dialog,
   DialogContent,
@@ -125,7 +126,7 @@ export default function WhatsAppSettingsModal({
     }
   };
 
-  const isOwnerOrAdmin = userProfile?.role === "owner" || userProfile?.role === "admin" || userProfile?.role === "webdev";
+  const isOwnerOrAdmin = isAdminRole(userProfile?.role, currentUser?.email);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

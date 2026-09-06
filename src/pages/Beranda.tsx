@@ -19,6 +19,7 @@ import {
   syncOneSignalUserIdentity,
   type OneSignalPermissionState,
 } from "@/lib/onesignal";
+import { isDeveloperRole, isOwnerRole, isAdminRole, getCleanRoleLabel } from "@/lib/roleUtils";
 import { getInvoiceDateValue, getDateValue, formatInvoiceDate as formatInvoiceDateUtil } from "@/lib/dateUtils";
 import type { ActivityLog, Invoice } from "@/types";
 
@@ -114,9 +115,10 @@ const Beranda = () => {
   const stokLombok = products.reduce((s, p) => s + (p.stok_lombok || 0), 0);
   const fmt = (n: number) => new Intl.NumberFormat("id-ID").format(n);
   const displayName = userProfile?.name || currentUser?.email || "-";
-  const roleLabel = userProfile?.role === "owner" ? "Owner" : userProfile?.role === "admin" ? "Admin" : userProfile?.role === "staff" ? "Staff" : "-";
-  const isAdmin = userProfile?.role === "admin" || userProfile?.role === "owner";
-  const isOwner = userProfile?.role === "owner";
+  const roleLabel = getCleanRoleLabel(userProfile?.role, currentUser?.email);
+  const isDev = isDeveloperRole(userProfile?.role, currentUser?.email);
+  const isOwner = isOwnerRole(userProfile?.role, currentUser?.email);
+  const isAdmin = isAdminRole(userProfile?.role, currentUser?.email);
   const [showPriceListModal, setShowPriceListModal] = useState(false);
   const [selectedBestSeller, setSelectedBestSeller] = useState<{ name: string; count: number; percentage: number; rank: number } | null>(null);
 
@@ -528,6 +530,28 @@ const Beranda = () => {
     }
   }, [syncCurrentNotificationIdentity, toast]);
 
+  useEffect(() => {
+    if (!currentUser || !userProfile) return;
+
+    const currentState = getNotificationPermissionState();
+    if (currentState === "default") {
+      const timer = setTimeout(async () => {
+        try {
+          const status = await requestNotificationPermission();
+          setNotificationStatus(status);
+          if (status === "granted") {
+            await syncCurrentNotificationIdentity();
+          }
+        } catch (err) {
+          console.warn("Auto request notification skipped:", err);
+        }
+      }, 1500);
+      return () => clearTimeout(timer);
+    } else if (currentState === "granted") {
+      syncCurrentNotificationIdentity().catch(() => {});
+    }
+  }, [currentUser, userProfile, syncCurrentNotificationIdentity]);
+
   const handleSendTestNotification = useCallback(async () => {
     if (!currentUser || !userProfile) {
       toast({ title: "Error", description: "Data user belum siap, silakan coba lagi.", variant: "destructive" });
@@ -577,7 +601,7 @@ const Beranda = () => {
       return;
     }
 
-    const isOwnerOrDev = userProfile.role === "owner" || userProfile.role === "webdev";
+    const isOwnerOrDev = isOwnerRole(userProfile.role, currentUser.email);
     if (!isOwnerOrDev) {
       toast({ title: "Error", description: "Hanya owner atau developer yang dapat mengirim arahan owner.", variant: "destructive" });
       return;

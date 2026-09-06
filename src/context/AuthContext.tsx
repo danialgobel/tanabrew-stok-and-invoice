@@ -15,6 +15,7 @@ import {
 } from "firebase/auth";
 import { doc, getDoc, onSnapshot, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { isOwnerRole } from "@/lib/roleUtils";
 
 export type UserRole = "owner" | "admin" | "staff" | "webdev";
 
@@ -216,9 +217,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       throw new Error(data.error || "Gagal membuat sesi login akun target");
     }
 
-    if (userProfile?.role === "webdev" || userProfile?.role === "owner") {
+    if (isOwnerRole(userProfile?.role, currentUser?.email)) {
       localStorage.setItem("tanabrew_original_dev_uid", currentUser.uid);
-      localStorage.setItem("tanabrew_original_dev_name", userProfile.name || "Developer");
+      localStorage.setItem("tanabrew_original_dev_name", userProfile?.name || "Developer");
     }
 
     await signInWithCustomToken(auth, data.customToken);

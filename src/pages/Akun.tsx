@@ -11,6 +11,7 @@ import {
   getNotificationPermissionState,
   requestNotificationPermission,
 } from "@/lib/onesignal";
+import { isDeveloperRole, isOwnerRole, isAdminRole } from "@/lib/roleUtils";
 import {
   User,
   Shield,
@@ -103,16 +104,16 @@ const Akun = () => {
   };
 
   const getRoleBadge = (role?: string) => {
-    switch (role) {
-      case "owner":
-        return { label: "Owner", class: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" };
-      case "admin":
-        return { label: "Admin", class: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20" };
-      case "webdev":
-        return { label: "Developer", class: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20" };
-      default:
-        return { label: "Staff", class: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20" };
+    if (isDeveloperRole(role, currentUser?.email)) {
+      return { label: "Developer", class: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20" };
     }
+    if (isOwnerRole(role, currentUser?.email)) {
+      return { label: "Owner", class: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" };
+    }
+    if (isAdminRole(role, currentUser?.email)) {
+      return { label: "Admin", class: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20" };
+    }
+    return { label: "Staff", class: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20" };
   };
 
   const handleWarehouseChange = (loc: "Jogja" | "Lombok") => {
@@ -634,7 +635,7 @@ const Akun = () => {
       </div>
 
       {/* 5. SHORTCUT KHUSUS DEVELOPER CENTER */}
-      {userProfile?.role === "webdev" && (
+      {isDeveloperRole(userProfile?.role, currentUser?.email) && (
         <div className="rounded-3xl border border-purple-500/30 bg-purple-500/5 p-4 space-y-2 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">

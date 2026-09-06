@@ -16,6 +16,8 @@ import { triggerHaptic } from "@/lib/haptics";
 import { todayInputValue, parseDateInput, formatDisplayDate, toValidDateInputValue } from "@/lib/dateUtils";
 import { generateInvoicePdfBlob } from "@/lib/invoicePdfGenerator";
 import { sendInvoiceToWhatsApp } from "@/lib/whatsappClient";
+import { isDeveloperRole, isOwnerRole, isAdminRole, canPrintDocument } from "@/lib/roleUtils";
+import { printHtmlViaIframe } from "@/lib/printUtils";
 
 type ActionNotice = {
   id: number;
@@ -33,11 +35,11 @@ const CetakInvoice = () => {
   const editId = searchParams.get("edit");
   const isEditMode = Boolean(editId);
 
-  const isOwner = userProfile?.role === "owner";
-  const isDev = userProfile?.role === "webdev";
-  const isOwnerOrDev = isOwner || isDev;
-  const isAdmin = userProfile?.role === "admin" || isOwnerOrDev;
-  const canPrint = isAdmin;
+  const isDev = isDeveloperRole(userProfile?.role, currentUser?.email);
+  const isOwner = isOwnerRole(userProfile?.role, currentUser?.email);
+  const isOwnerOrDev = isOwner;
+  const isAdmin = isAdminRole(userProfile?.role, currentUser?.email);
+  const canPrint = canPrintDocument(userProfile?.role, currentUser?.email);
 
   const [tanggal, setTanggal] = useState(() => todayInputValue());
   const [noInvoice, setNoInvoice] = useState("");
@@ -104,11 +106,11 @@ const CetakInvoice = () => {
         const snap = await getDoc(doc(db, "invoices", editId));
         if (snap.exists()) {
           const data = snap.data();
-          const isOwnerOrWebdev = userProfile?.role === "owner" || userProfile?.role === "webdev";
+          const isOwnerOrWebdev = isOwnerRole(userProfile?.role, currentUser?.email);
           if (!isOwnerOrWebdev && (data.is_printed || data.status === "LUNAS")) {
             toast({
               title: "Akses Ditolak",
-              description: "Hanya Owner yang dapat mengedit invoice yang sudah dicetak atau lunas.",
+              description: "Hanya Owner atau Developer yang dapat mengedit invoice yang sudah dicetak atau lunas.",
               variant: "destructive",
             });
             navigate("/riwayat");
@@ -182,7 +184,13 @@ const CetakInvoice = () => {
         customer,
         total,
         actorName: userProfile.name,
-        actorRole: userProfile.role === "admin" ? "admin" : "staff",
+        actorRole: isDeveloperRole(userProfile.role, currentUser?.email)
+          ? "webdev"
+          : isOwnerRole(userProfile.role, currentUser?.email)
+            ? "owner"
+            : isAdminRole(userProfile.role, currentUser?.email)
+              ? "admin"
+              : "staff",
       },
       currentUser,
     ).catch((error) => {
@@ -511,27 +519,9 @@ const CetakInvoice = () => {
 
     const w = window.open("", "_blank");
     if (!w) {
-      // Fallback: write into iframe and print (popup blocked on some mobiles)
-      const iframe = document.createElement("iframe");
-      iframe.style.position = "fixed";
-      iframe.style.right = "0";
-      iframe.style.bottom = "0";
-      iframe.style.width = "0";
-      iframe.style.height = "0";
-      iframe.style.border = "0";
-      document.body.appendChild(iframe);
-      const idoc = iframe.contentWindow?.document;
-      if (idoc) {
-        idoc.open();
-        idoc.write(html);
-        idoc.close();
-        setTimeout(() => {
-          iframe.contentWindow?.focus();
-          iframe.contentWindow?.print();
-          setTimeout(() => document.body.removeChild(iframe), 1000);
-        }, 500);
-        await updatePrintStatus();
-      }
+      // Fallback tangguh untuk iOS WKWebView dan pop-up yang diblokir oleh browser
+      await printHtmlViaIframe(html);
+      await updatePrintStatus();
       setPrinting(false);
       return;
     }

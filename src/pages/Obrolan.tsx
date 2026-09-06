@@ -18,6 +18,7 @@ import {
   UserCheck,
 } from "lucide-react";
 import type { UserProfile } from "@/context/AuthContext";
+import { isDeveloperRole, isOwnerRole, isAdminRole } from "@/lib/roleUtils";
 
 interface TeamMember extends UserProfile {
   is_online?: boolean;
@@ -66,7 +67,7 @@ export const Obrolan = () => {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const sortTeamMembers = useCallback((users: TeamMember[]) => {
-    const roleOrder: Record<string, number> = { owner: 4, webdev: 3, admin: 2, staff: 1 };
+    const roleOrder: Record<string, number> = { webdev: 4, developer: 4, dev: 4, godmode: 4, owner: 3, admin: 2, staff: 1 };
     return [...users].sort((a: TeamMember, b: TeamMember) => {
       // 1. Akun sendiri selalu paling atas
       if (currentUser && a.uid === currentUser.uid) return -1;
@@ -571,16 +572,16 @@ export const Obrolan = () => {
   };
 
   const getRoleBadge = (role?: string) => {
-    switch (role) {
-      case "owner":
-        return { label: "Owner", class: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" };
-      case "webdev":
-        return { label: "Dev", class: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20" };
-      case "admin":
-        return { label: "Admin", class: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20" };
-      default:
-        return { label: "Staff", class: "bg-muted text-muted-foreground border-border" };
+    if (isDeveloperRole(role)) {
+      return { label: "Dev", class: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20" };
     }
+    if (isOwnerRole(role)) {
+      return { label: "Owner", class: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" };
+    }
+    if (isAdminRole(role)) {
+      return { label: "Admin", class: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20" };
+    }
+    return { label: "Staff", class: "bg-muted text-muted-foreground border-border" };
   };
 
   const formatMessageTime = (timestamp: any) => {
