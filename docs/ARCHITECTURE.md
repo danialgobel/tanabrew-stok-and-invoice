@@ -86,3 +86,22 @@ graph TD
    - **Distribusi Otomatis ke Seluruh Pengguna**: Menarik seluruh akun aktif di koleksi `users` (Owner, Admin, Staff, Kasir) secara otomatis dari database tanpa perlu registrasi manual.
    - **Resilient Multi-User Fallback**: Jika kuota harian Firestore habis (`8 RESOURCE_EXHAUSTED`), fungsi otomatis mengalihkan penerima ke tim inti dan variabel environment `RECIPIENT_EMAILS` di Vercel agar email laporan harian tidak pernah gagal terkirim.
 
+---
+
+## 📱 6. Arsitektur Multi-Platform (Web PWA, Android, & iOS via Capacitor)
+
+1. **Prinsip Single Source of Truth**:
+   - Basis kode inti (90%) berada di `src/` (React + TypeScript).
+   - Android (`android/`) dan iOS (`ios/`) adalah cangkang WebView yang disinkronkan melalui Capacitor:
+     ```bash
+     npm run build
+     npx cap sync
+     ```
+2. **Isolasi Modul Sensitif Platform (10% Rawan Tabrakan)**:
+   - **Pencetakan (*Printing*)**: `src/lib/printUtils.ts` mengisolasi Web print, Android printer, dan iOS AirPrint (iframe fallback). Komponen UI tidak boleh memiliki percabangan native inline.
+   - **Notifikasi (*Push Notifications*)**: `src/lib/onesignal.ts` memisahkan Web Push Service Worker dengan antarmuka native.
+   - **Penyimpanan/Unduh File**: Penanganan blob file web versus direct filesystem native.
+3. **Pemberlakuan Fallback Otomatis**:
+   - Kegagalan fitur native (misal: popup terblokir di iOS WKWebView) wajib otomatis mengalihkan pengguna ke standar web tanpa melempar error tak tertangani (*unhandled crash*).
+
+

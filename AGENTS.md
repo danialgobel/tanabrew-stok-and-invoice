@@ -11,6 +11,7 @@ Untuk rincian arsitektur mendalam, silakan rujuk modul dokumentasi berikut:
 * [Panduan Deployment & Operasional Jangka Panjang](docs/DEPLOYMENT_AND_OPERATIONS.md)
 * [Aturan Kestabilan Kode & Anti-Crash](.agents/rules/code-stability.md)
 * [Aturan Kueri & Optimasi Kuota Firestore](.agents/rules/firestore-best-practices.md)
+* [Standar & SOP Multi-Platform (Web, Android, iOS)](.agents/rules/cross-platform-standards.md)
 
 ---
 
@@ -106,3 +107,38 @@ Sebelum melakukan commit dan push ke GitHub:
    ```
 3. **Pastikan 0 Error**: Pastikan kedua perintah di atas selesai dengan status `exit code 0`.
 4. **Patuhi Instruksi User**: Jika user meminta untuk mencoba di server lokal terlebih dahulu (*trial local*), jangan lakukan `git push` sampai user memberikan instruksi tegas untuk push.
+
+---
+
+## 📱 6. SOP & Standar Pengembangan Multi-Platform (Web PWA, Android, iOS)
+
+Repositori Tanabrew mengelola 3 platform sekaligus (*Web/Web PWA, Android App, dan iOS App*) dari satu basis kode inti (*Single Source of Truth*). Setiap developer dan AI Coding Agent wajib mematuhi aturan berikut agar pembaruan di salah satu platform **tidak pernah merusak platform lainnya**:
+
+### A. Isolasi Modul Platform (*Platform Adapter Pattern*)
+1. **Dilarang Keras** mencampur logika percabangan native yang rumit langsung di dalam berkas UI (seperti `Beranda.tsx`, `CetakInvoice.tsx`, `Riwayat.tsx`).
+2. Seluruh logika khusus platform wajib dibungkus di modul `src/lib/` (misal: `printUtils.ts`, `onesignal.ts`).
+3. Gunakan selalu deteksi resmi Capacitor:
+   ```typescript
+   import { Capacitor } from "@capacitor/core";
+
+   const isNative = Capacitor.isNativePlatform();
+   const platform = Capacitor.getPlatform(); // 'ios' | 'android' | 'web'
+   ```
+4. **Karantina Kode**: Jika memodifikasi fitur khusus iOS, hanya ubah blok kondisi iOS. Kode Web dan Android harus tetap murni dan terlindungi.
+
+### B. Prinsip *Graceful Fallback* (Anti-Crash Lintas Platform)
+1. Fitur native (seperti printer thermal, kamera, notifikasi, atau AirPrint) wajib memiliki penanganan cadangan (*fallback*) ke standar web jika gagal dipanggil di WebView.
+2. Jika fungsi native memicu *rejection* atau *popup blocker*, sistem harus mengalihkan secara halus (misal: pencetakan via *hidden iframe* atau unduhan PDF langsung) tanpa memunculkan layar putih (*blank screen*) atau tombol membeku.
+
+### C. Alur Kerja Rilis Bertahap (*Web PWA First, Then Native Sync*)
+1. **Tahap 1 (Web & Web PWA)**: Fitur baru atau perbaikan tampilan wajib diuji dan dipastikan 100% stabil di Web/PWA terlebih dahulu.
+2. **Tahap 2 (Validasi Build)**: Jalankan `npm test -- --run` dan `npm run build` hingga exit code 0.
+3. **Tahap 3 (Sinkronisasi Proyek Native)**:
+   ```bash
+   npx cap sync
+   ```
+4. **Tahap 4 (Pengujian Khusus Native)**: Uji coba di Android/iOS hanya diperlukan jika perubahan menyentuh modul perangkat keras/native tertentu.
+
+### D. Disiplin Kebersihan Kode (*Clean Architecture*)
+1. Hindari membuat berkas komponen raksasa (*God Component* > 800 baris). Modal atau kartu mandiri baru wajib dibuat sebagai file terpisah di `src/components/`.
+2. Jangan melakukan perombakan massal (*massive refactor*) pada sistem kasir dan stok yang sedang berjalan stabil di toko. Lakukan perapian secara bertahap dan terukur.
