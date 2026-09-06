@@ -70,6 +70,7 @@ Aplikasi ini mengusung arsitektur responsif ganda:
 
 Rincian mendalam mengenai arsitektur, skema basis data, dan operasional tersedia pada folder `docs/`:
 
+* [Product Requirement Document (PRD)](docs/PRD.md)
 * [Arsitektur & Desain Sistem](docs/ARCHITECTURE.md)
 * [Kamus Basis Data & Skema Firestore](docs/DATABASE_SCHEMA.md)
 * [Sistem Notifikasi & Pelacakan Pengunjung](docs/NOTIFICATION_SYSTEM.md)

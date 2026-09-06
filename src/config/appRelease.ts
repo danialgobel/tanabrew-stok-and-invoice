@@ -15,22 +15,49 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.3.12",
-  versionLabel: "v3.3.12",
-  releaseDate: "5 September 2026",
-  title: "Perbaikan Hak Akses Ubah Role Pengguna untuk Developer & Admin API (5 September 2026)",
-  subtitle: "Otorisasi Penuh Developer, Normalisasi Alias Role, dan Penanganan CORS Preflight OPTIONS",
+  version: "3.4.0",
+  versionLabel: "v3.4.0",
+  releaseDate: "6 September 2026",
+  title: "Peluncuran Resmi Tanabrew iOS Edition & Integrasi Native Apple (6 September 2026)",
+  subtitle: "Dukungan Container iOS, Taptic Engine Haptic, Native Share Sheet WhatsApp, dan Cloud Build GitHub Actions",
   highlights: [
     {
-      title: "Otorisasi Penuh Developer & Dukungan CORS Admin API",
-      desc: "Memperbaiki endpoint /api/admin-users dengan dukungan preflight CORS OPTIONS, normalisasi alias role (developer/webdev), dan bypass otentikasi master developer agar pengubahan role di panel admin berjalan mulus tanpa error 403.",
-      badge: "Perbaikan",
+      title: "Peluncuran Tanabrew iOS Native Edition",
+      desc: "Membawa Tanabrew ke perangkat iPhone dengan integrasi Capacitor 6 resmi, dukungan safe-area notch & Dynamic Island, serta performa WebKit GPU terakselerasi.",
+      badge: "Fitur",
+      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+    },
+    {
+      title: "Sensasi Taptic Engine Fisik Apple",
+      desc: "Sentuhan tombol kasir POS, Quick Cash, dan navigasi tab kini memicu umpan balik getar taktil renyah langsung dari motor getar Taptic Engine fisik iPhone.",
+      badge: "Peningkatan",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+    },
+    {
+      title: "iOS Native Share Sheet untuk Faktur",
+      desc: "Tombol kirim faktur di iPhone kini otomatis membuka dialog resmi Apple (UIActivityViewController), memudahkan pengiriman nota PDF langsung ke WhatsApp, AirDrop, atau Simpan ke File.",
+      badge: "Baru",
+      badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20",
     },
   ],
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.3.12",
+    versionLabel: "v3.3.12",
+    releaseDate: "5 September 2026",
+    title: "Perbaikan Hak Akses Ubah Role Pengguna untuk Developer & Admin API (5 September 2026)",
+    subtitle: "Otorisasi Penuh Developer, Normalisasi Alias Role, dan Penanganan CORS Preflight OPTIONS",
+    highlights: [
+      {
+        title: "Otorisasi Penuh Developer & Dukungan CORS Admin API",
+        desc: "Memperbaiki endpoint /api/admin-users dengan dukungan preflight CORS OPTIONS, normalisasi alias role (developer/webdev), dan bypass otentikasi master developer agar pengubahan role di panel admin berjalan mulus tanpa error 403.",
+        badge: "Perbaikan",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+    ],
+  },
   {
     version: "3.3.11",
     versionLabel: "v3.3.11",

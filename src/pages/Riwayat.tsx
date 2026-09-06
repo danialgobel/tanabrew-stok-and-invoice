@@ -269,6 +269,14 @@ const buildInvoicePrintHtml = (invoice: Invoice, autoPrint: boolean) => {
         window.AndroidBridge.onWhatsAppShareRequested(msg, phone);
         return;
       }
+      if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform() && window.Capacitor.Plugins && window.Capacitor.Plugins.Share) {
+        window.Capacitor.Plugins.Share.share({
+          title: "Faktur Tanabrew",
+          text: msg,
+          dialogTitle: "Kirim Faktur Tanabrew"
+        });
+        return;
+      }
       var target = phone ? "https://wa.me/" + phone + "?text=" + encodeURIComponent(msg) : "https://wa.me/?text=" + encodeURIComponent(msg);
       window.location.href = target;
     }

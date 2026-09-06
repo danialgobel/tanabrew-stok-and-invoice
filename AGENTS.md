@@ -4,6 +4,7 @@ Dokumen ini adalah **panduan wajib (*mandatory SOP*)** bagi seluruh AI Assistant
 
 ### 📚 Direktori Modul Dokumentasi Teknis
 Untuk rincian arsitektur mendalam, silakan rujuk modul dokumentasi berikut:
+* [Product Requirement Document (PRD)](docs/PRD.md)
 * [Arsitektur & Desain Sistem](docs/ARCHITECTURE.md)
 * [Kamus Basis Data & Skema Firestore](docs/DATABASE_SCHEMA.md)
 * [Sistem Notifikasi & Pelacakan Pengunjung](docs/NOTIFICATION_SYSTEM.md)

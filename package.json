@@ -1,7 +1,7 @@
 {
   "name": "tanabrew-stock-and-invoice",
   "private": true,
-  "version": "3.3.12",
+  "version": "3.4.0",
   "description": "Sistem POS Kasir dan Manajemen Inventaris Multi-Gudang Tanabrew Roastery",
   "author": "Danial Gobel <https://github.com/danialgobel>",
   "type": "module",
@@ -13,9 +13,18 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "cap:sync": "npx cap sync"
   },
   "dependencies": {
+    "@capacitor/cli": "^8.5.1",
+    "@capacitor/core": "^8.5.1",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.5.1",
+    "@capacitor/keyboard": "^8.0.5",
+    "@capacitor/share": "^8.0.1",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",

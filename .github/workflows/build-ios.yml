@@ -1,0 +1,68 @@
+name: Build iOS IPA (Tanabrew)
+
+on:
+  workflow_dispatch: # Memungkinkan tombol 'Run workflow' manual di GitHub Actions
+  push:
+    branches:
+      - main
+    paths:
+      - 'ios/**'
+      - 'src/**'
+      - 'public/**'
+      - 'package.json'
+      - 'capacitor.config.ts'
+
+jobs:
+  build-ios:
+    name: Build Tanabrew iOS IPA
+    runs-on: macos-14 # Apple Silicon M1/M2 macOS Runner resmi GitHub (Gratis)
+    timeout-minutes: 30
+
+    steps:
+      - name: 1. Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 2. Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 3. Install NPM Dependencies
+        run: npm install
+
+      - name: 4. Build Web Production Bundle (dist)
+        run: npm run build
+
+      - name: 5. Sync Capacitor iOS Platform
+        run: npx cap sync ios
+
+      - name: 6. Archive Xcode Project (Unsigned for Sideloading)
+        working-directory: ios/App
+        run: |
+          xcodebuild -project App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/App.xcarchive \
+            archive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+      - name: 7. Package App to Tanabrew.ipa
+        working-directory: ios/App
+        run: |
+          mkdir -p build/Payload
+          cp -r build/App.xcarchive/Products/Applications/App.app build/Payload/
+          cd build
+          zip -r Tanabrew.ipa Payload
+          ls -lh Tanabrew.ipa
+
+      - name: 8. Upload Tanabrew.ipa to GitHub Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Tanabrew-v1.0.0-iOS
+          path: ios/App/build/Tanabrew.ipa
+          retention-days: 30
+          if-no-files-found: error
