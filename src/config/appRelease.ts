@@ -15,34 +15,61 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.4.2",
-  versionLabel: "v3.4.2",
+  version: "3.4.3",
+  versionLabel: "v3.4.3",
   releaseDate: "6 September 2026",
-  title: "Pencetakan Tangguh iOS AirPrint, Hak Akses Mutlak Developer, & Auto-Prompt Notifikasi (6 September 2026)",
-  subtitle: "Solusi Cetak Iframe iOS WKWebView, Hak Akses Penuh Master Developer, dan Permintaan Izin Notifikasi Otomatis",
+  title: "Perbaikan Kestabilan Rendering Global & Penyelarasan Sesi Pengguna (6 September 2026)",
+  subtitle: "Eliminasi Kesalahan 'currentUser is not defined' pada AutoUpdateBanner dan Pencegahan Konflik Lintas Platform",
   highlights: [
     {
-      title: "Pencetakan Lintas Platform iOS AirPrint (Anti-Blokir Popup)",
-      desc: "Menghadirkan fallback pencetakan berbasis iframe tersembunyi untuk invoice, laporan berkala, dan price list. Mengatasi pesan kesalahan 'Gagal membuka jendela cetak' di iPhone dan peramban seluler secara tuntas.",
+      title: "Perbaikan Bug 'currentUser is not defined'",
+      desc: "Memperbaiki destrukturisasi variabel currentUser di komponen AutoUpdateBanner global agar aplikasi tidak crash dan rendering halaman berjalan mulus di semua perangkat (Web, Android, iOS).",
       badge: "Perbaikan",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
     {
-      title: "Hak Akses Mutlak & Tak Tertandingi untuk Developer",
-      desc: "Menstandarkan seluruh pengecekan peran melalui roleUtils terpusat. Akun Developer kini memiliki akses mutlak 100% untuk mencetak, mengedit, menghapus faktur, mengelola stok, dan mengakses Developer Center tanpa batasan.",
+      title: "Pencegahan Konflik Lintas Platform (Web, Android, iOS)",
+      desc: "Memastikan logika pencetakan, notifikasi, dan autentikasi berjalan independen tanpa saling bertabrakan atau merusak fungsionalitas antar platform.",
       badge: "Peningkatan",
-      badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
+      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
     {
-      title: "Permintaan Izin Notifikasi Otomatis",
-      desc: "Sistem kini secara otomatis memicu dialog izin notifikasi saat pengguna masuk ke Beranda tanpa perlu menekan tombol 'Aktifkan Notifikasi' secara manual pada perangkat yang didukung.",
+      title: "Pencetakan Tangguh iOS AirPrint & Akses Penuh Developer",
+      desc: "Fallback pencetakan iframe tersembunyi dan hak akses mutlak bagi peran Developer tetap aktif dan terproteksi di seluruh modul aplikasi.",
       badge: "Fitur",
-      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
     },
   ],
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.4.2",
+    versionLabel: "v3.4.2",
+    releaseDate: "6 September 2026",
+    title: "Pencetakan Tangguh iOS AirPrint, Hak Akses Mutlak Developer, & Auto-Prompt Notifikasi (6 September 2026)",
+    subtitle: "Solusi Cetak Iframe iOS WKWebView, Hak Akses Penuh Master Developer, dan Permintaan Izin Notifikasi Otomatis",
+    highlights: [
+      {
+        title: "Pencetakan Lintas Platform iOS AirPrint (Anti-Blokir Popup)",
+        desc: "Menghadirkan fallback pencetakan berbasis iframe tersembunyi untuk invoice, laporan berkala, dan price list. Mengatasi pesan kesalahan 'Gagal membuka jendela cetak' di iPhone dan peramban seluler secara tuntas.",
+        badge: "Perbaikan",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+      {
+        title: "Hak Akses Mutlak & Tak Tertandingi untuk Developer",
+        desc: "Menstandarkan seluruh pengecekan peran melalui roleUtils terpusat. Akun Developer kini memiliki akses mutlak 100% untuk mencetak, mengedit, menghapus faktur, mengelola stok, dan mengakses Developer Center tanpa batasan.",
+        badge: "Peningkatan",
+        badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
+      },
+      {
+        title: "Permintaan Izin Notifikasi Otomatis",
+        desc: "Sistem kini secara otomatis memicu dialog izin notifikasi saat pengguna masuk ke Beranda tanpa perlu menekan tombol 'Aktifkan Notifikasi' secara manual pada perangkat yang didukung.",
+        badge: "Fitur",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      },
+    ],
+  },
   {
     version: "3.4.1",
     versionLabel: "v3.4.1",

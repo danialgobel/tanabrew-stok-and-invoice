@@ -33,7 +33,7 @@ export function isNewerVersion(remote?: string | null, local?: string | null): b
 }
 
 export const AutoUpdateBanner = () => {
-  const { userProfile } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const [newVersion, setNewVersion] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const lastCheckTime = useRef<number>(0);
@@ -110,7 +110,7 @@ export const AutoUpdateBanner = () => {
         { merge: true }
       ).catch(() => {});
     }
-  }, [userProfile]);
+  }, [userProfile, currentUser]);
 
   // 2. Realtime Listener Firestore: Deteksi pembaruan jika versi di server strictly lebih baru
   useEffect(() => {
