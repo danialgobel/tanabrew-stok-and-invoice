@@ -10,17 +10,6 @@ const config: CapacitorConfig = {
     iosScheme: "https",
   },
   plugins: {
-    SplashScreen: {
-      launchShowDuration: 1200,
-      launchAutoHide: true,
-      backgroundColor: "#00381E",
-      androidScaleType: "CENTER_CROP",
-      showSpinner: false,
-    },
-    StatusBar: {
-      style: "DARK",
-      backgroundColor: "#00381E",
-    },
     Keyboard: {
       resize: KeyboardResize.Body,
       style: "DARK",
