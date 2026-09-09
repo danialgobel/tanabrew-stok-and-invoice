@@ -982,6 +982,10 @@ export default async function handler(req: any, res: any) {
             productAggregator[key].total += itemSubtotal;
           });
         });
+        results.tasks.invoicesFetched = {
+          totalInvoicesToday: invoiceList.length,
+          totalOmzetToday: todayOmzet,
+        };
       }
     } catch (err: any) {
       results.tasks.invoicesError = `Firestore invoices notice: ${err?.message || "Quota limit"}.`;
