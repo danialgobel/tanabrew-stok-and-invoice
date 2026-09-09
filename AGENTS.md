@@ -2,7 +2,7 @@
 
 Dokumen ini adalah **panduan wajib (*mandatory SOP*)** bagi seluruh AI Assistant / AI Coding Agent dan Developer yang bekerja pada repositori **Tanabrew Stok & Invoice**.
 
-### 📚 Direktori Modul Dokumentasi Teknis
+### Direktori Modul Dokumentasi Teknis
 Untuk rincian arsitektur mendalam, silakan rujuk modul dokumentasi berikut:
 * [Product Requirement Document (PRD)](docs/PRD.md)
 * [Arsitektur & Desain Sistem](docs/ARCHITECTURE.md)
@@ -16,7 +16,7 @@ Untuk rincian arsitektur mendalam, silakan rujuk modul dokumentasi berikut:
 
 ---
 
-## 🏛️ 1. Arsitektur & Teknologi Proyek
+## 1. Arsitektur & Teknologi Proyek
 
 * **Core Framework**: React 18, Vite, TypeScript, React Router v6.
 * **Database & Cloud**: Google Firebase (Firestore Database, Firebase Authentication, Server Timestamp).
@@ -29,7 +29,7 @@ Untuk rincian arsitektur mendalam, silakan rujuk modul dokumentasi berikut:
 
 ---
 
-## 🚨 2. ATURAN UTAMA: Manajemen Rilis & Pop-up Update (Wajib!)
+## 2. ATURAN UTAMA: Manajemen Rilis & Pop-up Update (Wajib!)
 
 Setiap kali Anda melakukan pembaruan, menambahkan fitur baru, mengubah tampilan UI, atau memperbaiki bug:
 
@@ -56,7 +56,7 @@ Setiap kali Anda melakukan pembaruan, menambahkan fitur baru, mengubah tampilan 
 
 ---
 
-## 🧭 3. Panduan Modul & Alur Kerja Halaman
+## 3. Panduan Modul & Alur Kerja Halaman
 
 ### 1. `Beranda.tsx` (Dashboard & Analitik)
 - **Tata Letak Desktop 12 Kolom**: Sisi kiri (8 kolom) menampung 4 Kartu Stok Gudang, Grafik Omzet Area 7 Hari, dan Tabel Inventaris Live. Sisi kanan (4 kolom) menampung Kartu Pengguna, Kapsul Ticker Aktivitas, Ringkasan Transaksi Hari Ini, dan Perintah Owner.
@@ -86,7 +86,7 @@ Setiap kali Anda melakukan pembaruan, menambahkan fitur baru, mengubah tampilan 
 
 ---
 
-## 🛡️ 4. Aturan Stabilitas Kode & Mencegah Error Layar Putih (Blank Screen)
+## 4. Aturan Stabilitas Kode & Mencegah Error Layar Putih (Blank Screen)
 
 1. **Gunakan Safe Optional Chaining**: Selalu gunakan `userProfile?.role`, `invoice.items?.map(...)`, dan nilai fallback default (`|| []`, `|| 0`, `|| ""`).
 2. **Hindari `return null` pada Halaman Utama**: Jika otorisasi tidak terpenuhi, render komponen notifikasi ramah *"Akses Terbatas"* dengan tombol *"Kembali ke Beranda"*.
@@ -95,7 +95,7 @@ Setiap kali Anda melakukan pembaruan, menambahkan fitur baru, mengubah tampilan 
 
 ---
 
-## 🏗️ 5. Standar Pengujian Sebelum Commit & Push
+## 5. Standar Pengujian Sebelum Commit & Push
 
 Sebelum melakukan commit dan push ke GitHub:
 1. **Jalankan Pengujian Unit**:
@@ -111,7 +111,7 @@ Sebelum melakukan commit dan push ke GitHub:
 
 ---
 
-## 📱 6. SOP & Standar Pengembangan Multi-Platform (Web PWA, Android, iOS)
+## 6. SOP & Standar Pengembangan Multi-Platform (Web PWA, Android, iOS)
 
 Repositori Tanabrew mengelola 3 platform sekaligus (*Web/Web PWA, Android App, dan iOS App*) dari satu basis kode inti (*Single Source of Truth*). Setiap developer dan AI Coding Agent wajib mematuhi aturan berikut agar pembaruan di salah satu platform **tidak pernah merusak platform lainnya**:
 
