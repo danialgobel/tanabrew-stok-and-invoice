@@ -376,7 +376,7 @@ const Riwayat = () => {
   const [reportPeriod, setReportPeriod] = useState<DateFilter>("bulan_ini");
   const [reportStartDate, setReportStartDate] = useState(todayInputValue());
   const [reportEndDate, setReportEndDate] = useState(todayInputValue());
-  const [reportSortDirection, setReportSortDirection] = useState<"asc" | "desc">("asc");
+  const [reportSortDirection, setReportSortDirection] = useState<"asc" | "desc">("desc");
   const [loadingReport, setLoadingReport] = useState<ReportType | null>(null);
   const [sendingWaInvoiceId, setSendingWaInvoiceId] = useState<string | null>(null);
   const [printingInvoiceId, setPrintingInvoiceId] = useState<string | null>(null);
@@ -1404,7 +1404,7 @@ const Riwayat = () => {
                   <label className="text-xs font-medium text-muted-foreground flex items-center justify-between">
                     <span>Urutan Invoice di Laporan</span>
                     <span className="text-[10px] text-primary font-semibold">
-                      {reportSortDirection === "asc" ? "1 → N (Kronologis)" : "N → 1 (Terbaru)"}
+                      {reportSortDirection === "desc" ? "N → 1 (Terbaru ke Terlama)" : "1 → N (Kronologis)"}
                     </span>
                   </label>
                   <select
@@ -1412,8 +1412,8 @@ const Riwayat = () => {
                     onChange={(e) => setReportSortDirection(e.target.value as "asc" | "desc")}
                     className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring"
                   >
-                    <option value="asc">Terlama ke Terbaru (Kronologis: INV 0001 → INV 0050) — Standar Laporan</option>
-                    <option value="desc">Terbaru ke Terlama (INV 0050 → INV 0001)</option>
+                    <option value="desc">Terbaru ke Terlama (Invoice Terakhir di Paling Atas) — Default</option>
+                    <option value="asc">Terlama ke Terbaru (Kronologis: INV 0001 → INV 0050)</option>
                   </select>
                 </div>
                 <div className="space-y-2 pt-1">

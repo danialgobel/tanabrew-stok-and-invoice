@@ -338,7 +338,7 @@ export const getPeriodLabel = (filter: DateFilter, startDate?: string, endDate?:
  */
 export const sortInvoicesForReport = (
   invoices: Invoice[],
-  direction: "asc" | "desc" = "asc",
+  direction: "asc" | "desc" = "desc",
 ): Invoice[] => {
   return [...invoices].sort((a, b) => {
     // 1. Primary: Transaction Date

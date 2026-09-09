@@ -15,34 +15,49 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.4.7",
-  versionLabel: "v3.4.7",
+  version: "3.4.8",
+  versionLabel: "v3.4.8",
   releaseDate: "10 September 2026",
-  title: "Email Dispatcher On-Demand & Penyelarasan Indikator Omzet Harian (10 September 2026)",
-  subtitle: "Trigger Laporan Email Omzet ke Semua User, Penanganan Rentang Tanggal Cron, dan Indikator Kalender Omzet Beranda",
+  title: "Default Urutan Laporan Invoice Terbaru ke Terlama (10 September 2026)",
+  subtitle: "Optimalisasi Pratinjau & Cetak Laporan Invoice PDF/CSV dengan Posisi Invoice Terakhir di Urutan Teratas",
   highlights: [
     {
-      title: "Trigger Pengiriman Email Omzet On-Demand di GodMode",
-      desc: "Menyediakan form kirim email laporan omzet instan di GodMode (tab Notifikasi) lengkap dengan pilihan tanggal, target penerima (Semua User atau Test), dan tautan pratinjau HTML.",
-      badge: "Fitur",
-      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
-    },
-    {
-      title: "Dukungan Parameter Tanggal & Rentang Waktu Cron Dispatcher",
-      desc: "Menyempurnakan api/cron-dispatcher.ts dengan parameter ?date=YYYY-MM-DD serta membatasi kueri created_at dan tanggal secara presisi, memungkinkan pengiriman rekapitulasi penjualan hari-hari sebelumnya secara akurat.",
+      title: "Default Urutan Laporan Invoice Terbaru ke Terlama",
+      desc: "Mengatur opsi urutan bawaan (default) pada Laporan Invoice di Riwayat menjadi 'Terbaru ke Terlama' (N → 1), sehingga invoice yang paling baru dicetak langsung berada di posisi paling atas pada laporan PDF maupun ekspor CSV.",
       badge: "Peningkatan",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-    },
-    {
-      title: "Indikator Kalender & Penjelasan Omzet Hari Ini di Beranda",
-      desc: "Menambahkan badge tanggal kalender pada kartu Omzet Hari Ini di Beranda serta catatan informatif pada modal rincian saat pergantian hari (midnight rollover), memperjelas bahwa penjualan kemarin tersimpan rapi di Riwayat.",
-      badge: "Peningkatan",
-      badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
     },
   ],
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.4.7",
+    versionLabel: "v3.4.7",
+    releaseDate: "10 September 2026",
+    title: "Email Dispatcher On-Demand & Penyelarasan Indikator Omzet Harian (10 September 2026)",
+    subtitle: "Trigger Laporan Email Omzet ke Semua User, Penanganan Rentang Tanggal Cron, dan Indikator Kalender Omzet Beranda",
+    highlights: [
+      {
+        title: "Trigger Pengiriman Email Omzet On-Demand di GodMode",
+        desc: "Menyediakan form kirim email laporan omzet instan di GodMode (tab Notifikasi) lengkap dengan pilihan tanggal, target penerima (Semua User atau Test), dan tautan pratinjau HTML.",
+        badge: "Fitur",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      },
+      {
+        title: "Dukungan Parameter Tanggal & Rentang Waktu Cron Dispatcher",
+        desc: "Menyempurnakan api/cron-dispatcher.ts dengan parameter ?date=YYYY-MM-DD serta membatasi kueri created_at dan tanggal secara presisi, memungkinkan pengiriman rekapitulasi penjualan hari-hari sebelumnya secara akurat.",
+        badge: "Peningkatan",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+      {
+        title: "Indikator Kalender & Penjelasan Omzet Hari Ini di Beranda",
+        desc: "Menambahkan badge tanggal kalender pada kartu Omzet Hari Ini di Beranda serta catatan informatif pada modal rincian saat pergantian hari (midnight rollover), memperjelas bahwa penjualan kemarin tersimpan rapi di Riwayat.",
+        badge: "Peningkatan",
+        badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
+      },
+    ],
+  },
   {
     version: "3.4.6",
     versionLabel: "v3.4.6",
