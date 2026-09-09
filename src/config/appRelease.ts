@@ -15,15 +15,15 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.4.8",
-  versionLabel: "v3.4.8",
+  version: "3.4.9",
+  versionLabel: "v3.4.9",
   releaseDate: "10 September 2026",
-  title: "Default Urutan Laporan Invoice Terbaru ke Terlama (10 September 2026)",
-  subtitle: "Optimalisasi Pratinjau & Cetak Laporan Invoice PDF/CSV dengan Posisi Invoice Terakhir di Urutan Teratas",
+  title: "Standardisasi Urutan Laporan Akuntansi Kronologis (10 September 2026)",
+  subtitle: "Penetapan Default Terlama ke Terbaru (1 → N) untuk Integritas Rekapitulasi Tahunan/Bulanan dan Rekening Koran",
   highlights: [
     {
-      title: "Default Urutan Laporan Invoice Terbaru ke Terlama",
-      desc: "Mengatur opsi urutan bawaan (default) pada Laporan Invoice di Riwayat menjadi 'Terbaru ke Terlama' (N → 1), sehingga invoice yang paling baru dicetak langsung berada di posisi paling atas pada laporan PDF maupun ekspor CSV.",
+      title: "Default Laporan Invoice: Terlama ke Terbaru (Kronologis)",
+      desc: "Menetapkan urutan bawaan laporan invoice PDF & ekspor CSV sesuai standar akuntansi internasional (1 → N, INV 0001 → 0050) agar rekapitulasi data bulanan/tahunan tersusun rapi dari awal periode hingga total akhir. Kasir tetap dapat beralih ke opsi Terbaru ke Terlama secara instan melalui dropdown.",
       badge: "Peningkatan",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
@@ -31,6 +31,21 @@ export const CURRENT_RELEASE: AppReleaseInfo = {
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.4.8",
+    versionLabel: "v3.4.8",
+    releaseDate: "10 September 2026",
+    title: "Fleksibilitas Dropdown Urutan Laporan Invoice di Riwayat (10 September 2026)",
+    subtitle: "Penyediaan Opsi Urutan Faktur Terbaru ke Terlama (N → 1) dan Sinkronisasi Pencetakan PDF/CSV",
+    highlights: [
+      {
+        title: "Pilihan Dropdown Urutan Laporan Invoice di Riwayat",
+        desc: "Menyediakan dropdown pemilihan arah urutan invoice di laporan Riwayat (Terlama ke Terbaru vs Terbaru ke Terlama) yang tersinkronisasi penuh pada cetak PDF dan ekspor CSV.",
+        badge: "Fitur",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      },
+    ],
+  },
   {
     version: "3.4.7",
     versionLabel: "v3.4.7",

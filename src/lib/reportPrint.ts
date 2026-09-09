@@ -233,7 +233,7 @@ const headerHtml = (title: string, meta: ReportMeta) => `
   </div>
 `;
 
-const invoiceTableHtml = (invoices: Invoice[], sortDirection: "asc" | "desc" = "desc") => {
+const invoiceTableHtml = (invoices: Invoice[], sortDirection: "asc" | "desc" = "asc") => {
   if (invoices.length === 0) return `<div class="empty">Tidak ada invoice sesuai filter laporan.</div>`;
 
   const sortedInvoices = sortInvoicesForReport(invoices, sortDirection);
@@ -412,7 +412,7 @@ const openPrintWindow = (title: string, bodyHtml: string, reportWindow?: ReportW
   return true;
 };
 
-export const printInvoiceReport = ({ invoices, periodLabel, filterLabel, printedBy, roleLabel, sortDirection = "desc" }: PrintInvoiceReportInput, reportWindow?: ReportWindow) => {
+export const printInvoiceReport = ({ invoices, periodLabel, filterLabel, printedBy, roleLabel, sortDirection = "asc" }: PrintInvoiceReportInput, reportWindow?: ReportWindow) => {
   const summary = invoiceSummary(invoices);
   const bodyHtml = `
     ${headerHtml("LAPORAN INVOICE TANABREW", { periodLabel, filterLabel, printedBy, roleLabel })}
@@ -456,7 +456,7 @@ export const printTanabrewReport = ({
   printedBy,
   roleLabel,
   summary,
-  sortDirection = "desc",
+  sortDirection = "asc",
 }: PrintCombinedReportInput, reportWindow?: ReportWindow) => {
   const stockInfo = stockSummary(products);
   const invoiceInfo = invoiceSummary(invoices);

@@ -186,12 +186,12 @@ describe("dateUtils", () => {
       "INV/TNB/2026/09/0001",
     ]);
 
-    // Default without direction parameter should default to descending (newest first)
+    // Default without direction parameter should default to ascending (chronological: INV 0001 -> 0002 -> 0003)
     const sortedDefault = sortInvoicesForReport(scrambled);
     expect(sortedDefault.map((i) => i.no_invoice)).toEqual([
-      "INV/TNB/2026/09/0003",
-      "INV/TNB/2026/09/0002",
       "INV/TNB/2026/09/0001",
+      "INV/TNB/2026/09/0002",
+      "INV/TNB/2026/09/0003",
     ]);
   });
 
