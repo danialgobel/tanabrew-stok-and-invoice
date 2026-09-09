@@ -1,5 +1,6 @@
 import type { Invoice, Product } from "@/types";
 import { printHtmlViaIframe } from "./printUtils";
+import { sortInvoicesForReport } from "./dateUtils";
 
 interface CombinedReportSummary {
   totalInvoice: number;
@@ -18,6 +19,7 @@ interface ReportMeta {
 
 interface PrintInvoiceReportInput extends ReportMeta {
   invoices: Invoice[];
+  sortDirection?: "asc" | "desc";
 }
 
 interface PrintStockReportInput extends ReportMeta {
@@ -28,6 +30,7 @@ interface PrintCombinedReportInput extends ReportMeta {
   invoices: Invoice[];
   products: Product[];
   summary?: CombinedReportSummary;
+  sortDirection?: "asc" | "desc";
 }
 
 type ReportWindow = Window | null;
@@ -230,10 +233,11 @@ const headerHtml = (title: string, meta: ReportMeta) => `
   </div>
 `;
 
-const invoiceTableHtml = (invoices: Invoice[]) => {
+const invoiceTableHtml = (invoices: Invoice[], sortDirection: "asc" | "desc" = "asc") => {
   if (invoices.length === 0) return `<div class="empty">Tidak ada invoice sesuai filter laporan.</div>`;
 
-  const rows = invoices
+  const sortedInvoices = sortInvoicesForReport(invoices, sortDirection);
+  const rows = sortedInvoices
     .map((invoice) => {
       const printLabel = invoice.is_printed ? "Sudah Dicetak" : "Belum Dicetak";
       return `
@@ -408,7 +412,7 @@ const openPrintWindow = (title: string, bodyHtml: string, reportWindow?: ReportW
   return true;
 };
 
-export const printInvoiceReport = ({ invoices, periodLabel, filterLabel, printedBy, roleLabel }: PrintInvoiceReportInput, reportWindow?: ReportWindow) => {
+export const printInvoiceReport = ({ invoices, periodLabel, filterLabel, printedBy, roleLabel, sortDirection = "asc" }: PrintInvoiceReportInput, reportWindow?: ReportWindow) => {
   const summary = invoiceSummary(invoices);
   const bodyHtml = `
     ${headerHtml("LAPORAN INVOICE TANABREW", { periodLabel, filterLabel, printedBy, roleLabel })}
@@ -421,7 +425,7 @@ export const printInvoiceReport = ({ invoices, periodLabel, filterLabel, printed
       <div class="summary-card red"><span>Invoice Belum Dicetak</span><b>${summary.invoiceBelumDicetak}</b></div>
     </div>
     <h2>Tabel Invoice</h2>
-    ${invoiceTableHtml(invoices)}
+    ${invoiceTableHtml(invoices, sortDirection)}
   `;
 
   return openPrintWindow("Laporan Invoice Tanabrew", bodyHtml, reportWindow);
@@ -452,6 +456,7 @@ export const printTanabrewReport = ({
   printedBy,
   roleLabel,
   summary,
+  sortDirection = "asc",
 }: PrintCombinedReportInput, reportWindow?: ReportWindow) => {
   const stockInfo = stockSummary(products);
   const invoiceInfo = invoiceSummary(invoices);
@@ -476,7 +481,7 @@ export const printTanabrewReport = ({
       <div class="summary-card orange"><span>Stok Menipis</span><b>${combinedSummary.stokMenipis}</b></div>
     </div>
     <h2>Tabel Laporan Invoice</h2>
-    ${invoiceTableHtml(invoices)}
+    ${invoiceTableHtml(invoices, sortDirection)}
     <h2>Tabel Stok Bermasalah</h2>
     ${stockTableHtml(problemProducts)}
   `;

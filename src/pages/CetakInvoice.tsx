@@ -8,7 +8,7 @@ import { sendTanabrewNotification } from "@/lib/notificationSender";
 import { useProducts } from "@/hooks/useProducts";
 import { useAuth } from "@/context/AuthContext";
 import type { Invoice, InvoiceItem } from "@/types";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, CheckCircle2, Package, Printer } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/Skeleton";
 import { useSearchParams, useNavigate } from "react-router-dom";
@@ -553,6 +553,34 @@ const CetakInvoice = () => {
           />
         )}
 
+        {/* Banner Transparansi Stok Berhasil Dipotong */}
+        <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-950 dark:text-emerald-200">
+          <div className="flex items-start gap-3">
+            <div className="rounded-lg bg-emerald-500/20 p-2 text-emerald-600 dark:text-emerald-400 shrink-0">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
+            <div className="flex-1 text-sm">
+              <div className="flex items-center gap-2 font-semibold">
+                <span>Stok Otomatis Terpotong ({stockLocation})</span>
+                <span className="rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
+                  Inventaris Berkurang
+                </span>
+              </div>
+              <p className="mt-1 text-xs leading-relaxed text-emerald-900/90 dark:text-emerald-300/90">
+                Stok seluruh item di bawah ini telah langsung dikurangi dari <b>Gudang {stockLocation}</b> saat invoice disimpan.
+                Tombol di bawah untuk mencetak fisik/PDF dan mengirim ke WhatsApp (tidak akan memotong stok ganda).
+              </p>
+              <div className="mt-2.5 flex flex-wrap gap-2 text-xs">
+                {items.filter((i) => i.nama_barang && i.jumlah > 0).map((it, idx) => (
+                  <span key={idx} className="rounded-md border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 font-medium">
+                    📦 {it.nama_barang}: <b>-{it.jumlah}</b> unit
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Invoice Preview */}
         <div id="invoice" className="tanabrew-page-enter bg-card rounded-xl border border-border p-5">
           <div className="flex justify-between items-start mb-4">
@@ -629,12 +657,16 @@ const CetakInvoice = () => {
             <button
               onClick={handlePrint}
               disabled={!canPrint || printing}
-              className="w-full bg-primary text-primary-foreground rounded-lg py-2.5 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full bg-primary text-primary-foreground rounded-lg py-2.5 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
             >
+              <Printer size={16} />
               {printing ? "Memproses Cetak..." : "Cetak Invoice"}
             </button>
+            <p className="mt-1.5 text-[11px] text-muted-foreground text-center">
+              Pencetakan fisik/PDF & kirim WhatsApp (stok sudah aman terpotong saat disimpan).
+            </p>
             {!canPrint && (
-              <p className="mt-2 text-xs text-destructive text-center">Hanya Admin, Owner, atau Developer yang dapat mencetak invoice.</p>
+              <p className="mt-1 text-xs text-destructive text-center">Hanya Admin, Owner, atau Developer yang dapat mencetak invoice.</p>
             )}
           </div>
           <button
@@ -711,16 +743,27 @@ const CetakInvoice = () => {
               </div>
             )}
           </div>
-          <div>
-            <label className="mb-1 block text-xs text-muted-foreground">Lokasi Stok Keluar</label>
+          <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-primary flex items-center gap-1.5">
+                <Package size={14} />
+                Lokasi Stok Keluar (Gudang)
+              </label>
+              <span className="text-[10px] font-bold text-primary bg-primary/15 px-2 py-0.5 rounded-full uppercase">
+                Gudang {stockLocation}
+              </span>
+            </div>
             <select
               value={stockLocation}
               onChange={(e) => setStockLocation(e.target.value as StockLocation)}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring"
             >
-              <option value="Jogja">Jogja</option>
-              <option value="Lombok">Lombok</option>
+              <option value="Jogja">Gudang Jogja (Stok dipotong dari inventaris Jogja)</option>
+              <option value="Lombok">Gudang Lombok (Stok dipotong dari inventaris Lombok)</option>
             </select>
+            <p className="text-[11px] text-muted-foreground">
+              Pastikan lokasi sesuai fisik barang. Stok gudang ini akan berkurang otomatis saat invoice disimpan.
+            </p>
           </div>
         </div>
 

@@ -15,27 +15,33 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.4.4",
-  versionLabel: "v3.4.4",
-  releaseDate: "6 September 2026",
-  title: "Penyempurnaan Web PWA: Aktivasi Notifikasi Langsung & Penataan Urutan Beranda HP (6 September 2026)",
-  subtitle: "Tombol Izin Notifikasi Langsung Responsif, Panduan Buka Blokir Izin Situs, dan Susunan Prioritas Beranda Mobile",
+  version: "3.4.6",
+  versionLabel: "v3.4.6",
+  releaseDate: "10 September 2026",
+  title: "Perbaikan Urutan Laporan Invoice PDF & Transparansi Pemotongan Stok (10 September 2026)",
+  subtitle: "Urutan Laporan Faktur Deterministik Multi-Kriteria, Pilihan Kronologis Standar Akuntansi, dan Banner Transparansi Stok Gudang",
   highlights: [
     {
-      title: "Tombol Aktifkan Notifikasi Langsung Responsif (Anti-Macet)",
-      desc: "Memperbaiki tombol izin notifikasi di Web & Web PWA agar langsung memicu dialog izin asli browser di dalam user gesture tanpa jeda CDN, serta mencegah tombol macet/terkunci saat status izin ditolak.",
+      title: "Perbaikan Urutan Laporan Invoice PDF Rapi & Deterministik",
+      desc: "Memperbaiki urutan cetak PDF dan ekspor CSV laporan invoice yang sebelumnya acak pada hari yang sama. Kini dilengkapi pengurutan deterministik multi-kriteria berbasis tanggal transaksi, jam server (created_at), dan nomor urut faktur (INV 0001 -> INV 0050).",
       badge: "Perbaikan",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
     {
-      title: "Banner Notifikasi Otomatis di Paling Atas Layar HP",
-      desc: "Menempatkan banner aktivasi notifikasi di posisi paling atas layar smartphone jika user belum mengaktifkannya, lengkap dengan tombol interaktif dan modal panduan buka blokir izin situs browser.",
-      badge: "Peningkatan",
+      title: "Pilihan Arah Urutan Invoice di Laporan (Kronologis vs Terbaru)",
+      desc: "Menyediakan dropdown pilihan arah urutan laporan di kartu Riwayat: Terlama ke Terbaru (Kronologis Standar Akuntansi) atau Terbaru ke Terlama, tersinkronisasi untuk cetak PDF maupun ekspor CSV.",
+      badge: "Fitur",
       badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
     {
-      title: "Penataan Ulang Susunan Tampilan Beranda Smartphone",
-      desc: "Menyempurnakan urutan tampilan mobile: Banner Notifikasi di paling atas, disusul UI Akun Pengguna, Ticker Aktivitas, Metrik 4 Kartu Stok & Ringkasan Hari Ini, Analitik Toko, Pengingat Admin, dan Tabel Stok Inventaris.",
+      title: "Banner Transparansi Pemotongan Stok Otomatis di POS",
+      desc: "Menambahkan banner konfirmasi hijau di halaman preview cetak invoice yang memperjelas bahwa stok produk telah langsung dipotong dari gudang terkait (Jogja/Lombok) saat tombol Simpan ditekan, serta penjelas tombol cetak tidak akan memotong stok ganda.",
+      badge: "Peningkatan",
+      badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+    },
+    {
+      title: "Peningkatan Visual Pemilihan Lokasi Gudang Kasir",
+      desc: "Menyempurnakan selector Lokasi Stok Keluar (Jogja / Lombok) dengan ikon dan badge visual kontras pada form kasir serta status 'Stok Terpotong' pada detail Riwayat, mencegah salah pilih gudang.",
       badge: "Peningkatan",
       badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
     },
@@ -43,6 +49,60 @@ export const CURRENT_RELEASE: AppReleaseInfo = {
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.4.5",
+    versionLabel: "v3.4.5",
+    releaseDate: "10 September 2026",
+    title: "Perbaikan Akurasi Fitur Omzet Hari Ini & Rekapitulasi Penjualan (10 September 2026)",
+    subtitle: "Sinkronisasi Query Firestore Harian, Dukungan Timestamp Multi-Format, dan Fallback Aman Data Transaksi",
+    highlights: [
+      {
+        title: "Perbaikan Fatal Kueri Rekap Omzet Harian (Cron Dispatcher)",
+        desc: "Memperbaiki kueri Firestore pada serverless cron dispatcher harian yang sebelumnya keliru mencari field 'createdAt' menjadi pencocokan ganda pada 'tanggal' (YYYY-MM-DD WIB) dan 'created_at', sehingga laporan omzet harian ke email & notifikasi HP tidak lagi bernilai Rp 0.",
+        badge: "Perbaikan",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+      {
+        title: "Dukungan Timestamp Serialisasi & Timezone Indonesia di DateUtils",
+        desc: "Menyempurnakan getDateValue dan parseDateInput agar mampu membaca objek timestamp Firestore terserialisasi ({ seconds, nanoseconds } / { _seconds }), teks hari berbahasa Indonesia, serta string ISO dengan jam lokal secara akurat.",
+        badge: "Peningkatan",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      },
+      {
+        title: "Fallback Fleksibel Perhitungan Omzet Beranda & Cetak Invoice",
+        desc: "Menambahkan proteksi konversi angka numerik (Number) dan fallback ke tanggal cetak (printed_at) atau totalAmount pada kalkulasi ringkasan omzet Beranda, memastikan seluruh transaksi faktur yang dicetak terakumulasi secara presisi.",
+        badge: "Peningkatan",
+        badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
+      },
+    ],
+  },
+  {
+    version: "3.4.4",
+    versionLabel: "v3.4.4",
+    releaseDate: "6 September 2026",
+    title: "Penyempurnaan Web PWA: Aktivasi Notifikasi Langsung & Penataan Urutan Beranda HP (6 September 2026)",
+    subtitle: "Tombol Izin Notifikasi Langsung Responsif, Panduan Buka Blokir Izin Situs, dan Susunan Prioritas Beranda Mobile",
+    highlights: [
+      {
+        title: "Tombol Aktifkan Notifikasi Langsung Responsif (Anti-Macet)",
+        desc: "Memperbaiki tombol izin notifikasi di Web & Web PWA agar langsung memicu dialog izin asli browser di dalam user gesture tanpa jeda CDN, serta mencegah tombol macet/terkunci saat status izin ditolak.",
+        badge: "Perbaikan",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+      {
+        title: "Banner Notifikasi Otomatis di Paling Atas Layar HP",
+        desc: "Menempatkan banner aktivasi notifikasi di posisi paling atas layar smartphone jika user belum mengaktifkannya, lengkap dengan tombol interaktif dan modal panduan buka blokir izin situs browser.",
+        badge: "Peningkatan",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      },
+      {
+        title: "Penataan Ulang Susunan Tampilan Beranda Smartphone",
+        desc: "Menyempurnakan urutan tampilan mobile: Banner Notifikasi di paling atas, disusul UI Akun Pengguna, Ticker Aktivitas, Metrik 4 Kartu Stok & Ringkasan Hari Ini, Analitik Toko, Pengingat Admin, dan Tabel Stok Inventaris.",
+        badge: "Peningkatan",
+        badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
+      },
+    ],
+  },
   {
     version: "3.4.3",
     versionLabel: "v3.4.3",

@@ -325,10 +325,10 @@ const Beranda = () => {
       return d.getFullYear() === todayYear && d.getMonth() === todayMonth && d.getDate() === todayDate;
     });
 
-    const revenue = todayInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
+    const revenue = todayInvoices.reduce((sum, inv) => sum + Number(inv.total ?? (inv as any).totalAmount ?? 0), 0);
     const count = todayInvoices.length;
     const itemsSold = todayInvoices.reduce(
-      (sum, inv) => sum + (inv.items || []).reduce((itemSum, item) => itemSum + (item.jumlah || 0), 0),
+      (sum, inv) => sum + (inv.items || []).reduce((itemSum, item) => itemSum + Number(item.jumlah ?? (item as any).quantity ?? 0), 0),
       0,
     );
 
@@ -351,20 +351,23 @@ const Beranda = () => {
     const lunasInvoices = invoicesToday.filter((inv) => inv.status === "LUNAS");
     const belumLunasInvoices = invoicesToday.filter((inv) => inv.status !== "LUNAS");
 
-    const omzetLunas = lunasInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
-    const omzetBelumLunas = belumLunasInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
+    const omzetLunas = lunasInvoices.reduce((sum, inv) => sum + Number(inv.total ?? (inv as any).totalAmount ?? 0), 0);
+    const omzetBelumLunas = belumLunasInvoices.reduce((sum, inv) => sum + Number(inv.total ?? (inv as any).totalAmount ?? 0), 0);
     const totalOmzet = omzetLunas + omzetBelumLunas;
     const avgOmzet = invoicesToday.length > 0 ? totalOmzet / invoicesToday.length : 0;
 
     const soldItemsMap: Record<string, { nama: string; qty: number; total: number }> = {};
     invoicesToday.forEach((inv) => {
       (inv.items || []).forEach((item) => {
-        const key = item.nama_barang || "Produk";
+        const key = item.nama_barang || (item as any).productName || "Produk";
+        const itemQty = Number(item.jumlah ?? (item as any).quantity ?? 0);
+        const itemPrice = Number(item.harga ?? (item as any).price ?? 0);
+        const itemSubtotal = Number(item.subtotal ?? (itemPrice * itemQty));
         if (!soldItemsMap[key]) {
           soldItemsMap[key] = { nama: key, qty: 0, total: 0 };
         }
-        soldItemsMap[key].qty += (item.jumlah || 0);
-        soldItemsMap[key].total += (item.subtotal || ((item.harga || 0) * (item.jumlah || 0)));
+        soldItemsMap[key].qty += itemQty;
+        soldItemsMap[key].total += itemSubtotal;
       });
     });
 
@@ -398,7 +401,7 @@ const Beranda = () => {
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       const matched = days.find((day) => day.key === key);
       if (matched) {
-        matched.omzet += inv.total || 0;
+        matched.omzet += Number(inv.total ?? (inv as any).totalAmount ?? 0);
         matched.transaksi += 1;
       }
     });

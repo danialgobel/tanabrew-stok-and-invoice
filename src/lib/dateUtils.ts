@@ -61,6 +61,14 @@ export const parseDateInput = (value?: string | null): Date | null => {
   const trimmed = value.trim();
   if (!trimmed) return null;
 
+  // ISO timestamp with time component (e.g. '2026-09-09T18:00:00.000Z')
+  if (trimmed.includes("T")) {
+    const parsedIso = Date.parse(trimmed);
+    if (!Number.isNaN(parsedIso)) {
+      return new Date(parsedIso);
+    }
+  }
+
   // Format YYYY-MM-DD or YYYY/MM/DD
   const isoMatch = trimmed.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
   if (isoMatch) {
@@ -83,8 +91,9 @@ export const parseDateInput = (value?: string | null): Date | null => {
     }
   }
 
-  // Format with Indonesian month name: "29 Agustus 2026"
-  const textParts = trimmed.split(/[\s,]+/);
+  // Format with Indonesian month name: e.g. "29 Agustus 2026" or with day name "Rabu, 10 September 2026"
+  const cleanDayName = trimmed.replace(/^(senin|selasa|rabu|kamis|jumat|sabtu|minggu)[,\s]+/i, "");
+  const textParts = cleanDayName.split(/[\s,]+/);
   if (textParts.length >= 3) {
     const day = Number(textParts[0]);
     const mName = textParts[1]?.toLowerCase() || "";
@@ -105,14 +114,22 @@ export const parseDateInput = (value?: string | null): Date | null => {
 
 /**
  * Extract numerical epoch timestamp from various date representations
- * (Firestore Timestamp object, Date instance, number, or string).
+ * (Firestore Timestamp object, Date instance, number, serialized timestamp map, or string).
  */
 export const getDateValue = (value: unknown): number => {
   if (!value) return 0;
 
-  // Firestore Timestamp object
-  if (typeof value === "object" && value !== null && "toDate" in value && typeof (value as any).toDate === "function") {
-    return (value as any).toDate().getTime();
+  // Firestore Timestamp object or serialized timestamp { seconds, nanoseconds } / { _seconds, _nanoseconds }
+  if (typeof value === "object" && value !== null) {
+    if ("toDate" in value && typeof (value as any).toDate === "function") {
+      return (value as any).toDate().getTime();
+    }
+    if ("seconds" in value && typeof (value as any).seconds === "number") {
+      return (value as any).seconds * 1000;
+    }
+    if ("_seconds" in value && typeof (value as any)._seconds === "number") {
+      return (value as any)._seconds * 1000;
+    }
   }
 
   if (value instanceof Date) return value.getTime();
@@ -130,6 +147,7 @@ export const getDateValue = (value: unknown): number => {
  * Get the authoritative date value for an invoice.
  * PRIORITIZES invoice.tanggal (the operational invoice date inputted by user),
  * then falls back to invoice.created_at (system creation timestamp),
+ * createdAt (alternative schema), invoice.printed_at,
  * and finally to the invoice number INV/TNB/YYYY/MM/XXXX pattern.
  */
 export const getInvoiceDateValue = (invoice: Invoice): number => {
@@ -143,7 +161,15 @@ export const getInvoiceDateValue = (invoice: Invoice): number => {
   const createdTime = getDateValue(invoice.created_at);
   if (createdTime) return createdTime;
 
-  // 3. Fallback: Parse from invoice number INV/TNB/YYYY/MM/XXXX
+  // 3. Fallback: createdAt (camelCase alternative)
+  const createdAtAlt = getDateValue((invoice as any).createdAt);
+  if (createdAtAlt) return createdAtAlt;
+
+  // 4. Fallback: invoice.printed_at (when invoice was printed)
+  const printedTime = getDateValue(invoice.printed_at);
+  if (printedTime) return printedTime;
+
+  // 5. Fallback: Parse from invoice number INV/TNB/YYYY/MM/XXXX
   if (invoice.no_invoice) {
     const parts = invoice.no_invoice.split("/");
     if (parts.length >= 4) {
@@ -297,3 +323,59 @@ export const getPeriodLabel = (filter: DateFilter, startDate?: string, endDate?:
   }
   return "Semua Tanggal";
 };
+
+/**
+ * Sort invoices deterministically for reports, CSV export, and lists.
+ *
+ * Tiered comparison logic:
+ * 1. Primary: Transaction Date (invoice.tanggal via getInvoiceDateValue)
+ * 2. Secondary tie-breaker: Server creation timestamp (created_at / createdAt)
+ * 3. Tertiary tie-breaker: Invoice number sequence (e.g. INV/TNB/YYYY/MM/0001) using natural numeric sorting
+ * 4. Quaternary tie-breaker: Document ID
+ *
+ * @param invoices Array of invoices
+ * @param direction "asc" (Chronological: oldest to newest, standard for accounting reports) or "desc" (newest to oldest)
+ */
+export const sortInvoicesForReport = (
+  invoices: Invoice[],
+  direction: "asc" | "desc" = "asc",
+): Invoice[] => {
+  return [...invoices].sort((a, b) => {
+    // 1. Primary: Transaction Date
+    const dateA = getInvoiceDateValue(a);
+    const dateB = getInvoiceDateValue(b);
+    if (dateA !== dateB) {
+      return direction === "desc" ? dateB - dateA : dateA - dateB;
+    }
+
+    // 2. Secondary: Exact creation timestamp
+    const getExactTime = (inv: Invoice): number => {
+      const created = inv.created_at as any;
+      if (created?.toMillis && typeof created.toMillis === "function") {
+        return created.toMillis();
+      }
+      return getDateValue(inv.created_at) || getDateValue((inv as any).createdAt) || 0;
+    };
+
+    const timeA = getExactTime(a);
+    const timeB = getExactTime(b);
+    if (timeA !== timeB) {
+      return direction === "desc" ? timeB - timeA : timeA - timeB;
+    }
+
+    // 3. Tertiary: Invoice number sequence (INV/TNB/YYYY/MM/XXXX) with natural numeric ordering
+    const noA = (a.no_invoice || "").trim();
+    const noB = (b.no_invoice || "").trim();
+    if (noA && noB && noA !== noB) {
+      return direction === "desc"
+        ? noB.localeCompare(noA, undefined, { numeric: true, sensitivity: "base" })
+        : noA.localeCompare(noB, undefined, { numeric: true, sensitivity: "base" });
+    }
+
+    // 4. Quaternary: ID fallback
+    const idA = a.id || "";
+    const idB = b.id || "";
+    return direction === "desc" ? idB.localeCompare(idA) : idA.localeCompare(idB);
+  });
+};
+

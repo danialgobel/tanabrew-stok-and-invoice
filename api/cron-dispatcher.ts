@@ -676,8 +676,13 @@ export default async function handler(req: any, res: any) {
     const isTestMode = queryTest === "true" || queryMode === "test";
 
     const nowWib = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
-    const todayDateStr = nowWib.toISOString().split("T")[0];
-    const timeStr = nowWib.toTimeString().split(" ")[0].slice(0, 5);
+    const todayDateStr = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date());
+    const timeStr = new Intl.DateTimeFormat("id-ID", {
+      timeZone: "Asia/Jakarta",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(new Date()).replace(".", ":");
     const currentDayOfWeek = nowWib.getDay();
 
     const tomorrow = new Date(nowWib);
@@ -902,38 +907,55 @@ export default async function handler(req: any, res: any) {
       const adminApp = await getFirebaseAdmin();
       if (adminApp) {
         const { getFirestore, Timestamp } = await import("firebase-admin/firestore");
-        const db = getFirestore(adminApp);
+        const startOfTodayWib = new Date(`${todayDateStr}T00:00:00+07:00`);
+        const startTimestamp = Timestamp.fromDate(startOfTodayWib);
 
-        const startOfToday = new Date(nowWib);
-        startOfToday.setHours(0, 0, 0, 0);
+        // Ambil invoice berdasarkan tanggal operasional hari ini ('YYYY-MM-DD')
+        // dan gabungkan dengan invoice berdasarkan created_at (server timestamp)
+        const [byTanggalSnap, byCreatedAtSnap] = await Promise.allSettled([
+          db.collection("invoices").where("tanggal", "==", todayDateStr).get(),
+          db.collection("invoices").where("created_at", ">=", startTimestamp).get(),
+        ]);
 
-        const invoicesSnap = await db
-          .collection("invoices")
-          .where("createdAt", ">=", Timestamp.fromDate(startOfToday))
-          .get();
+        const invoiceDocMap = new Map<string, any>();
 
-        invoicesSnap.forEach((doc) => {
-          const inv = { id: doc.id, ...doc.data() } as InvoiceRecord;
+        if (byTanggalSnap.status === "fulfilled") {
+          byTanggalSnap.value.forEach((doc) => invoiceDocMap.set(doc.id, { id: doc.id, ...doc.data() }));
+        }
+        if (byCreatedAtSnap.status === "fulfilled") {
+          byCreatedAtSnap.value.forEach((doc) => invoiceDocMap.set(doc.id, { id: doc.id, ...doc.data() }));
+        }
+
+        // Fallback tambahan jika ada dokumen legacy dengan field createdAt (camelCase)
+        if (invoiceDocMap.size === 0) {
+          try {
+            const fallbackSnap = await db.collection("invoices").where("createdAt", ">=", startTimestamp).get();
+            fallbackSnap.forEach((doc) => invoiceDocMap.set(doc.id, { id: doc.id, ...doc.data() }));
+          } catch {}
+        }
+
+        invoiceDocMap.forEach((data, docId) => {
+          const inv = { id: docId, ...data } as InvoiceRecord;
           invoiceList.push(inv);
 
-          const total = Number(inv.total ?? inv.totalAmount ?? 0);
+          const total = Number(inv.total ?? (inv as any).totalAmount ?? 0);
           todayOmzet += total;
           todayCount += 1;
 
-          const wh = (inv.stock_location || inv.warehouse || "").toLowerCase();
+          const wh = (inv.stock_location || (inv as any).warehouse || "Jogja").toLowerCase();
           if (wh.includes("lombok")) {
             lombokOmzet += total;
           } else {
             jogjaOmzet += total;
           }
 
-          const method = (inv.paymentMethod || "").toLowerCase();
-          const status = (inv.status || inv.paymentStatus || "").toLowerCase();
+          const method = ((inv as any).paymentMethod || (inv as any).nomor_rekening || "").toLowerCase();
+          const status = (inv.status || (inv as any).paymentStatus || "").toLowerCase();
 
           if (status.includes("belum") || method.includes("tempo")) {
             tempoCount++;
             tempoOmzet += total;
-          } else if (method.includes("transfer") || method.includes("seabank") || method.includes("bsi")) {
+          } else if (method.includes("transfer") || method.includes("seabank") || method.includes("bsi") || method.includes("9011") || method.includes("7196")) {
             transferCount++;
             transferOmzet += total;
           } else {
@@ -943,12 +965,15 @@ export default async function handler(req: any, res: any) {
 
           const items = inv.items || [];
           items.forEach((it) => {
-            const key = it.nama_barang || it.productName || "Kopi";
+            const key = it.nama_barang || (it as any).productName || "Kopi";
             if (!productAggregator[key]) {
               productAggregator[key] = { name: key, qty: 0, total: 0 };
             }
-            productAggregator[key].qty += Number(it.jumlah ?? it.quantity ?? 1);
-            productAggregator[key].total += Number(it.subtotal ?? (it.harga || 0) * (it.jumlah || 1));
+            const itemQty = Number(it.jumlah ?? (it as any).quantity ?? 1);
+            const itemPrice = Number(it.harga ?? (it as any).price ?? 0);
+            const itemSubtotal = Number(it.subtotal ?? (itemPrice * itemQty));
+            productAggregator[key].qty += itemQty;
+            productAggregator[key].total += itemSubtotal;
           });
         });
       }

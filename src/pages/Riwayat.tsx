@@ -48,6 +48,7 @@ import {
   getDateRange,
   matchesDateFilter,
   getPeriodLabel,
+  sortInvoicesForReport,
 } from "@/lib/dateUtils";
 
 type ActiveTab = "invoice" | "stok" | "aktivitas";
@@ -375,6 +376,7 @@ const Riwayat = () => {
   const [reportPeriod, setReportPeriod] = useState<DateFilter>("bulan_ini");
   const [reportStartDate, setReportStartDate] = useState(todayInputValue());
   const [reportEndDate, setReportEndDate] = useState(todayInputValue());
+  const [reportSortDirection, setReportSortDirection] = useState<"asc" | "desc">("asc");
   const [loadingReport, setLoadingReport] = useState<ReportType | null>(null);
   const [sendingWaInvoiceId, setSendingWaInvoiceId] = useState<string | null>(null);
   const [printingInvoiceId, setPrintingInvoiceId] = useState<string | null>(null);
@@ -550,9 +552,8 @@ const Riwayat = () => {
 
   const fetchAllInvoicesForReport = async () => {
     const snap = await getDocs(collection(db, "invoices"));
-    return snap.docs
-      .map((invoiceDoc) => ({ id: invoiceDoc.id, ...invoiceDoc.data() } as Invoice))
-      .sort((a, b) => getInvoiceDateValue(b) - getInvoiceDateValue(a));
+    const rawInvoices = snap.docs.map((invoiceDoc) => ({ id: invoiceDoc.id, ...invoiceDoc.data() } as Invoice));
+    return sortInvoicesForReport(rawInvoices, reportSortDirection);
   };
 
   const getFilteredInvoiceReportData = (sourceInvoices: Invoice[]) => {
@@ -588,13 +589,15 @@ const Riwayat = () => {
     setLoadingReport("invoice");
 
     try {
-      const reportData = getFilteredInvoiceReportData(await fetchAllInvoicesForReport());
+      const allInvoices = await fetchAllInvoicesForReport();
+      const reportData = sortInvoicesForReport(getFilteredInvoiceReportData(allInvoices), reportSortDirection);
       const ok = printInvoiceReport({
         invoices: reportData,
         periodLabel: getPeriodLabel(reportPeriod, reportStartDate, reportEndDate),
         filterLabel: getInvoiceFilterLabel(),
         printedBy: userProfile?.name || currentUser?.email || "-",
         roleLabel: formatRole(userProfile?.role),
+        sortDirection: reportSortDirection,
       }, reportWindow);
 
       if (!ok) {
@@ -613,7 +616,8 @@ const Riwayat = () => {
   const handleExportInvoiceCsv = async () => {
     setLoadingReport("invoice");
     try {
-      const reportData = getFilteredInvoiceReportData(await fetchAllInvoicesForReport());
+      const allInvoices = await fetchAllInvoicesForReport();
+      const reportData = sortInvoicesForReport(getFilteredInvoiceReportData(allInvoices), reportSortDirection);
       const filename = `Laporan-Invoice-${reportPeriod}-${monthFileStamp()}.csv`;
       const headers = [
         "No Invoice",
@@ -702,7 +706,8 @@ const Riwayat = () => {
     setLoadingReport("gabungan");
 
     try {
-      const reportData = getCombinedReportData(await fetchAllInvoicesForReport());
+      const allInvoices = await fetchAllInvoicesForReport();
+      const reportData = sortInvoicesForReport(getCombinedReportData(allInvoices), reportSortDirection);
       const summary = {
         totalInvoice: reportData.length,
         totalPemasukan: reportData.reduce((sum, invoice) => sum + (invoice.total || 0), 0),
@@ -718,6 +723,7 @@ const Riwayat = () => {
         printedBy: userProfile?.name || currentUser?.email || "-",
         roleLabel: formatRole(userProfile?.role),
         summary,
+        sortDirection: reportSortDirection,
       }, reportWindow);
 
       if (!ok) {
@@ -1189,7 +1195,7 @@ const Riwayat = () => {
             <p><span className="text-muted-foreground">No Invoice:</span> <span className="font-mono font-bold text-primary">{invoice.no_invoice}</span></p>
             <p><span className="text-muted-foreground">Tanggal:</span> {formatInvoiceDate(invoice)}</p>
             <p><span className="text-muted-foreground">Customer:</span> <span className="font-semibold text-foreground">{invoice.customer}</span></p>
-            <p><span className="text-muted-foreground">Gudang:</span> <span className="font-semibold">{invoice.stock_location || "Jogja"}</span></p>
+            <p><span className="text-muted-foreground">Gudang:</span> <span className="font-semibold">{invoice.stock_location || "Jogja"}</span> <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">✓ Stok Terpotong</span></p>
           </div>
         </div>
 
@@ -1394,6 +1400,22 @@ const Riwayat = () => {
                     </div>
                   </div>
                 )}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground flex items-center justify-between">
+                    <span>Urutan Invoice di Laporan</span>
+                    <span className="text-[10px] text-primary font-semibold">
+                      {reportSortDirection === "asc" ? "1 → N (Kronologis)" : "N → 1 (Terbaru)"}
+                    </span>
+                  </label>
+                  <select
+                    value={reportSortDirection}
+                    onChange={(e) => setReportSortDirection(e.target.value as "asc" | "desc")}
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="asc">Terlama ke Terbaru (Kronologis: INV 0001 → INV 0050) — Standar Laporan</option>
+                    <option value="desc">Terbaru ke Terlama (INV 0050 → INV 0001)</option>
+                  </select>
+                </div>
                 <div className="space-y-2 pt-1">
                   <div className="grid grid-cols-2 gap-2">
                     <button
