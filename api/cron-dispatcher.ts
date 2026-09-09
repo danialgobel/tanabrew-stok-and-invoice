@@ -676,7 +676,10 @@ export default async function handler(req: any, res: any) {
     const isTestMode = queryTest === "true" || queryMode === "test";
 
     const nowWib = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
-    const todayDateStr = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date());
+    const queryDate = (req.query?.date as string) || parsedUrl.searchParams.get("date") || "";
+    const todayDateStr = /^\d{4}-\d{2}-\d{2}$/.test(queryDate.trim())
+      ? queryDate.trim()
+      : new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date());
     const timeStr = new Intl.DateTimeFormat("id-ID", {
       timeZone: "Asia/Jakarta",
       hour: "2-digit",
@@ -908,13 +911,15 @@ export default async function handler(req: any, res: any) {
       if (adminApp) {
         const { getFirestore, Timestamp } = await import("firebase-admin/firestore");
         const startOfTodayWib = new Date(`${todayDateStr}T00:00:00+07:00`);
+        const endOfTodayWib = new Date(`${todayDateStr}T23:59:59.999+07:00`);
         const startTimestamp = Timestamp.fromDate(startOfTodayWib);
+        const endTimestamp = Timestamp.fromDate(endOfTodayWib);
 
         // Ambil invoice berdasarkan tanggal operasional hari ini ('YYYY-MM-DD')
         // dan gabungkan dengan invoice berdasarkan created_at (server timestamp)
         const [byTanggalSnap, byCreatedAtSnap] = await Promise.allSettled([
           db.collection("invoices").where("tanggal", "==", todayDateStr).get(),
-          db.collection("invoices").where("created_at", ">=", startTimestamp).get(),
+          db.collection("invoices").where("created_at", ">=", startTimestamp).where("created_at", "<=", endTimestamp).get(),
         ]);
 
         const invoiceDocMap = new Map<string, any>();

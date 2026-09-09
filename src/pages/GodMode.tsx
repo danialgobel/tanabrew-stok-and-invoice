@@ -46,8 +46,10 @@ import {
   UserCheck,
   Loader2,
   Smartphone,
+  Mail,
 } from "lucide-react";
 import WhatsAppSettingsModal from "@/components/WhatsAppSettingsModal";
+import { toInputDate } from "@/lib/dateUtils";
 
 type CollectionName = "invoices" | "products" | "activity_logs" | "stock_movements" | "users";
 type GodModeTab = "users" | "explorer" | "health" | "notifications" | "backup" | "whatsapp" | "logs";
@@ -109,6 +111,18 @@ const GodMode = () => {
   const [notifTitle, setNotifTitle] = useState("Pengumuman dari Developer");
   const [notifMessage, setNotifMessage] = useState("");
   const [sendingNotif, setSendingNotif] = useState(false);
+
+  // Email Report Dispatcher State
+  const [emailReportDate, setEmailReportDate] = useState(() => {
+    const d = new Date();
+    if (d.getHours() < 8) {
+      d.setDate(d.getDate() - 1);
+    }
+    return toInputDate(d);
+  });
+  const [emailReportTarget, setEmailReportTarget] = useState<"all" | "test">("all");
+  const [emailReportType, setEmailReportType] = useState<"daily" | "all">("daily");
+  const [sendingEmailReport, setSendingEmailReport] = useState(false);
 
   // Backup / Restore State
   const [exportingBackup, setExportingBackup] = useState(false);
@@ -717,6 +731,46 @@ const GodMode = () => {
     }
   };
 
+  const handleSendEmailReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSendingEmailReport(true);
+    addLog(`Memulai pengiriman laporan email omzet (${emailReportDate})...`, "info");
+    try {
+      const isAll = emailReportTarget === "all";
+      const isTest = emailReportTarget === "test";
+      const emailQuery = currentUser?.email ? `&email=${encodeURIComponent(currentUser.email)}` : "";
+      const url = `/api/cron-dispatcher?report=${emailReportType}&date=${emailReportDate}&all=${isAll}&test=${isTest}${emailQuery}`;
+
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (res.ok) {
+        const recipientsCount = data.notifications?.emailDelivery?.recipients?.length || 0;
+        toast({
+          title: "Laporan Email Berhasil Dikirim!",
+          description: `Laporan tanggal ${emailReportDate} terkirim ke ${recipientsCount} penerima.`,
+        });
+        addLog(`Laporan email omzet (${emailReportDate}) sukses terkirim ke ${recipientsCount} user.`, "success");
+      } else {
+        toast({
+          title: "Gagal Mengirim Email",
+          description: data.error || data.message || "Terjadi kesalahan pada server email.",
+          variant: "destructive",
+        });
+        addLog(`Gagal kirim email: ${data.error || "Unknown error"}`, "error");
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error Server / Jaringan",
+        description: err?.message || "Gagal menghubungi server pengirim email.",
+        variant: "destructive",
+      });
+      addLog(`Error dispatcher: ${err?.message}`, "error");
+    } finally {
+      setSendingEmailReport(false);
+    }
+  };
+
   // 5. Backup & Restore
   const handleExportBackup = async () => {
     setExportingBackup(true);
@@ -1213,6 +1267,62 @@ const GodMode = () => {
               {sendingNotif ? "Mengirim ke Seluruh Perangkat..." : "Kirim Broadcast Push Notification"}
             </button>
           </form>
+
+          {/* SUBMODULE 4B: EMAIL DISPATCHER LAPORAN OMZET */}
+          <div className="pt-4 border-t border-border space-y-3">
+            <div>
+              <h3 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <Mail size={14} className="text-primary" />
+                Trigger Pengiriman Laporan Email Omzet
+              </h3>
+              <p className="text-[11px] text-muted-foreground">Kirim email laporan rekapitulasi penjualan harian PDF resmi ke seluruh tim secara instan</p>
+            </div>
+
+            <form onSubmit={handleSendEmailReport} className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] font-semibold text-muted-foreground mb-1 block">Tanggal Laporan</label>
+                  <input
+                    type="date"
+                    value={emailReportDate}
+                    onChange={(e) => setEmailReportDate(e.target.value)}
+                    className="w-full rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-muted-foreground mb-1 block">Target Penerima</label>
+                  <select
+                    value={emailReportTarget}
+                    onChange={(e) => setEmailReportTarget(e.target.value as "all" | "test")}
+                    className="w-full rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="all">Semua User (Owner, Admin, Staff, Webdev)</option>
+                    <option value="test">Hanya Email Saya (Uji Coba)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={sendingEmailReport}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 py-2.5 text-xs font-bold text-white shadow-sm transition-all disabled:opacity-50 cursor-pointer active:scale-95"
+                >
+                  <Mail size={14} />
+                  {sendingEmailReport ? "Mengirim Email Laporan..." : `Kirim Laporan Email (${emailReportDate})`}
+                </button>
+                <a
+                  href={`/api/cron-dispatcher?preview=html&report=daily&date=${emailReportDate}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-1 rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted"
+                >
+                  Preview HTML
+                </a>
+              </div>
+            </form>
+          </div>
 
           <div className="rounded-lg bg-muted p-3 text-xs space-y-1">
             <p className="font-semibold text-foreground">Status Izin Notifikasi Browser Anda:</p>

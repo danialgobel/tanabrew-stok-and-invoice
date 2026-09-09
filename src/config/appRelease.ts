@@ -15,33 +15,27 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.4.6",
-  versionLabel: "v3.4.6",
+  version: "3.4.7",
+  versionLabel: "v3.4.7",
   releaseDate: "10 September 2026",
-  title: "Perbaikan Urutan Laporan Invoice PDF & Transparansi Pemotongan Stok (10 September 2026)",
-  subtitle: "Urutan Laporan Faktur Deterministik Multi-Kriteria, Pilihan Kronologis Standar Akuntansi, dan Banner Transparansi Stok Gudang",
+  title: "Email Dispatcher On-Demand & Penyelarasan Indikator Omzet Harian (10 September 2026)",
+  subtitle: "Trigger Laporan Email Omzet ke Semua User, Penanganan Rentang Tanggal Cron, dan Indikator Kalender Omzet Beranda",
   highlights: [
     {
-      title: "Perbaikan Urutan Laporan Invoice PDF Rapi & Deterministik",
-      desc: "Memperbaiki urutan cetak PDF dan ekspor CSV laporan invoice yang sebelumnya acak pada hari yang sama. Kini dilengkapi pengurutan deterministik multi-kriteria berbasis tanggal transaksi, jam server (created_at), dan nomor urut faktur (INV 0001 -> INV 0050).",
-      badge: "Perbaikan",
-      badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-    },
-    {
-      title: "Pilihan Arah Urutan Invoice di Laporan (Kronologis vs Terbaru)",
-      desc: "Menyediakan dropdown pilihan arah urutan laporan di kartu Riwayat: Terlama ke Terbaru (Kronologis Standar Akuntansi) atau Terbaru ke Terlama, tersinkronisasi untuk cetak PDF maupun ekspor CSV.",
+      title: "Trigger Pengiriman Email Omzet On-Demand di GodMode",
+      desc: "Menyediakan form kirim email laporan omzet instan di GodMode (tab Notifikasi) lengkap dengan pilihan tanggal, target penerima (Semua User atau Test), dan tautan pratinjau HTML.",
       badge: "Fitur",
       badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
     {
-      title: "Banner Transparansi Pemotongan Stok Otomatis di POS",
-      desc: "Menambahkan banner konfirmasi hijau di halaman preview cetak invoice yang memperjelas bahwa stok produk telah langsung dipotong dari gudang terkait (Jogja/Lombok) saat tombol Simpan ditekan, serta penjelas tombol cetak tidak akan memotong stok ganda.",
+      title: "Dukungan Parameter Tanggal & Rentang Waktu Cron Dispatcher",
+      desc: "Menyempurnakan api/cron-dispatcher.ts dengan parameter ?date=YYYY-MM-DD serta membatasi kueri created_at dan tanggal secara presisi, memungkinkan pengiriman rekapitulasi penjualan hari-hari sebelumnya secara akurat.",
       badge: "Peningkatan",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
     {
-      title: "Peningkatan Visual Pemilihan Lokasi Gudang Kasir",
-      desc: "Menyempurnakan selector Lokasi Stok Keluar (Jogja / Lombok) dengan ikon dan badge visual kontras pada form kasir serta status 'Stok Terpotong' pada detail Riwayat, mencegah salah pilih gudang.",
+      title: "Indikator Kalender & Penjelasan Omzet Hari Ini di Beranda",
+      desc: "Menambahkan badge tanggal kalender pada kartu Omzet Hari Ini di Beranda serta catatan informatif pada modal rincian saat pergantian hari (midnight rollover), memperjelas bahwa penjualan kemarin tersimpan rapi di Riwayat.",
       badge: "Peningkatan",
       badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
     },
@@ -49,6 +43,33 @@ export const CURRENT_RELEASE: AppReleaseInfo = {
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.4.6",
+    versionLabel: "v3.4.6",
+    releaseDate: "10 September 2026",
+    title: "Perbaikan Urutan Laporan Invoice PDF & Transparansi Pemotongan Stok (10 September 2026)",
+    subtitle: "Urutan Laporan Faktur Deterministik Multi-Kriteria, Pilihan Kronologis Standar Akuntansi, dan Banner Transparansi Stok Gudang",
+    highlights: [
+      {
+        title: "Perbaikan Urutan Laporan Invoice PDF Rapi & Deterministik",
+        desc: "Memperbaiki urutan cetak PDF dan ekspor CSV laporan invoice yang sebelumnya acak pada hari yang sama. Kini dilengkapi pengurutan deterministik multi-kriteria berbasis tanggal transaksi, jam server (created_at), dan nomor urut faktur (INV 0001 -> INV 0050).",
+        badge: "Perbaikan",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+      {
+        title: "Pilihan Arah Urutan Invoice di Laporan (Kronologis vs Terbaru)",
+        desc: "Menyediakan dropdown pilihan arah urutan laporan di kartu Riwayat: Terlama ke Terbaru (Kronologis Standar Akuntansi) atau Terbaru ke Terlama, tersinkronisasi untuk cetak PDF maupun ekspor CSV.",
+        badge: "Fitur",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      },
+      {
+        title: "Banner Transparansi Pemotongan Stok Otomatis di POS",
+        desc: "Menambahkan banner konfirmasi hijau di halaman preview cetak invoice yang memperjelas bahwa stok produk telah langsung dipotong dari gudang terkait (Jogja/Lombok) saat tombol Simpan ditekan, serta penjelas tombol cetak tidak akan memotong stok ganda.",
+        badge: "Peningkatan",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+    ],
+  },
   {
     version: "3.4.5",
     versionLabel: "v3.4.5",

@@ -20,7 +20,7 @@ import {
   type OneSignalPermissionState,
 } from "@/lib/onesignal";
 import { isDeveloperRole, isOwnerRole, isAdminRole, getCleanRoleLabel } from "@/lib/roleUtils";
-import { getInvoiceDateValue, getDateValue, formatInvoiceDate as formatInvoiceDateUtil } from "@/lib/dateUtils";
+import { getInvoiceDateValue, getDateValue, formatInvoiceDate as formatInvoiceDateUtil, formatDisplayDate } from "@/lib/dateUtils";
 import type { ActivityLog, Invoice } from "@/types";
 
 const actionLabel = (action?: string) => {
@@ -1252,11 +1252,12 @@ const Beranda = () => {
                 className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 p-3.5 space-y-1 shadow-sm cursor-pointer active:scale-95 transition-all select-none group"
               >
                 <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-400">
-                  <div className="flex items-center gap-1.5">
-                    <DollarSign size={14} />
-                    <span className="text-[10px] font-bold uppercase tracking-wider">Omzet Hari Ini</span>
+                  <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                    <DollarSign size={14} className="shrink-0" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider truncate">Omzet Hari Ini</span>
+                    <span className="text-[9px] font-semibold text-emerald-600/80 dark:text-emerald-400/80 shrink-0">({new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short" }).format(new Date())})</span>
                   </div>
-                  <ChevronRight size={14} className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                  <ChevronRight size={14} className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all shrink-0" />
                 </div>
                 <p className="text-sm sm:text-base font-bold text-foreground truncate">Rp {fmt(todayOverview.revenue)}</p>
               </div>
@@ -1519,8 +1520,15 @@ const Beranda = () => {
               {overviewModal === "omzet" && (
                 <div className="space-y-4">
                   <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-center">
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Total Pendapatan Hari Ini</p>
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+                      Total Pendapatan Hari Ini ({formatDisplayDate(new Date())})
+                    </p>
                     <p className="text-2xl font-black text-emerald-700 dark:text-emerald-400 mt-1">Rp {fmt(todayDetails.totalOmzet)}</p>
+                    {todayDetails.totalOmzet === 0 && (
+                      <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+                        Belum ada transaksi di tanggal ini. Seluruh omzet hari kemarin tersimpan rapi di Riwayat & Grafik Tren 7 Hari.
+                      </p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 text-xs">
