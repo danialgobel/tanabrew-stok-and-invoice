@@ -910,6 +910,7 @@ export default async function handler(req: any, res: any) {
       const adminApp = await getFirebaseAdmin();
       if (adminApp) {
         const { getFirestore, Timestamp } = await import("firebase-admin/firestore");
+        const db = getFirestore(adminApp);
         const startOfTodayWib = new Date(`${todayDateStr}T00:00:00+07:00`);
         const endOfTodayWib = new Date(`${todayDateStr}T23:59:59.999+07:00`);
         const startTimestamp = Timestamp.fromDate(startOfTodayWib);
