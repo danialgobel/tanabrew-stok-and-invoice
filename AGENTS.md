@@ -12,6 +12,7 @@ Untuk rincian arsitektur mendalam, silakan rujuk modul dokumentasi berikut:
 * [Aturan Kestabilan Kode & Anti-Crash](.agents/rules/code-stability.md)
 * [Aturan Kueri & Optimasi Kuota Firestore](.agents/rules/firestore-best-practices.md)
 * [Standar & SOP Multi-Platform (Web, Android, iOS)](.agents/rules/cross-platform-standards.md)
+* [Panduan & Handoff Android APK](docs/TANABREW_ANDROID_HANDOFF.md)
 
 ---
 

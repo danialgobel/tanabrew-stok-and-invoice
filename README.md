@@ -75,6 +75,7 @@ Rincian mendalam mengenai arsitektur, skema basis data, dan operasional tersedia
 * [Kamus Basis Data & Skema Firestore](docs/DATABASE_SCHEMA.md)
 * [Sistem Notifikasi & Pelacakan Pengunjung](docs/NOTIFICATION_SYSTEM.md)
 * [Panduan Deployment & Operasional](docs/DEPLOYMENT_AND_OPERATIONS.md)
+* [Panduan & Handoff Android APK](docs/TANABREW_ANDROID_HANDOFF.md)
 * [Pedoman Pengembangan & SOP Rilis](AGENTS.md)
 
 ---

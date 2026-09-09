@@ -25,3 +25,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+Thumbs.db
+ehthumbs.db
+
+# Alternative package manager lockfiles (standard: package-lock.json)
+bun.lockb
+yarn.lock
+pnpm-lock.yaml
