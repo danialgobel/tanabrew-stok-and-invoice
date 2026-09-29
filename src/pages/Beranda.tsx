@@ -1,8 +1,8 @@
 import { useProducts } from "@/hooks/useProducts";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { arrayUnion, collection, doc, limit, onSnapshot, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
-import { Bell, LogOut, X, TrendingUp, DollarSign, ShoppingBag, Award, User as UserIcon, Calendar, ArrowRight, CheckCircle2, AlertCircle, Package, Receipt, ChevronRight, Sparkles, Plus } from "lucide-react";
+import { arrayUnion, collection, doc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where } from "firebase/firestore";
+import { Bell, LogOut, X, TrendingUp, DollarSign, ShoppingBag, Award, User as UserIcon, Calendar, ArrowRight, CheckCircle2, AlertCircle, Package, Receipt, ChevronRight, Sparkles, Plus, Printer } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from "recharts";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
@@ -13,6 +13,7 @@ import { CardSkeleton, Skeleton } from "@/components/Skeleton";
 import PullToRefresh from "@/components/PullToRefresh";
 import { sendTanabrewNotification } from "@/lib/notificationSender";
 import { triggerHaptic } from "@/lib/haptics";
+import { openReportWindow, printMonthlyProductsReport, writeReportError } from "@/lib/reportPrint";
 import {
   getNotificationPermissionState,
   requestNotificationPermission,
@@ -20,7 +21,7 @@ import {
   type OneSignalPermissionState,
 } from "@/lib/onesignal";
 import { isDeveloperRole, isOwnerRole, isAdminRole, getCleanRoleLabel } from "@/lib/roleUtils";
-import { getInvoiceDateValue, getDateValue, formatInvoiceDate as formatInvoiceDateUtil, formatDisplayDate } from "@/lib/dateUtils";
+import { getInvoiceDateValue, getDateValue, formatInvoiceDate as formatInvoiceDateUtil, formatDisplayDate, formatMonthYear } from "@/lib/dateUtils";
 import type { ActivityLog, Invoice } from "@/types";
 
 const actionLabel = (action?: string) => {
@@ -65,8 +66,16 @@ const stockState = (total: number) => {
 };
 
 type SummaryModalType = "lunas" | "belum_lunas" | "stok_aman" | "stok_menipis" | "stok_habis";
-type OverviewModalType = "omzet" | "transaksi" | "terjual" | null;
+type OverviewModalType = "omzet" | "transaksi" | "terjual" | "terjual_bulan" | null;
 type StockModalType = "total_produk" | "total_stok" | "jogja" | "lombok" | null;
+
+interface MonthOption {
+  key: string; // YYYY-MM
+  label: string;
+  year: number;
+  month: number;
+  isCurrent: boolean;
+}
 
 const hasWelcomeAnimationFlag = () => sessionStorage.getItem("showWelcomeAnimation") === "true";
 
@@ -384,6 +393,215 @@ const Beranda = () => {
       soldItemsList,
     };
   }, [dashboardInvoices]);
+
+  // Fitur Total Produk Terjual Bulanan (dengan pemilih bulan, default bulan ini)
+  const currentMonthKey = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  }, []);
+
+  const [selectedMonthKey, setSelectedMonthKey] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
+
+  const [extraMonthInvoices, setExtraMonthInvoices] = useState<Record<string, Invoice[]>>({});
+  const [loadingMonthInvoices, setLoadingMonthInvoices] = useState(false);
+
+  const availableMonths = useMemo(() => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const months: MonthOption[] = [];
+
+    // 12 bulan terakhir
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(currentYear, currentMonth - i, 1);
+      const year = d.getFullYear();
+      const month = d.getMonth();
+      const key = `${year}-${String(month + 1).padStart(2, "0")}`;
+      const isCurrent = i === 0;
+      const label = formatMonthYear(d);
+      months.push({ key, label, year, month, isCurrent });
+    }
+
+    // Tambahkan bulan dari dashboardInvoices jika ada data historis yang lebih lama
+    dashboardInvoices.forEach((inv) => {
+      const time = getInvoiceDateValue(inv);
+      if (!time) return;
+      const d = new Date(time);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (!months.some((m) => m.key === key)) {
+        months.push({
+          key,
+          label: formatMonthYear(d),
+          year: d.getFullYear(),
+          month: d.getMonth(),
+          isCurrent: false,
+        });
+      }
+    });
+
+    // Urutkan dari bulan terbaru ke terlama
+    months.sort((a, b) => b.key.localeCompare(a.key));
+    return months;
+  }, [dashboardInvoices]);
+
+  const selectedMonthInfo = useMemo(() => {
+    const found = availableMonths.find((m) => m.key === selectedMonthKey);
+    if (found) return found;
+    const now = new Date();
+    return {
+      key: currentMonthKey,
+      label: formatMonthYear(now),
+      year: now.getFullYear(),
+      month: now.getMonth(),
+      isCurrent: true,
+    };
+  }, [availableMonths, selectedMonthKey, currentMonthKey]);
+
+  // Efek memuat faktur on-demand jika user memilih bulan lampau di luar kuota 80 faktur
+  useEffect(() => {
+    if (selectedMonthInfo.isCurrent) return;
+    if (extraMonthInvoices[selectedMonthKey]) return;
+
+    let isCancelled = false;
+    const fetchMonth = async () => {
+      setLoadingMonthInvoices(true);
+      try {
+        const start = new Date(selectedMonthInfo.year, selectedMonthInfo.month, 1, 0, 0, 0, 0);
+        const end = new Date(selectedMonthInfo.year, selectedMonthInfo.month + 1, 0, 23, 59, 59, 999);
+        const qMonth = query(
+          collection(db, "invoices"),
+          where("created_at", ">=", start),
+          where("created_at", "<=", end),
+          limit(100),
+        );
+        const snap = await getDocs(qMonth);
+        if (!isCancelled) {
+          const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Invoice));
+          setExtraMonthInvoices((prev) => ({ ...prev, [selectedMonthKey]: docs }));
+        }
+      } catch (err) {
+        console.warn("Fetch month invoices on demand:", err);
+      } finally {
+        if (!isCancelled) {
+          setLoadingMonthInvoices(false);
+        }
+      }
+    };
+
+    void fetchMonth();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedMonthKey, selectedMonthInfo, extraMonthInvoices]);
+
+  const activeMonthInvoices = useMemo(() => {
+    const targetYear = selectedMonthInfo.year;
+    const targetMonth = selectedMonthInfo.month;
+
+    // Faktur dari realtime listener
+    const localMonthInvoices = dashboardInvoices.filter((inv) => {
+      const time = getInvoiceDateValue(inv);
+      if (!time) return false;
+      const d = new Date(time);
+      return d.getFullYear() === targetYear && d.getMonth() === targetMonth;
+    });
+
+    const fetched = extraMonthInvoices[selectedMonthKey];
+    if (fetched && fetched.length > 0) {
+      const map = new Map<string, Invoice>();
+      fetched.forEach((inv) => inv.id && map.set(inv.id, inv));
+      localMonthInvoices.forEach((inv) => inv.id && map.set(inv.id, inv));
+      return Array.from(map.values());
+    }
+
+    return localMonthInvoices;
+  }, [selectedMonthInfo, dashboardInvoices, extraMonthInvoices, selectedMonthKey]);
+
+  const monthlyOverview = useMemo(() => {
+    const revenue = activeMonthInvoices.reduce((sum, inv) => sum + Number(inv.total ?? (inv as any).totalAmount ?? 0), 0);
+    const count = activeMonthInvoices.length;
+    const itemsSold = activeMonthInvoices.reduce(
+      (sum, inv) => sum + (inv.items || []).reduce((itemSum, item) => itemSum + Number(item.jumlah ?? (item as any).quantity ?? 0), 0),
+      0,
+    );
+
+    return { revenue, count, itemsSold };
+  }, [activeMonthInvoices]);
+
+  const monthlyDetails = useMemo(() => {
+    const lunasInvoices = activeMonthInvoices.filter((inv) => inv.status === "LUNAS");
+    const belumLunasInvoices = activeMonthInvoices.filter((inv) => inv.status !== "LUNAS");
+
+    const omzetLunas = lunasInvoices.reduce((sum, inv) => sum + Number(inv.total ?? (inv as any).totalAmount ?? 0), 0);
+    const omzetBelumLunas = belumLunasInvoices.reduce((sum, inv) => sum + Number(inv.total ?? (inv as any).totalAmount ?? 0), 0);
+    const totalOmzet = omzetLunas + omzetBelumLunas;
+    const avgOmzet = activeMonthInvoices.length > 0 ? totalOmzet / activeMonthInvoices.length : 0;
+
+    const soldItemsMap: Record<string, { nama: string; qty: number; total: number }> = {};
+    activeMonthInvoices.forEach((inv) => {
+      (inv.items || []).forEach((item) => {
+        const key = item.nama_barang || (item as any).productName || "Produk";
+        const itemQty = Number(item.jumlah ?? (item as any).quantity ?? 0);
+        const itemPrice = Number(item.harga ?? (item as any).price ?? 0);
+        const itemSubtotal = Number(item.subtotal ?? (itemPrice * itemQty));
+        if (!soldItemsMap[key]) {
+          soldItemsMap[key] = { nama: key, qty: 0, total: 0 };
+        }
+        soldItemsMap[key].qty += itemQty;
+        soldItemsMap[key].total += itemSubtotal;
+      });
+    });
+
+    const soldItemsList = Object.values(soldItemsMap).sort((a, b) => b.qty - a.qty);
+
+    return {
+      invoices: activeMonthInvoices,
+      lunasInvoices,
+      belumLunasInvoices,
+      omzetLunas,
+      omzetBelumLunas,
+      totalOmzet,
+      avgOmzet,
+      soldItemsList,
+    };
+  }, [activeMonthInvoices]);
+
+  const [printingMonthlyReport, setPrintingMonthlyReport] = useState(false);
+
+  const handlePrintMonthlyProductsReport = useCallback(() => {
+    triggerHaptic(10);
+    const reportWindow = openReportWindow();
+    setPrintingMonthlyReport(true);
+    try {
+      const ok = printMonthlyProductsReport(
+        {
+          monthLabel: selectedMonthInfo.label,
+          items: monthlyDetails.soldItemsList,
+          totalQty: monthlyOverview.itemsSold,
+          totalRevenue: monthlyOverview.revenue,
+          totalInvoices: monthlyOverview.count,
+          printedBy: userProfile?.name || currentUser?.displayName || currentUser?.email || "Kasir",
+          roleLabel: getCleanRoleLabel(userProfile?.role, currentUser?.email),
+        },
+        reportWindow,
+      );
+
+      if (!ok) {
+        toast({ title: "Error", description: "Gagal membuka jendela cetak.", variant: "destructive" });
+      }
+    } catch {
+      if (reportWindow) {
+        writeReportError(reportWindow, "Gagal menyiapkan laporan produk terjual.");
+      }
+      toast({ title: "Error", description: "Gagal menyiapkan laporan produk terjual.", variant: "destructive" });
+    } finally {
+      setPrintingMonthlyReport(false);
+    }
+  }, [selectedMonthInfo.label, monthlyDetails.soldItemsList, monthlyOverview.itemsSold, monthlyOverview.revenue, monthlyOverview.count, userProfile, currentUser, toast]);
 
   const chartRevenueData = useMemo(() => {
     const now = new Date();
@@ -1242,8 +1460,8 @@ const Beranda = () => {
               </div>
             )}
 
-            {/* Ringkasan Cepat Hari Ini (Today's Quick Overview) */}
-            <div className="tanabrew-waterfall-3 grid grid-cols-3 lg:grid-cols-1 gap-2.5 order-4 lg:order-none">
+            {/* Ringkasan Cepat Hari Ini & Bulanan */}
+            <div className="tanabrew-waterfall-3 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-1 gap-2.5 order-4 lg:order-none">
               <div 
                 onClick={() => {
                   triggerHaptic(10);
@@ -1289,11 +1507,52 @@ const Beranda = () => {
                 <div className="flex items-center justify-between text-amber-700 dark:text-amber-400">
                   <div className="flex items-center gap-1.5">
                     <ShoppingBag size={14} />
-                    <span className="text-[10px] font-bold uppercase tracking-wider">Produk Terjual</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Terjual Hari Ini</span>
                   </div>
                   <ChevronRight size={14} className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
                 </div>
                 <p className="text-sm sm:text-base font-bold text-foreground">{todayOverview.itemsSold} Pcs</p>
+              </div>
+
+              {/* Card 4: Total Produk Terjual Bulanan (dengan pemilih bulan) */}
+              <div 
+                onClick={() => {
+                  triggerHaptic(10);
+                  setOverviewModal("terjual_bulan");
+                }}
+                className="rounded-2xl border border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/10 p-3.5 space-y-1 shadow-sm cursor-pointer active:scale-95 transition-all select-none group"
+              >
+                <div className="flex items-center justify-between text-purple-700 dark:text-purple-400">
+                  <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                    <Package size={14} className="shrink-0" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider truncate">Terjual Bulanan</span>
+                  </div>
+                  <ChevronRight size={14} className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all shrink-0" />
+                </div>
+                <p className="text-sm sm:text-base font-bold text-foreground truncate">
+                  {loadingMonthInvoices ? "..." : `${fmt(monthlyOverview.itemsSold)} Pcs`}
+                </p>
+                <div className="flex items-center justify-between gap-1 pt-0.5" onClick={(e) => e.stopPropagation()}>
+                  <select
+                    value={selectedMonthKey}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      triggerHaptic(10);
+                      setSelectedMonthKey(e.target.value);
+                    }}
+                    className="text-[10px] font-semibold bg-purple-500/10 hover:bg-purple-500/20 text-purple-800 dark:text-purple-300 rounded-lg px-1.5 py-0.5 border border-purple-500/20 cursor-pointer focus:outline-none focus:ring-1 focus:ring-purple-500/40 max-w-[105px] sm:max-w-none truncate"
+                    title="Pilih Bulan"
+                  >
+                    {availableMonths.map((m) => (
+                      <option key={m.key} value={m.key} className="bg-card text-foreground">
+                        {m.label} {m.isCurrent ? "(Bulan Ini)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-[9px] text-muted-foreground font-medium shrink-0">
+                    {monthlyOverview.count} Trx
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -1510,6 +1769,7 @@ const Beranda = () => {
                   {overviewModal === "omzet" && <><DollarSign size={18} /> Rincian Omzet Hari Ini</>}
                   {overviewModal === "transaksi" && <><TrendingUp size={18} /> Daftar Transaksi Hari Ini</>}
                   {overviewModal === "terjual" && <><ShoppingBag size={18} /> Produk Terjual Hari Ini</>}
+                  {overviewModal === "terjual_bulan" && <><Package size={18} /> Produk Terjual Bulanan</>}
                 </h3>
                 <button onClick={() => setOverviewModal(null)} className="p-1 rounded-full hover:bg-muted" aria-label="Tutup">
                   <X size={20} />
@@ -1651,6 +1911,107 @@ const Beranda = () => {
                     <span>Cek Mutasi Stok di Riwayat</span>
                     <ArrowRight size={13} />
                   </button>
+                </div>
+              )}
+
+              {/* Konten Terjual Bulanan */}
+              {overviewModal === "terjual_bulan" && (
+                <div className="space-y-4">
+                  {/* Selector Bulan di dalam modal */}
+                  <div className="flex items-center justify-between bg-muted/40 p-2.5 rounded-xl border border-border">
+                    <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                      <Calendar size={14} className="text-primary" />
+                      Periode Bulan:
+                    </span>
+                    <select
+                      value={selectedMonthKey}
+                      onChange={(e) => {
+                        triggerHaptic(10);
+                        setSelectedMonthKey(e.target.value);
+                      }}
+                      className="text-xs font-bold bg-background text-foreground rounded-lg px-2.5 py-1.5 border border-border shadow-xs focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
+                    >
+                      {availableMonths.map((m) => (
+                        <option key={m.key} value={m.key}>
+                          {m.label} {m.isCurrent ? "(Bulan Ini)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Ringkasan Header Modal */}
+                  <div className="rounded-2xl border border-purple-500/20 bg-purple-500/10 p-4 text-center">
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+                      Total Produk Terjual ({selectedMonthInfo.label})
+                    </p>
+                    <p className="text-2xl font-black text-purple-700 dark:text-purple-400 mt-1">
+                      {loadingMonthInvoices ? "Memuat..." : `${fmt(monthlyOverview.itemsSold)} Pcs`}
+                    </p>
+                    <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground mt-2 font-medium">
+                      <span>{monthlyOverview.count} Transaksi</span>
+                      <span>•</span>
+                      <span>Omzet: Rp {fmt(monthlyOverview.revenue)}</span>
+                    </div>
+                  </div>
+
+                  {/* Daftar Item Terjual */}
+                  {loadingMonthInvoices ? (
+                    <div className="space-y-2 py-4">
+                      <Skeleton className="h-14 w-full rounded-xl" />
+                      <Skeleton className="h-14 w-full rounded-xl" />
+                    </div>
+                  ) : monthlyDetails.soldItemsList.length === 0 ? (
+                    <div className="text-center py-8 bg-muted/20 rounded-2xl border border-border">
+                      <Package size={28} className="mx-auto text-muted-foreground/50 mb-2" />
+                      <p className="text-sm font-semibold text-foreground">Belum ada barang terjual</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Tidak ada transaksi produk pada {selectedMonthInfo.label}.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-[42vh] overflow-y-auto pr-1">
+                      <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground px-1">
+                        <span>Nama Produk ({monthlyDetails.soldItemsList.length} jenis)</span>
+                        <span>Kuantitas Terjual</span>
+                      </div>
+                      {monthlyDetails.soldItemsList.map((item, idx) => (
+                        <div key={`${item.nama}-${idx}`} className="flex justify-between items-center p-3 rounded-xl border border-border bg-card hover:bg-muted/30 transition-colors text-xs shadow-xs">
+                          <div className="min-w-0 flex-1 pr-3">
+                            <p className="font-bold text-foreground truncate">{item.nama}</p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">Total: Rp {fmt(item.total)}</p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <span className="inline-block font-bold text-purple-700 dark:text-purple-300 bg-purple-500/10 border border-purple-500/20 px-2.5 py-1 rounded-lg">
+                              {fmt(item.qty)} pcs
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <button
+                      type="button"
+                      disabled={printingMonthlyReport || monthlyDetails.soldItemsList.length === 0}
+                      onClick={handlePrintMonthlyProductsReport}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white py-2.5 px-3 text-xs font-bold shadow-md shadow-purple-600/20 active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Printer size={14} />
+                      <span>{printingMonthlyReport ? "Menyiapkan..." : "Cetak Rekap (PDF)"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOverviewModal(null);
+                        navigate("/riwayat?tab=invoice", { state: { tab: "invoice" } });
+                      }}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-border bg-muted/80 hover:bg-muted text-foreground py-2.5 px-3 text-xs font-bold transition-all active:scale-95 cursor-pointer"
+                    >
+                      <span>Buka Riwayat</span>
+                      <ArrowRight size={13} />
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

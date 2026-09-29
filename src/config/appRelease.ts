@@ -15,22 +15,37 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.4.9",
-  versionLabel: "v3.4.9",
-  releaseDate: "10 September 2026",
-  title: "Standardisasi Urutan Laporan Akuntansi Kronologis (10 September 2026)",
-  subtitle: "Penetapan Default Terlama ke Terbaru (1 → N) untuk Integritas Rekapitulasi Tahunan/Bulanan dan Rekening Koran",
+  version: "3.5.0",
+  versionLabel: "v3.5.0",
+  releaseDate: "30 September 2026",
+  title: "Fitur Total Produk Terjual Bulanan & Pemilih Periode di Beranda (30 September 2026)",
+  subtitle: "Monitoring Kuantitas Produk Terjual Per Bulan dengan Selector Periode Interaktif dan Rincian Item",
   highlights: [
     {
-      title: "Default Laporan Invoice: Terlama ke Terbaru (Kronologis)",
-      desc: "Menetapkan urutan bawaan laporan invoice PDF & ekspor CSV sesuai standar akuntansi internasional (1 → N, INV 0001 → 0050) agar rekapitulasi data bulanan/tahunan tersusun rapi dari awal periode hingga total akhir. Kasir tetap dapat beralih ke opsi Terbaru ke Terlama secara instan melalui dropdown.",
-      badge: "Peningkatan",
-      badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      title: "Total Produk Terjual Bulanan & Pemilih Periode di Beranda",
+      desc: "Menambahkan kartu metrik baru di samping ringkasan penjualan hari ini untuk memantau total produk terjual (pcs) dalam satu bulan. Default pada bulan berjalan dan dapat dipilih bulan apa saja secara fleksibel, lengkap dengan pop-up modal rincian jenis barang yang terjual serta tombol Cetak Rekap Laporan resmi (PDF / Print).",
+      badge: "Fitur",
+      badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
     },
   ],
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.4.9",
+    versionLabel: "v3.4.9",
+    releaseDate: "10 September 2026",
+    title: "Standardisasi Urutan Laporan Akuntansi Kronologis (10 September 2026)",
+    subtitle: "Penetapan Default Terlama ke Terbaru (1 → N) untuk Integritas Rekapitulasi Tahunan/Bulanan dan Rekening Koran",
+    highlights: [
+      {
+        title: "Default Laporan Invoice: Terlama ke Terbaru (Kronologis)",
+        desc: "Menetapkan urutan bawaan laporan invoice PDF & ekspor CSV sesuai standar akuntansi internasional (1 → N, INV 0001 → 0050) agar rekapitulasi data bulanan/tahunan tersusun rapi dari awal periode hingga total akhir. Kasir tetap dapat beralih ke opsi Terbaru ke Terlama secara instan melalui dropdown.",
+        badge: "Peningkatan",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+    ],
+  },
   {
     version: "3.4.8",
     versionLabel: "v3.4.8",

@@ -11,6 +11,7 @@ import {
   getDateRange,
   matchesDateFilter,
   sortInvoicesForReport,
+  formatMonthYear,
 } from "./dateUtils";
 import type { Invoice } from "@/types";
 
@@ -239,6 +240,13 @@ describe("dateUtils", () => {
       "INV/TNB/2026/09/0005",
       "INV/TNB/2026/09/0010",
     ]);
+  });
+
+  it("should format month and year in Indonesian correctly", () => {
+    const d = new Date(2026, 8, 30); // September 2026
+    const formatted = formatMonthYear(d);
+    expect(formatted.toLowerCase()).toContain("september");
+    expect(formatted).toContain("2026");
   });
 });
 

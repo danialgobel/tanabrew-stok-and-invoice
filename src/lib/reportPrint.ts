@@ -33,6 +33,14 @@ interface PrintCombinedReportInput extends ReportMeta {
   sortDirection?: "asc" | "desc";
 }
 
+export interface PrintMonthlyProductsReportInput extends ReportMeta {
+  monthLabel: string;
+  items: Array<{ nama: string; qty: number; total: number }>;
+  totalQty: number;
+  totalRevenue: number;
+  totalInvoices: number;
+}
+
 type ReportWindow = Window | null;
 
 const logoUrl = "https://i.ibb.co.com/Q7dCXq9q/logo-tanabrew-hijau.png";
@@ -487,4 +495,61 @@ export const printTanabrewReport = ({
   `;
 
   return openPrintWindow("Laporan Tanabrew", bodyHtml, reportWindow);
+};
+
+const monthlyProductsTableHtml = (items: Array<{ nama: string; qty: number; total: number }>) => {
+  if (items.length === 0) return `<div class="empty">Tidak ada produk terjual pada periode ini.</div>`;
+
+  const rows = items
+    .map((item, index) => `
+      <tr>
+        <td class="center" style="width: 45px;">${index + 1}</td>
+        <td><strong>${escapeHtml(item.nama || "-")}</strong></td>
+        <td class="right" style="width: 140px;"><strong>${item.qty} pcs</strong></td>
+        <td class="right" style="width: 160px;">${escapeHtml(formatCurrency(item.total))}</td>
+      </tr>
+    `)
+    .join("");
+
+  return `
+    <table>
+      <thead>
+        <tr>
+          <th class="center" style="width: 45px;">No</th>
+          <th>Nama Produk</th>
+          <th class="right" style="width: 140px;">Kuantitas Terjual</th>
+          <th class="right" style="width: 160px;">Total Nilai Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+};
+
+export const printMonthlyProductsReport = ({
+  monthLabel,
+  items,
+  totalQty,
+  totalRevenue,
+  totalInvoices,
+  printedBy,
+  roleLabel,
+}: PrintMonthlyProductsReportInput, reportWindow?: ReportWindow) => {
+  const bodyHtml = `
+    ${headerHtml(`LAPORAN PRODUK TERJUAL — ${monthLabel.toUpperCase()}`, {
+      periodLabel: monthLabel,
+      filterLabel: `Rekapitulasi Kuantitas Penjualan Barang (${monthLabel})`,
+      printedBy,
+      roleLabel,
+    })}
+    <div class="summary">
+      <div class="summary-card"><span>Total Kuantitas Terjual</span><b>${totalQty} pcs</b></div>
+      <div class="summary-card"><span>Total Nilai Penjualan</span><b>${escapeHtml(formatCurrency(totalRevenue))}</b></div>
+      <div class="summary-card"><span>Total Transaksi Faktur</span><b>${totalInvoices} Invoice</b></div>
+    </div>
+    <h2>Rincian Kuantitas Penjualan per Produk</h2>
+    ${monthlyProductsTableHtml(items)}
+  `;
+
+  return openPrintWindow(`Laporan Produk Terjual ${monthLabel}`, bodyHtml, reportWindow);
 };
