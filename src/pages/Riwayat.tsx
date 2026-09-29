@@ -623,6 +623,7 @@ const Riwayat = () => {
         "No Invoice",
         "Tanggal",
         "Customer",
+        "Detail Produk",
         "Subtotal",
         "Diskon",
         "Total",
@@ -632,19 +633,25 @@ const Riwayat = () => {
         "Status Cetak",
         "Dibuat Oleh",
       ];
-      const rows = reportData.map((inv) => [
-        inv.no_invoice || "-",
-        formatInvoiceDate(inv),
-        inv.customer || "-",
-        inv.subtotal || 0,
-        inv.diskon || 0,
-        inv.total || 0,
-        inv.jumlah_dibayar || 0,
-        inv.sisa || 0,
-        inv.status || "-",
-        inv.is_printed ? "Sudah Dicetak" : "Belum Dicetak",
-        inv.dibuat_oleh || "-",
-      ]);
+      const rows = reportData.map((inv) => {
+        const productDetails = (inv.items || [])
+          .map((it: any) => `${it.jumlah || it.quantity || 1}x ${it.nama_barang || it.productName || "Produk"}`)
+          .join("; ") || "-";
+        return [
+          inv.no_invoice || "-",
+          formatInvoiceDate(inv),
+          inv.customer || "-",
+          productDetails,
+          inv.subtotal || 0,
+          inv.diskon || 0,
+          inv.total || 0,
+          inv.jumlah_dibayar || 0,
+          inv.sisa || 0,
+          inv.status || "-",
+          inv.is_printed ? "Sudah Dicetak" : "Belum Dicetak",
+          inv.dibuat_oleh || "-",
+        ];
+      });
 
       downloadCsv(filename, headers, rows);
       toast({ title: "Berhasil", description: `Laporan invoice berhasil di-export (${reportData.length} data)` });

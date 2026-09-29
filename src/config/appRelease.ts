@@ -15,22 +15,37 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.5.0",
-  versionLabel: "v3.5.0",
+  version: "3.5.1",
+  versionLabel: "v3.5.1",
   releaseDate: "30 September 2026",
-  title: "Fitur Total Produk Terjual Bulanan & Pemilih Periode di Beranda (30 September 2026)",
-  subtitle: "Monitoring Kuantitas Produk Terjual Per Bulan dengan Selector Periode Interaktif dan Rincian Item",
+  title: "Kolom Detail Produk pada Cetak Laporan Invoice Riwayat (30 September 2026)",
+  subtitle: "Transparansi Rincian Produk, Kuantitas Pcs, dan Harga Satuan pada Dokumen Rekapitulasi Invoice & Ekspor CSV",
   highlights: [
     {
-      title: "Total Produk Terjual Bulanan & Pemilih Periode di Beranda",
-      desc: "Menambahkan kartu metrik baru di samping ringkasan penjualan hari ini untuk memantau total produk terjual (pcs) dalam satu bulan. Default pada bulan berjalan dan dapat dipilih bulan apa saja secara fleksibel, lengkap dengan pop-up modal rincian jenis barang yang terjual serta tombol Cetak Rekap Laporan resmi (PDF / Print).",
+      title: "Detail Produk pada Cetak Laporan Invoice & CSV Riwayat",
+      desc: "Menambahkan kolom 'Detail Produk' pada cetak PDF laporan invoice dan ekspor CSV di menu Riwayat. Setiap baris faktur kini menampilkan rincian barang yang dipesan (kuantitas item, nama produk, harga satuan) serta badge total pcs per pesanan secara rapi dan komprehensif.",
       badge: "Fitur",
-      badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
+      badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
   ],
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.5.0",
+    versionLabel: "v3.5.0",
+    releaseDate: "30 September 2026",
+    title: "Fitur Total Produk Terjual Bulanan & Pemilih Periode di Beranda (30 September 2026)",
+    subtitle: "Monitoring Kuantitas Produk Terjual Per Bulan dengan Selector Periode Interaktif dan Rincian Item",
+    highlights: [
+      {
+        title: "Total Produk Terjual Bulanan & Pemilih Periode di Beranda",
+        desc: "Menambahkan kartu metrik baru di samping ringkasan penjualan hari ini untuk memantau total produk terjual (pcs) dalam satu bulan. Default pada bulan berjalan dan dapat dipilih bulan apa saja secara fleksibel, lengkap dengan pop-up modal rincian jenis barang yang terjual serta tombol Cetak Rekap Laporan resmi (PDF / Print).",
+        badge: "Fitur",
+        badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
+      },
+    ],
+  },
   {
     version: "3.4.9",
     versionLabel: "v3.4.9",

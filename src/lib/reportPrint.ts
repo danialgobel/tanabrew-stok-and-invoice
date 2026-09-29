@@ -241,6 +241,26 @@ const headerHtml = (title: string, meta: ReportMeta) => `
   </div>
 `;
 
+const formatInvoiceItemsCell = (invoice: Invoice) => {
+  const items = invoice.items || [];
+  if (items.length === 0) return `<span style="color:#888;">-</span>`;
+
+  const totalPcs = items.reduce((sum, it) => sum + Number(it.jumlah ?? (it as any).quantity ?? 0), 0);
+  const listHtml = items
+    .map((it) => {
+      const name = escapeHtml(it.nama_barang || (it as any).productName || "Produk");
+      const qty = Number(it.jumlah ?? (it as any).quantity ?? 0);
+      const price = Number(it.harga ?? (it as any).price ?? 0);
+      const priceStr = price > 0 ? ` <span style="color:#555;font-size:10px;">(@ ${escapeHtml(formatCurrency(price))})</span>` : "";
+      return `<div style="margin-bottom:2px;line-height:1.35;">• <strong>${qty}x</strong> ${name}${priceStr}</div>`;
+    })
+    .join("");
+
+  const totalPcsBadge = totalPcs > 0 ? `<div style="margin-top:3px;font-size:10px;font-weight:700;color:#2e7d32;">Total: ${totalPcs} pcs</div>` : "";
+
+  return `<div style="font-size:11px;min-width:180px;">${listHtml}${totalPcsBadge}</div>`;
+};
+
 const invoiceTableHtml = (invoices: Invoice[], sortDirection: "asc" | "desc" = "asc") => {
   if (invoices.length === 0) return `<div class="empty">Tidak ada invoice sesuai filter laporan.</div>`;
 
@@ -253,6 +273,7 @@ const invoiceTableHtml = (invoices: Invoice[], sortDirection: "asc" | "desc" = "
           <td>${escapeHtml(invoice.no_invoice || "-")}</td>
           <td>${escapeHtml(formatInvoiceDate(invoice))}</td>
           <td>${escapeHtml(invoice.customer || "-")}</td>
+          <td>${formatInvoiceItemsCell(invoice)}</td>
           <td class="right">${escapeHtml(formatCurrency(invoice.total))}</td>
           <td class="right">${escapeHtml(formatCurrency(invoice.jumlah_dibayar))}</td>
           <td class="right">${escapeHtml(formatCurrency(invoice.sisa))}</td>
@@ -270,6 +291,7 @@ const invoiceTableHtml = (invoices: Invoice[], sortDirection: "asc" | "desc" = "
           <th>No Invoice</th>
           <th>Tanggal</th>
           <th>Customer</th>
+          <th>Detail Produk</th>
           <th class="right">Total</th>
           <th class="right">Dibayar</th>
           <th class="right">Sisa</th>
