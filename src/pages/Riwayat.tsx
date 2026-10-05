@@ -16,7 +16,7 @@ import {
   type DocumentData,
   type QueryDocumentSnapshot,
 } from "firebase/firestore";
-import { Activity, Download, Edit, Eye, FileText, Package, Printer, RotateCcw, Search, Trash2, X, Smartphone, Receipt, Share2, Copy, ExternalLink } from "lucide-react";
+import { Activity, Download, Edit, Eye, FileText, Package, Printer, RotateCcw, Search, Trash2, X, Smartphone, Receipt, Share2, Copy, ExternalLink, Coffee } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { addActivityLog } from "@/lib/activityLog";
 import { triggerHaptic } from "@/lib/haptics";
@@ -34,6 +34,11 @@ import { deleteInvoiceWithStock } from "@/lib/invoiceNumber";
 import { downloadCsv, monthFileStamp } from "@/lib/csvExport";
 import { generateInvoicePdfBlob } from "@/lib/invoicePdfGenerator";
 import { sendInvoiceToWhatsApp } from "@/lib/whatsappClient";
+import {
+  type ProductDivision,
+  filterInvoicesByDivision,
+  filterProductsByDivision,
+} from "@/lib/productDivision";
 import type { ActivityLog, Invoice, InvoiceItem, StockMovement } from "@/types";
 import {
   type DateFilter,
@@ -376,6 +381,7 @@ const Riwayat = () => {
   const [reportPeriod, setReportPeriod] = useState<DateFilter>("bulan_ini");
   const [reportStartDate, setReportStartDate] = useState(todayInputValue());
   const [reportEndDate, setReportEndDate] = useState(todayInputValue());
+  const [reportDivision, setReportDivision] = useState<"Semua" | ProductDivision>("Semua");
   const [reportSortDirection, setReportSortDirection] = useState<"asc" | "desc">("asc");
   const [loadingReport, setLoadingReport] = useState<ReportType | null>(null);
   const [sendingWaInvoiceId, setSendingWaInvoiceId] = useState<string | null>(null);
@@ -505,14 +511,18 @@ const Riwayat = () => {
     });
   }, [dateFilter, endDate, invoices, payStatusFilter, printStatusFilter, searchTerm, startDate]);
 
-  const reportInvoices = useMemo(
-    () => invoices.filter((invoice) => matchesDateFilter(invoice, reportPeriod, reportStartDate, reportEndDate)),
-    [invoices, reportEndDate, reportPeriod, reportStartDate],
-  );
+  const reportInvoices = useMemo(() => {
+    let filtered = invoices.filter((invoice) => matchesDateFilter(invoice, reportPeriod, reportStartDate, reportEndDate));
+    if (reportDivision !== "Semua") {
+      filtered = filterInvoicesByDivision(filtered, reportDivision);
+    }
+    return filtered;
+  }, [invoices, reportDivision, reportEndDate, reportPeriod, reportStartDate]);
 
   const reportSummary = useMemo(() => {
-    const stokHabis = products.filter((product) => (product.total_stok || 0) === 0).length;
-    const stokMenipis = products.filter((product) => (product.total_stok || 0) > 0 && (product.total_stok || 0) <= 3).length;
+    const relevantProducts = reportDivision === "Semua" ? products : filterProductsByDivision(products, reportDivision);
+    const stokHabis = relevantProducts.filter((product) => (product.total_stok || 0) === 0).length;
+    const stokMenipis = relevantProducts.filter((product) => (product.total_stok || 0) > 0 && (product.total_stok || 0) <= 3).length;
 
     return {
       totalInvoice: reportInvoices.length,
@@ -521,7 +531,7 @@ const Riwayat = () => {
       stokHabis,
       stokMenipis,
     };
-  }, [products, reportInvoices]);
+  }, [products, reportDivision, reportInvoices]);
 
   const navigate = useNavigate();
 
@@ -541,6 +551,7 @@ const Riwayat = () => {
 
   const getInvoiceFilterLabel = () => {
     const labels = [
+      reportDivision !== "Semua" ? `Divisi: ${reportDivision}` : "",
       searchTerm.trim() ? `Pencarian: ${searchTerm.trim()}` : "",
       payStatusFilter !== "semua" ? `Status bayar: ${payStatusFilter}` : "",
       printStatusFilter !== "semua" ? `Status cetak: ${printStatusFilter === "sudah" ? "Sudah Dicetak" : "Belum Dicetak"}` : "",
@@ -559,7 +570,7 @@ const Riwayat = () => {
   const getFilteredInvoiceReportData = (sourceInvoices: Invoice[]) => {
     const keyword = searchTerm.trim().toLowerCase();
 
-    return sourceInvoices.filter((invoice) => {
+    let filtered = sourceInvoices.filter((invoice) => {
       const matchesSearch = !keyword
         || (invoice.no_invoice || "").toLowerCase().includes(keyword)
         || (invoice.customer || "").toLowerCase().includes(keyword);
@@ -572,6 +583,12 @@ const Riwayat = () => {
 
       return matchesSearch && matchesPayStatus && matchesPrintStatus && matchesDate;
     });
+
+    if (reportDivision !== "Semua") {
+      filtered = filterInvoicesByDivision(filtered, reportDivision);
+    }
+
+    return filtered;
   };
 
   const getCombinedReportData = (sourceInvoices: Invoice[]) => {
@@ -597,6 +614,7 @@ const Riwayat = () => {
         filterLabel: getInvoiceFilterLabel(),
         printedBy: userProfile?.name || currentUser?.email || "-",
         roleLabel: formatRole(userProfile?.role),
+        division: reportDivision,
         sortDirection: reportSortDirection,
       }, reportWindow);
 
@@ -618,7 +636,8 @@ const Riwayat = () => {
     try {
       const allInvoices = await fetchAllInvoicesForReport();
       const reportData = sortInvoicesForReport(getFilteredInvoiceReportData(allInvoices), reportSortDirection);
-      const filename = `Laporan-Invoice-${reportPeriod}-${monthFileStamp()}.csv`;
+      const divisionStamp = reportDivision !== "Semua" ? `-${reportDivision}` : "";
+      const filename = `Laporan-Invoice${divisionStamp}-${reportPeriod}-${monthFileStamp()}.csv`;
       const headers = [
         "No Invoice",
         "Tanggal",
@@ -668,11 +687,17 @@ const Riwayat = () => {
     setLoadingReport("stok");
 
     try {
+      const targetProducts = reportDivision === "Semua"
+        ? products
+        : filterProductsByDivision(products, reportDivision);
+      const filterLabel = reportDivision === "Semua" ? "Semua stok" : `Khusus Divisi ${reportDivision}`;
+
       const ok = printStockReport({
-        products,
-        filterLabel: "Semua stok",
+        products: targetProducts,
+        filterLabel,
         printedBy: userProfile?.name || currentUser?.email || "-",
         roleLabel: formatRole(userProfile?.role),
+        division: reportDivision,
       }, reportWindow);
 
       if (!ok) {
@@ -690,10 +715,16 @@ const Riwayat = () => {
 
   const handleExportStockCsv = () => {
     try {
-      const filename = `Laporan-Stok-${monthFileStamp()}.csv`;
-      const headers = ["Nama Barang", "Stok Jogja", "Stok Lombok", "Total Stok", "Harga", "Status Stok"];
-      const rows = products.map((p) => [
+      const targetProducts = reportDivision === "Semua"
+        ? products
+        : filterProductsByDivision(products, reportDivision);
+      const divisionStamp = reportDivision !== "Semua" ? `-${reportDivision}` : "";
+      const filename = `Laporan-Stok${divisionStamp}-${monthFileStamp()}.csv`;
+      const headers = ["Nama Barang", "Kategori", "Divisi", "Stok Jogja", "Stok Lombok", "Total Stok", "Harga", "Status Stok"];
+      const rows = targetProducts.map((p) => [
         p.nama_barang || "-",
+        p.kategori || "-",
+        p.divisi || "-",
         p.stok_jogja || 0,
         p.stok_lombok || 0,
         p.total_stok || 0,
@@ -701,7 +732,7 @@ const Riwayat = () => {
         getStockStatus(p.total_stok),
       ]);
       downloadCsv(filename, headers, rows);
-      toast({ title: "Berhasil", description: `Laporan stok berhasil di-export (${products.length} produk)` });
+      toast({ title: "Berhasil", description: `Laporan stok berhasil di-export (${targetProducts.length} produk)` });
     } catch {
       toast({ title: "Error", description: "Gagal mengeksport CSV laporan stok.", variant: "destructive" });
     }
@@ -1407,6 +1438,53 @@ const Riwayat = () => {
                     </div>
                   </div>
                 )}
+                {/* Selector Divisi Unit untuk Cetak Laporan */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground flex items-center justify-between">
+                    <span>Divisi Laporan</span>
+                    <span className="text-[10px] font-semibold text-primary">
+                      {reportDivision === "Semua" ? "Semua Divisi" : `Khusus ${reportDivision}`}
+                    </span>
+                  </label>
+                  <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-muted/60 border border-border/80">
+                    <button
+                      type="button"
+                      onClick={() => setReportDivision("Semua")}
+                      className={`inline-flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
+                        reportDivision === "Semua"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Semua
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReportDivision("Roastery")}
+                      className={`inline-flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
+                        reportDivision === "Roastery"
+                          ? "bg-amber-600 text-white shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <Coffee size={13} />
+                      Roastery
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReportDivision("Warehouse")}
+                      className={`inline-flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
+                        reportDivision === "Warehouse"
+                          ? "bg-blue-600 text-white shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <Package size={13} />
+                      Warehouse
+                    </button>
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground flex items-center justify-between">
                     <span>Urutan Invoice di Laporan</span>
@@ -1431,7 +1509,7 @@ const Riwayat = () => {
                       className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2.5 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
                     >
                       <Printer size={15} />
-                      {loadingReport === "invoice" ? "Menyiapkan..." : "Cetak Invoice"}
+                      {loadingReport === "invoice" ? "Menyiapkan..." : reportDivision === "Semua" ? "Cetak Invoice" : `Cetak Inv (${reportDivision})`}
                     </button>
                     <button
                       onClick={handleExportInvoiceCsv}
@@ -1439,7 +1517,7 @@ const Riwayat = () => {
                       className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2.5 text-xs font-semibold text-primary hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
                     >
                       <Download size={15} />
-                      Export CSV Invoice
+                      {reportDivision === "Semua" ? "Export CSV Invoice" : `CSV Inv (${reportDivision})`}
                     </button>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
@@ -1449,7 +1527,7 @@ const Riwayat = () => {
                       className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2.5 text-xs font-semibold text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-70"
                     >
                       <Printer size={15} />
-                      {loadingReport === "stok" ? "Menyiapkan..." : "Cetak Stok"}
+                      {loadingReport === "stok" ? "Menyiapkan..." : reportDivision === "Semua" ? "Cetak Stok" : `Cetak Stok (${reportDivision})`}
                     </button>
                     <button
                       onClick={handleExportStockCsv}
@@ -1457,16 +1535,16 @@ const Riwayat = () => {
                       className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-70"
                     >
                       <Download size={15} />
-                      Export CSV Stok
+                      {reportDivision === "Semua" ? "Export CSV Stok" : `CSV Stok (${reportDivision})`}
                     </button>
                   </div>
                   <button
                     onClick={handlePrintCombinedReport}
                     disabled={loadingReport !== null}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-700 px-3 py-2.5 text-xs font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-700 px-3 py-2.5 text-xs font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70 shadow-sm"
                   >
                     <Printer size={15} />
-                    {loadingReport === "gabungan" ? "Menyiapkan Laporan..." : "Cetak Laporan Gabungan"}
+                    {loadingReport === "gabungan" ? "Menyiapkan Laporan..." : "Cetak Laporan Gabungan (Semua Divisi)"}
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs pt-1">

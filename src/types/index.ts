@@ -1,7 +1,10 @@
+export type ProductDivision = "Roastery" | "Warehouse";
+
 export interface Product {
   id?: string;
   nama_barang: string;
   kategori?: string;
+  divisi?: ProductDivision;
   stok_jogja: number;
   stok_lombok: number;
   total_stok: number;

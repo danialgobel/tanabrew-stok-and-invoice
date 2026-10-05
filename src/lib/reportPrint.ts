@@ -15,6 +15,7 @@ interface ReportMeta {
   roleLabel: string;
   periodLabel?: string;
   filterLabel?: string;
+  division?: "Semua" | "Roastery" | "Warehouse";
 }
 
 interface PrintInvoiceReportInput extends ReportMeta {
@@ -229,6 +230,7 @@ const headerHtml = (title: string, meta: ReportMeta) => `
       <img src="${logoUrl}" alt="Tanabrew" />
       <div>
         <h1>${escapeHtml(title)}</h1>
+        ${meta.division && meta.division !== "Semua" ? `<div class="submeta" style="font-weight:700;color:#2e7d32;">Divisi: ${escapeHtml(meta.division)}</div>` : ""}
         ${meta.periodLabel ? `<div class="submeta">Periode: ${escapeHtml(meta.periodLabel)}</div>` : ""}
         ${meta.filterLabel ? `<div class="submeta">Filter: ${escapeHtml(meta.filterLabel)}</div>` : ""}
       </div>
@@ -312,7 +314,10 @@ const stockTableHtml = (products: Product[]) => {
       const status = getStockStatus(product);
       return `
         <tr>
-          <td>${escapeHtml(product.nama_barang || "-")}</td>
+          <td>
+            <strong>${escapeHtml(product.nama_barang || "-")}</strong>
+            ${product.kategori || product.divisi ? `<div style="font-size:10px;color:#666;margin-top:2px;">${escapeHtml(product.kategori || "-")}${product.divisi ? ` (${escapeHtml(product.divisi)})` : ""}</div>` : ""}
+          </td>
           <td class="center">${escapeHtml(product.stok_jogja)}</td>
           <td class="center">${escapeHtml(product.stok_lombok)}</td>
           <td class="center">${escapeHtml(product.total_stok)}</td>
@@ -442,10 +447,13 @@ const openPrintWindow = (title: string, bodyHtml: string, reportWindow?: ReportW
   return true;
 };
 
-export const printInvoiceReport = ({ invoices, periodLabel, filterLabel, printedBy, roleLabel, sortDirection = "asc" }: PrintInvoiceReportInput, reportWindow?: ReportWindow) => {
+export const printInvoiceReport = ({ invoices, periodLabel, filterLabel, printedBy, roleLabel, division, sortDirection = "asc" }: PrintInvoiceReportInput, reportWindow?: ReportWindow) => {
   const summary = invoiceSummary(invoices);
+  const title = division && division !== "Semua"
+    ? `LAPORAN INVOICE — DIVISI ${division.toUpperCase()}`
+    : "LAPORAN INVOICE TANABREW";
   const bodyHtml = `
-    ${headerHtml("LAPORAN INVOICE TANABREW", { periodLabel, filterLabel, printedBy, roleLabel })}
+    ${headerHtml(title, { periodLabel, filterLabel, printedBy, roleLabel, division })}
     <div class="summary">
       <div class="summary-card"><span>Total Invoice</span><b>${summary.totalInvoice}</b></div>
       <div class="summary-card"><span>Total Pemasukan</span><b>${escapeHtml(formatCurrency(summary.totalPemasukan))}</b></div>
@@ -454,17 +462,20 @@ export const printInvoiceReport = ({ invoices, periodLabel, filterLabel, printed
       <div class="summary-card"><span>Invoice Sudah Dicetak</span><b>${summary.invoiceSudahDicetak}</b></div>
       <div class="summary-card red"><span>Invoice Belum Dicetak</span><b>${summary.invoiceBelumDicetak}</b></div>
     </div>
-    <h2>Tabel Invoice</h2>
+    <h2>Tabel Invoice ${division && division !== "Semua" ? `(${division})` : ""}</h2>
     ${invoiceTableHtml(invoices, sortDirection)}
   `;
 
-  return openPrintWindow("Laporan Invoice Tanabrew", bodyHtml, reportWindow);
+  return openPrintWindow(title, bodyHtml, reportWindow);
 };
 
-export const printStockReport = ({ products, filterLabel, printedBy, roleLabel }: PrintStockReportInput, reportWindow?: ReportWindow) => {
+export const printStockReport = ({ products, filterLabel, printedBy, roleLabel, division }: PrintStockReportInput, reportWindow?: ReportWindow) => {
   const summary = stockSummary(products);
+  const title = division && division !== "Semua"
+    ? `LAPORAN STOK — DIVISI ${division.toUpperCase()}`
+    : "LAPORAN STOK TANABREW";
   const bodyHtml = `
-    ${headerHtml("LAPORAN STOK TANABREW", { filterLabel, printedBy, roleLabel })}
+    ${headerHtml(title, { filterLabel, printedBy, roleLabel, division })}
     <div class="summary">
       <div class="summary-card"><span>Total Produk</span><b>${summary.totalProduk}</b></div>
       <div class="summary-card"><span>Total Stok</span><b>${summary.totalStok}</b></div>
@@ -472,11 +483,11 @@ export const printStockReport = ({ products, filterLabel, printedBy, roleLabel }
       <div class="summary-card orange"><span>Stok Menipis</span><b>${summary.stokMenipis}</b></div>
       <div class="summary-card red"><span>Stok Habis</span><b>${summary.stokHabis}</b></div>
     </div>
-    <h2>Tabel Stok</h2>
+    <h2>Tabel Stok ${division && division !== "Semua" ? `(${division})` : ""}</h2>
     ${stockTableHtml(products)}
   `;
 
-  return openPrintWindow("Laporan Stok Tanabrew", bodyHtml, reportWindow);
+  return openPrintWindow(title, bodyHtml, reportWindow);
 };
 
 export const printTanabrewReport = ({
@@ -486,6 +497,7 @@ export const printTanabrewReport = ({
   printedBy,
   roleLabel,
   summary,
+  division,
   sortDirection = "asc",
 }: PrintCombinedReportInput, reportWindow?: ReportWindow) => {
   const stockInfo = stockSummary(products);
@@ -501,8 +513,11 @@ export const printTanabrewReport = ({
     const total = product.total_stok || 0;
     return total === 0 || (total > 0 && total <= 3);
   });
+  const title = division && division !== "Semua"
+    ? `LAPORAN GABUNGAN — DIVISI ${division.toUpperCase()}`
+    : "LAPORAN GABUNGAN TANABREW";
   const bodyHtml = `
-    ${headerHtml("LAPORAN TANABREW", { periodLabel, printedBy, roleLabel })}
+    ${headerHtml(title, { periodLabel, printedBy, roleLabel, division })}
     <div class="summary">
       <div class="summary-card"><span>Total Invoice</span><b>${combinedSummary.totalInvoice}</b></div>
       <div class="summary-card"><span>Total Pemasukan</span><b>${escapeHtml(formatCurrency(combinedSummary.totalPemasukan))}</b></div>
@@ -516,7 +531,7 @@ export const printTanabrewReport = ({
     ${stockTableHtml(problemProducts)}
   `;
 
-  return openPrintWindow("Laporan Tanabrew", bodyHtml, reportWindow);
+  return openPrintWindow(title, bodyHtml, reportWindow);
 };
 
 const monthlyProductsTableHtml = (items: Array<{ nama: string; qty: number; total: number }>) => {

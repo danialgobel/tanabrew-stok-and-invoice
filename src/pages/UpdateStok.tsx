@@ -6,7 +6,7 @@ import { addStockMovement } from "@/lib/stockMovement";
 import { useProducts } from "@/hooks/useProducts";
 import { useAuth } from "@/context/AuthContext";
 import type { Product } from "@/types";
-import { Pencil, Printer, RotateCcw, Search, Trash2, Plus, ArrowLeft, X, ArrowRightLeft, AlertTriangle, Tag } from "lucide-react";
+import { Pencil, Printer, RotateCcw, Search, Trash2, Plus, ArrowLeft, X, ArrowRightLeft, AlertTriangle, Tag, Coffee, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { printStockReport } from "@/lib/reportPrint";
 import { Skeleton } from "@/components/Skeleton";
@@ -15,6 +15,13 @@ import PullToRefresh from "@/components/PullToRefresh";
 import { printPricelist, type PricelistCategory, type PricelistItem } from "@/lib/pricelistPrint";
 import { triggerHaptic } from "@/lib/haptics";
 import { isOwnerRole, isAdminRole, canPrintDocument, getCleanRoleLabel } from "@/lib/roleUtils";
+import {
+  getProductDivision,
+  isRoasteryCategory,
+  ROASTERY_CATEGORIES,
+  WAREHOUSE_CATEGORIES,
+  type ProductDivision,
+} from "@/lib/productDivision";
 
 export const PRODUCT_CATEGORIES = [
   "Kopi Biji (Beans)",
@@ -27,6 +34,7 @@ export const PRODUCT_CATEGORIES = [
 const emptyForm = {
   nama_barang: "",
   kategori: "Kopi Biji (Beans)",
+  divisi: "Roastery" as ProductDivision,
   stok_jogja: 0,
   stok_lombok: 0,
   harga: 0,
@@ -68,6 +76,7 @@ const UpdateStok = () => {
   const [pendingDelete, setPendingDelete] = useState<Product | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [stockFilter, setStockFilter] = useState<StockFilter>("semua");
+  const [selectedDivision, setSelectedDivision] = useState<"Semua" | ProductDivision>("Semua");
   const [selectedCategory, setSelectedCategory] = useState<string>("Semua");
   const [editingProductName, setEditingProductName] = useState("");
   const [highlightEditForm, setHighlightEditForm] = useState(false);
@@ -263,6 +272,16 @@ const UpdateStok = () => {
     return products.filter((p) => (p.total_stok ?? 0) <= 5 || (p.stok_jogja ?? 0) <= 0 || (p.stok_lombok ?? 0) <= 0);
   }, [products]);
 
+  const availableCategories = useMemo(() => {
+    if (selectedDivision === "Roastery") {
+      return ["Semua", ...ROASTERY_CATEGORIES];
+    }
+    if (selectedDivision === "Warehouse") {
+      return ["Semua", ...WAREHOUSE_CATEGORIES];
+    }
+    return ["Semua", ...PRODUCT_CATEGORIES];
+  }, [selectedDivision]);
+
   const filteredProducts = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
 
@@ -273,13 +292,16 @@ const UpdateStok = () => {
         stockFilter === "semua"
         || (stockFilter === "habis" && total === 0)
         || (stockFilter === "menipis" && total > 0 && total <= 5);
+      const matchesDivision =
+        selectedDivision === "Semua"
+        || getProductDivision(product) === selectedDivision;
       const matchesCategory =
         selectedCategory === "Semua"
         || (product.kategori || "Kopi Biji (Beans)") === selectedCategory;
 
-      return matchesSearch && matchesFilter && matchesCategory;
+      return matchesSearch && matchesFilter && matchesDivision && matchesCategory;
     });
-  }, [products, searchTerm, stockFilter, selectedCategory]);
+  }, [products, searchTerm, stockFilter, selectedDivision, selectedCategory]);
 
   const formHasInput = Boolean(form.nama_barang.trim()) || form.stok_jogja !== 0 || form.stok_lombok !== 0 || form.harga !== 0 || form.harga_b2b !== 0;
   const pullRefreshDisabled = formHasInput || saving || deletingId !== null || pendingDelete !== null || showPricelistModal || showTransferModal;
@@ -405,9 +427,11 @@ const UpdateStok = () => {
     setSaving(true);
     triggerHaptic(15);
     try {
+      const assignedDivision = form.divisi || getProductDivision({ kategori: form.kategori, nama_barang: form.nama_barang });
       const data = {
         nama_barang: form.nama_barang.trim(),
         kategori: form.kategori || "Kopi Biji (Beans)",
+        divisi: assignedDivision,
         stok_jogja: Number(form.stok_jogja) || 0,
         stok_lombok: Number(form.stok_lombok) || 0,
         total_stok: totalStok,
@@ -520,6 +544,7 @@ const UpdateStok = () => {
     setForm({
       nama_barang: p.nama_barang,
       kategori: p.kategori || "Kopi Biji (Beans)",
+      divisi: p.divisi || getProductDivision(p),
       stok_jogja: p.stok_jogja,
       stok_lombok: p.stok_lombok,
       harga: p.harga,
@@ -586,6 +611,8 @@ const UpdateStok = () => {
   const resetFilters = () => {
     setSearchTerm("");
     setStockFilter("semua");
+    setSelectedDivision("Semua");
+    setSelectedCategory("Semua");
   };
 
   const formatRole = (role?: string) => {
@@ -594,8 +621,10 @@ const UpdateStok = () => {
 
   const getStockFilterLabel = () => {
     const labels = [
+      selectedDivision !== "Semua" ? `Divisi: ${selectedDivision}` : "",
       searchTerm.trim() ? `Pencarian: ${searchTerm.trim()}` : "",
       stockFilter !== "semua" ? `Filter: ${stockFilter === "habis" ? "Habis" : "Menipis"}` : "",
+      selectedCategory !== "Semua" ? `Kategori: ${selectedCategory}` : "",
     ].filter(Boolean);
 
     return labels.length ? labels.join(" | ") : "Semua stok";
@@ -612,6 +641,7 @@ const UpdateStok = () => {
       filterLabel: getStockFilterLabel(),
       printedBy: userProfile?.name || currentUser?.email || "-",
       roleLabel: formatRole(userProfile?.role),
+      division: selectedDivision,
     });
 
     if (!ok) {
@@ -646,23 +676,44 @@ const UpdateStok = () => {
               Sedang mengedit: {editingProductName || form.nama_barang}
             </p>
           )}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <input
-              placeholder="Nama Barang"
-              value={form.nama_barang}
-              onChange={(e) => setForm({ ...form, nama_barang: e.target.value })}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              required
-            />
-            <select
-              value={form.kategori}
-              onChange={(e) => setForm({ ...form, kategori: e.target.value })}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              {PRODUCT_CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Nama Barang</label>
+              <input
+                placeholder="Nama Barang"
+                value={form.nama_barang}
+                onChange={(e) => setForm({ ...form, nama_barang: e.target.value })}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                required
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Kategori Produk</label>
+              <select
+                value={form.kategori}
+                onChange={(e) => {
+                  const newCat = e.target.value;
+                  const autoDiv = isRoasteryCategory(newCat) ? "Roastery" : "Warehouse";
+                  setForm({ ...form, kategori: newCat, divisi: autoDiv });
+                }}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                {PRODUCT_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Divisi Unit</label>
+              <select
+                value={form.divisi}
+                onChange={(e) => setForm({ ...form, divisi: e.target.value as ProductDivision })}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="Roastery">☕ Divisi Roastery</option>
+                <option value="Warehouse">📦 Divisi Warehouse</option>
+              </select>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -746,27 +797,90 @@ const UpdateStok = () => {
         </div>
       )}
 
-      {/* Filter Kategori Tabs */}
-      <div className="mb-3 flex items-center gap-1 overflow-x-auto pb-1 text-xs">
-        {["Semua", ...PRODUCT_CATEGORIES].map((cat) => {
-          const active = selectedCategory === cat;
-          return (
-            <button
-              key={cat}
-              onClick={() => {
-                triggerHaptic(10);
-                setSelectedCategory(cat);
-              }}
-              className={`shrink-0 rounded-lg px-2.5 py-1.5 font-semibold transition-all border ${
-                active
-                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                  : "bg-card text-muted-foreground border-border hover:bg-muted"
-              }`}
-            >
-              {cat}
-            </button>
-          );
-        })}
+      {/* Filter Divisi & Kategori */}
+      <div className="mb-4 space-y-2.5">
+        {/* Selector Divisi Utama */}
+        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-muted/60 border border-border/80 w-fit max-w-full overflow-x-auto text-xs">
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic(10);
+              setSelectedDivision("Semua");
+              setSelectedCategory("Semua");
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all shrink-0 ${
+              selectedDivision === "Semua"
+                ? "bg-card text-foreground shadow-sm border border-border/60"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <span>Semua Divisi</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">
+              {products.length}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic(10);
+              setSelectedDivision("Roastery");
+              setSelectedCategory("Semua");
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all shrink-0 ${
+              selectedDivision === "Roastery"
+                ? "bg-amber-500/15 text-amber-800 dark:text-amber-300 shadow-sm border border-amber-500/30"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Coffee size={14} className="text-amber-600 dark:text-amber-400" />
+            <span>Divisi Roastery</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-300 font-semibold">
+              {products.filter((p) => getProductDivision(p) === "Roastery").length}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic(10);
+              setSelectedDivision("Warehouse");
+              setSelectedCategory("Semua");
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all shrink-0 ${
+              selectedDivision === "Warehouse"
+                ? "bg-blue-500/15 text-blue-800 dark:text-blue-300 shadow-sm border border-blue-500/30"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Package size={14} className="text-blue-600 dark:text-blue-400" />
+            <span>Divisi Warehouse</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-800 dark:text-blue-300 font-semibold">
+              {products.filter((p) => getProductDivision(p) === "Warehouse").length}
+            </span>
+          </button>
+        </div>
+
+        {/* Filter Sub-Kategori Tabs */}
+        <div className="flex items-center gap-1 overflow-x-auto pb-1 text-xs">
+          {availableCategories.map((cat) => {
+            const active = selectedCategory === cat;
+            return (
+              <button
+                key={cat}
+                onClick={() => {
+                  triggerHaptic(10);
+                  setSelectedCategory(cat);
+                }}
+                className={`shrink-0 rounded-lg px-2.5 py-1.5 font-semibold transition-all border ${
+                  active
+                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                    : "bg-card text-muted-foreground border-border hover:bg-muted"
+                }`}
+              >
+                {cat}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="mb-4 rounded-xl border border-border bg-card p-4 space-y-3">
@@ -878,7 +992,18 @@ const UpdateStok = () => {
                   <tr key={p.id} className={`border-t border-border ${stockState(p.total_stok || 0).rowClass}`}>
                     <td className="px-2 py-2 text-xs">
                       <div className="flex flex-col gap-1">
-                        <span>{p.nama_barang}</span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-medium text-foreground">{p.nama_barang}</span>
+                          {getProductDivision(p) === "Roastery" ? (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20">
+                              <Coffee size={10} /> Roastery
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-800 dark:text-blue-300 border border-blue-500/20">
+                              <Package size={10} /> Warehouse
+                            </span>
+                          )}
+                        </div>
                         {stockState(p.total_stok || 0).label && (
                           <span className={`w-fit rounded-full px-2 py-0.5 text-[10px] font-semibold ${stockState(p.total_stok || 0).labelClass}`}>
                             {stockState(p.total_stok || 0).label}

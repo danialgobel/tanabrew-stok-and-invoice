@@ -15,22 +15,49 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.5.1",
-  versionLabel: "v3.5.1",
-  releaseDate: "30 September 2026",
-  title: "Kolom Detail Produk pada Cetak Laporan Invoice Riwayat (30 September 2026)",
-  subtitle: "Transparansi Rincian Produk, Kuantitas Pcs, dan Harga Satuan pada Dokumen Rekapitulasi Invoice & Ekspor CSV",
+  version: "3.6.0",
+  versionLabel: "v3.6.0",
+  releaseDate: "6 Oktober 2026",
+  title: "Segmentasi Divisi Roastery & Warehouse pada Update Stok dan Cetak Laporan (6 Oktober 2026)",
+  subtitle: "Pembagian Inventaris Menjadi Unit Roastery & Warehouse Serta Dukungan Cetak Laporan Khusus Divisi dan Laporan Gabungan",
   highlights: [
     {
-      title: "Detail Produk pada Cetak Laporan Invoice & CSV Riwayat",
-      desc: "Menambahkan kolom 'Detail Produk' pada cetak PDF laporan invoice dan ekspor CSV di menu Riwayat. Setiap baris faktur kini menampilkan rincian barang yang dipesan (kuantitas item, nama produk, harga satuan) serta badge total pcs per pesanan secara rapi dan komprehensif.",
+      title: "Segmentasi Divisi Roastery & Warehouse di Update Stok",
+      desc: "Penataan kategori produk menjadi 2 unit operasional utama: Roastery (biji kopi sangrai / roasted beans) dan Warehouse (kemasan, cup, sirup, perlengkapan barista & peralatan). Dilengkapi tab filter divisi instan, kartu metrik stok independen per unit, dan opsi penentuan divisi saat tambah/edit barang.",
+      badge: "Baru",
+      badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20",
+    },
+    {
+      title: "Cetak Laporan Khusus Divisi & Laporan Gabungan di Riwayat",
+      desc: "Penambahan pemilih divisi pada panel Cetak & Export Laporan di Riwayat. Anda kini dapat mencetak laporan invoice dan stok khusus divisi Roastery atau khusus Warehouse, sementara opsi Cetak Laporan Gabungan tetap merangkum seluruh data semua divisi secara utuh.",
       badge: "Fitur",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+    },
+    {
+      title: "Penyempurnaan Header & Tabel Dokumen Cetak",
+      desc: "Dokumen cetak PDF dan ekspor CSV kini memuat informasi divisi secara eksplisit pada header dokumen dan baris data barang, memberikan kejelasan audit yang akurat bagi tim gudang maupun tim roastery.",
+      badge: "Peningkatan",
+      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
   ],
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.5.1",
+    versionLabel: "v3.5.1",
+    releaseDate: "30 September 2026",
+    title: "Kolom Detail Produk pada Cetak Laporan Invoice Riwayat (30 September 2026)",
+    subtitle: "Transparansi Rincian Produk, Kuantitas Pcs, dan Harga Satuan pada Dokumen Rekapitulasi Invoice & Ekspor CSV",
+    highlights: [
+      {
+        title: "Detail Produk pada Cetak Laporan Invoice & CSV Riwayat",
+        desc: "Menambahkan kolom 'Detail Produk' pada cetak PDF laporan invoice dan ekspor CSV di menu Riwayat. Setiap baris faktur kini menampilkan rincian barang yang dipesan (kuantitas item, nama produk, harga satuan) serta badge total pcs per pesanan secara rapi dan komprehensif.",
+        badge: "Fitur",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+    ],
+  },
   {
     version: "3.5.0",
     versionLabel: "v3.5.0",
