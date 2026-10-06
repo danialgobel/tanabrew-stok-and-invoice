@@ -163,4 +163,78 @@ describe("productDivision helper", () => {
     const allInvoices = filterInvoicesByDivision(invoicesList, "Semua", mockProducts);
     expect(allInvoices.length).toBe(2);
   });
+
+  it("accurately classifies single-origin beans without 'kopi' keyword as Roastery", () => {
+    expect(getItemDivision({ nama_barang: "Kerinci Honey 200g" })).toBe("Roastery");
+    expect(getItemDivision({ nama_barang: "Papua Wamena Anaerobic 250g" })).toBe("Roastery");
+    expect(getItemDivision({ nama_barang: "Flores Bajawa Natural" })).toBe("Roastery");
+    expect(getItemDivision({ nama_barang: "Colombia Pink Bourbon" })).toBe("Roastery");
+    expect(getItemDivision({ nama_barang: "House Blend 1kg" })).toBe("Roastery");
+  });
+
+  it("accurately classifies warehouse items as Warehouse", () => {
+    expect(getItemDivision({ nama_barang: "Paper Cup 8oz Hot" })).toBe("Warehouse");
+    expect(getItemDivision({ nama_barang: "Monin Caramel Syrup 700ml" })).toBe("Warehouse");
+    expect(getItemDivision({ nama_barang: "Sedotan Boba Steril" })).toBe("Warehouse");
+    expect(getItemDivision({ nama_barang: "Standing Pouch Kraft 250g" })).toBe("Warehouse");
+    expect(getItemDivision({ nama_barang: "Tamper 58mm Wooden Handle" })).toBe("Warehouse");
+  });
+
+  it("strictly isolates warehouse and roastery items during mixed invoice report filtering", () => {
+    const mixedInvoice: Invoice = {
+      id: "inv-mixed",
+      no_invoice: "INV/TNB/2026/10/9999",
+      tanggal: "2026-10-06",
+      customer: "Kedai Campuran",
+      items: [
+        {
+          product_id: "prod-1",
+          nama_barang: "Aceh Gayo Winey 200g",
+          harga: 110000,
+          jumlah: 1,
+          subtotal: 110000,
+        },
+        {
+          nama_barang: "Kerinci Natural 200g",
+          harga: 95000,
+          jumlah: 1,
+          subtotal: 95000,
+        },
+        {
+          product_id: "prod-3",
+          nama_barang: "Vanilla Syrup 750ml",
+          harga: 85000,
+          jumlah: 2,
+          subtotal: 170000,
+        },
+        {
+          nama_barang: "Paper Cup 8oz + Lid",
+          harga: 1500,
+          jumlah: 100,
+          subtotal: 150000,
+        },
+      ],
+      subtotal: 525000,
+      total: 525000,
+      status: "LUNAS",
+    };
+
+    const warehouseFiltered = filterInvoiceByDivision(mixedInvoice, "Warehouse", mockProducts);
+    expect(warehouseFiltered.hasItems).toBe(true);
+    expect(warehouseFiltered.filteredInvoice.items.length).toBe(2);
+    expect(warehouseFiltered.filteredInvoice.items.map((it) => it.nama_barang)).toEqual([
+      "Vanilla Syrup 750ml",
+      "Paper Cup 8oz + Lid",
+    ]);
+    expect(warehouseFiltered.divisionTotal).toBe(320000);
+
+    const roasteryFiltered = filterInvoiceByDivision(mixedInvoice, "Roastery", mockProducts);
+    expect(roasteryFiltered.hasItems).toBe(true);
+    expect(roasteryFiltered.filteredInvoice.items.length).toBe(2);
+    expect(roasteryFiltered.filteredInvoice.items.map((it) => it.nama_barang)).toEqual([
+      "Aceh Gayo Winey 200g",
+      "Kerinci Natural 200g",
+    ]);
+    expect(roasteryFiltered.divisionTotal).toBe(205000);
+  });
 });

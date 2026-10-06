@@ -25,14 +25,16 @@ export const isRoasteryCategory = (category?: string): boolean => {
     catLower.includes("bubuk") ||
     catLower.includes("drip") ||
     catLower.includes("roast") ||
-    catLower.includes("espresso")
+    catLower.includes("espresso") ||
+    catLower.includes("filter")
   );
 };
 
 /**
  * Menentukan divisi sebuah produk secara cerdas:
  * 1. Jika field `divisi` sudah diisi ("Roastery" / "Warehouse"), gunakan langsung.
- * 2. Jika belum (backward-compatibility untuk produk lama), deteksi dari kategori atau nama barang.
+ * 2. Jika kategori jelas termasuk Roastery / Warehouse, gunakan kategori.
+ * 3. Fallback cerdas berdasarkan kata kunci nama barang.
  */
 export const getProductDivision = (product: {
   divisi?: ProductDivision;
@@ -47,18 +49,46 @@ export const getProductDivision = (product: {
     return "Roastery";
   }
 
-  // Cek kata kunci pada nama barang jika kategori "Lainnya" atau belum diset
-  const nameLower = (product.nama_barang || "").toLowerCase();
-  if (
-    nameLower.includes("beans") ||
-    nameLower.includes("kopi") ||
-    nameLower.includes("coffee") ||
-    nameLower.includes("roast") ||
-    nameLower.includes("arabica") ||
-    nameLower.includes("robusta") ||
-    nameLower.includes("espresso") ||
-    nameLower.includes("drip")
-  ) {
+  // Jika kategori master produk secara spesifik termasuk Warehouse
+  if (product.kategori && (
+    product.kategori.includes("Sirup") ||
+    product.kategori.includes("Bahan") ||
+    product.kategori.includes("Alat") ||
+    product.kategori.includes("Kemasan")
+  )) {
+    return "Warehouse";
+  }
+
+  // Cek kata kunci pada nama barang
+  const nameLower = (product.nama_barang || "").toLowerCase().trim();
+
+  // Kata kunci spesifik Warehouse (kemasan, cup, sirup, peralatan, dll.)
+  const warehouseKeywords = [
+    "sirup", "syrup", "cup", "lid", "sedotan", "straw", "paper cup",
+    "plastik", "botol", "bottle", "kemasan", "packaging", "pouch",
+    "dus", "box", "sealer", "kertas saring", "tissue", "tisue",
+    "tamper", "pitcher", "milk jug", "timbangan", "scale", "dripper",
+    "server", "teko", "kettle", "celemek", "apron", "cleaner", "descaler",
+    "gula", "sugar", "creamer", "krimer", "susu", "milk", "powder",
+    "cokelat", "chocolate", "matcha", "tea", "teh", "flavor", "flavour",
+    "sauce", "saus", "monin", "torani", "davinci", "denali", "dripp",
+    "toffin", "stiker", "sticker", "sendok", "garpu", "fork", "spoon"
+  ];
+  if (warehouseKeywords.some((kw) => nameLower.includes(kw))) {
+    return "Warehouse";
+  }
+
+  // Kata kunci spesifik Roastery (biji kopi sangrai, single origin, proses, varietas)
+  const roasteryKeywords = [
+    "beans", "kopi", "coffee", "roast", "arabica", "robusta", "espresso", "drip",
+    "filter", "honey", "natural", "washed", "wash", "wine", "anaerobic", "full wash",
+    "dry process", "gayo", "kerinci", "toraja", "mandheling", "mandailing", "sidikalang",
+    "bajawa", "flores", "bali", "kintamani", "java", "papua", "wamena", "colombia",
+    "ethiopia", "kenya", "brazil", "blend", "single origin", "geisha", "bourbon",
+    "typica", "catimor", "decaf", "v60", "kalita", "aeropress", "french press",
+    "chemex", "syphon", "grind", "biji", "sangrai", "origin"
+  ];
+  if (roasteryKeywords.some((kw) => nameLower.includes(kw))) {
     return "Roastery";
   }
 
@@ -72,18 +102,32 @@ export const getItemDivision = (
   item: { nama_barang?: string; product_id?: string },
   products: Product[] = []
 ): ProductDivision => {
-  if (item.product_id) {
+  // 1. Cocokkan berdasarkan product_id jika ada
+  if (item.product_id && Array.isArray(products) && products.length > 0) {
     const matched = products.find((p) => p.id === item.product_id);
     if (matched) return getProductDivision(matched);
   }
 
-  if (item.nama_barang) {
+  // 2. Cocokkan berdasarkan nama barang pada master data produk
+  if (item.nama_barang && Array.isArray(products) && products.length > 0) {
+    const itemNameClean = item.nama_barang.trim().toLowerCase();
+
+    // 2a. Pencocokan nama persis (exact match)
     const matchedByName = products.find(
-      (p) => p.nama_barang.trim().toLowerCase() === item.nama_barang!.trim().toLowerCase()
+      (p) => (p.nama_barang || "").trim().toLowerCase() === itemNameClean
     );
     if (matchedByName) return getProductDivision(matchedByName);
+
+    // 2b. Pencocokan nama toleran / bagian (fuzzy / partial match)
+    const matchedFuzzy = products.find((p) => {
+      const pName = (p.nama_barang || "").trim().toLowerCase();
+      if (!pName) return false;
+      return itemNameClean.includes(pName) || pName.includes(itemNameClean);
+    });
+    if (matchedFuzzy) return getProductDivision(matchedFuzzy);
   }
 
+  // 3. Fallback cerdas berdasarkan nama barang
   return getProductDivision({ nama_barang: item.nama_barang });
 };
 

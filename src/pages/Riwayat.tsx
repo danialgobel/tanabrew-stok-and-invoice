@@ -514,10 +514,10 @@ const Riwayat = () => {
   const reportInvoices = useMemo(() => {
     let filtered = invoices.filter((invoice) => matchesDateFilter(invoice, reportPeriod, reportStartDate, reportEndDate));
     if (reportDivision !== "Semua") {
-      filtered = filterInvoicesByDivision(filtered, reportDivision);
+      filtered = filterInvoicesByDivision(filtered, reportDivision, products);
     }
     return filtered;
-  }, [invoices, reportDivision, reportEndDate, reportPeriod, reportStartDate]);
+  }, [invoices, products, reportDivision, reportEndDate, reportPeriod, reportStartDate]);
 
   const reportSummary = useMemo(() => {
     const relevantProducts = reportDivision === "Semua" ? products : filterProductsByDivision(products, reportDivision);
@@ -585,7 +585,7 @@ const Riwayat = () => {
     });
 
     if (reportDivision !== "Semua") {
-      filtered = filterInvoicesByDivision(filtered, reportDivision);
+      filtered = filterInvoicesByDivision(filtered, reportDivision, products);
     }
 
     return filtered;
@@ -745,21 +745,29 @@ const Riwayat = () => {
 
     try {
       const allInvoices = await fetchAllInvoicesForReport();
-      const reportData = sortInvoicesForReport(getCombinedReportData(allInvoices), reportSortDirection);
+      const rawReportData = getCombinedReportData(allInvoices);
+      const filteredReportData = reportDivision === "Semua"
+        ? rawReportData
+        : filterInvoicesByDivision(rawReportData, reportDivision, products);
+      const reportData = sortInvoicesForReport(filteredReportData, reportSortDirection);
+      const targetProducts = reportDivision === "Semua"
+        ? products
+        : filterProductsByDivision(products, reportDivision);
       const summary = {
         totalInvoice: reportData.length,
         totalPemasukan: reportData.reduce((sum, invoice) => sum + (invoice.total || 0), 0),
         invoiceBelumLunas: reportData.filter((invoice) => invoice.status === "BELUM LUNAS").length,
-        stokHabis: products.filter((product) => (product.total_stok || 0) === 0).length,
-        stokMenipis: products.filter((product) => (product.total_stok || 0) > 0 && (product.total_stok || 0) <= 3).length,
+        stokHabis: targetProducts.filter((product) => (product.total_stok || 0) === 0).length,
+        stokMenipis: targetProducts.filter((product) => (product.total_stok || 0) > 0 && (product.total_stok || 0) <= 3).length,
       };
 
       const ok = printTanabrewReport({
         invoices: reportData,
-        products,
+        products: targetProducts,
         periodLabel: getPeriodLabel(reportPeriod, reportStartDate, reportEndDate),
         printedBy: userProfile?.name || currentUser?.email || "-",
         roleLabel: formatRole(userProfile?.role),
+        division: reportDivision,
         summary,
         sortDirection: reportSortDirection,
       }, reportWindow);
