@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
+    "postinstall": "node scripts/patch-wwebjs.js",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "prestart": "tsc",

@@ -8,6 +8,7 @@ import {
   requestPairingCode,
   getWhatsAppGroups,
   sendInvoicePdf,
+  sendTextMessage,
   disconnectWhatsApp,
 } from "./whatsapp.js";
 
@@ -114,8 +115,9 @@ app.post("/send-invoice", requireAuth, upload.single("pdfFile"), async (req, res
         fileName = req.file.originalname;
       }
     } else if (req.body?.pdfBase64) {
-      const base64Data = (req.body.pdfBase64 as string).replace(/^data:application\/pdf;base64,/, "");
-      pdfBuffer = Buffer.from(base64Data, "base64");
+      const raw = req.body.pdfBase64 as string;
+      const cleanBase64 = raw.includes(";base64,") ? raw.split(";base64,").pop() || "" : raw.replace(/^data:[^;]+;base64,/, "");
+      pdfBuffer = Buffer.from(cleanBase64, "base64");
     }
 
     if (!groupId) {
@@ -146,6 +148,26 @@ app.post("/send-invoice", requireAuth, upload.single("pdfFile"), async (req, res
       success: false,
       error: err.message || "Gagal mengirim invoice ke WhatsApp.",
     });
+  }
+});
+
+// 6b. Send Plain Text Message
+app.post("/send-text", requireAuth, async (req, res) => {
+  try {
+    const { groupId, message } = req.body || {};
+    if (!groupId || !message) {
+      res.status(400).json({ success: false, error: "groupId dan message wajib diisi." });
+      return;
+    }
+    const result = await sendTextMessage(groupId, message);
+    res.json({
+      success: true,
+      messageId: result.messageId,
+      message: "Pesan teks berhasil dikirim ke grup WhatsApp.",
+    });
+  } catch (err: any) {
+    console.error("Error sending text to WhatsApp:", err);
+    res.status(500).json({ success: false, error: err.message || "Gagal mengirim pesan ke WhatsApp." });
   }
 });
 

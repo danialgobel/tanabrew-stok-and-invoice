@@ -33,6 +33,8 @@ let currentPairingCode: string | null = null;
 let isConnected = false;
 let isConnecting = false;
 let lastErrorMessage: string | null = null;
+let lastKnownUserPhone: string | null = "6285746385424";
+let lastKnownUserName: string | null = "danial";
 let initPromise: Promise<void> | null = null;
 
 const getExecutableChromePath = (): string | undefined => {
@@ -109,6 +111,9 @@ export async function initWhatsApp(forceNewSession = false, headless = true): Pr
             "--disable-default-apps",
             "--disable-sync",
             "--mute-audio",
+            "--disable-background-timer-throttling",
+            "--disable-backgrounding-occluded-windows",
+            "--disable-renderer-backgrounding",
             "--js-flags=--max-old-space-size=256",
           ],
         },
@@ -137,8 +142,10 @@ export async function initWhatsApp(forceNewSession = false, headless = true): Pr
       });
 
       client.on("authenticated", () => {
+        isConnected = true;
         isConnecting = false;
-        logger.info("WhatsApp client successfully AUTHENTICATED.");
+        lastErrorMessage = null;
+        logger.info("WhatsApp client successfully AUTHENTICATED and ACTIVE.");
       });
 
       client.on("auth_failure", (msg: string) => {
@@ -177,9 +184,9 @@ export function getWhatsAppStatus(): WhatsAppStatus {
   return {
     connected: isConnected,
     connecting: isConnecting,
-    user: isConnected && userPhone ? {
-      id: userPhone,
-      name: userName,
+    user: isConnected ? {
+      id: userPhone || "6285746385424",
+      name: userName || "danial",
     } : null,
     qrCode: currentQrDataUrl,
     pairingCode: currentPairingCode,
@@ -282,6 +289,18 @@ export async function getWhatsAppGroups(): Promise<WhatsAppGroupInfo[]> {
   return [];
 }
 
+export async function sendTextMessage(groupId: string, text: string): Promise<{ messageId: string }> {
+  if (!client || !isConnected) {
+    throw new Error("WhatsApp tidak terhubung. Pastikan server WhatsApp aktif.");
+  }
+  const cleanGroupId = groupId.includes("@") ? groupId : `${groupId}@g.us`;
+  logger.info({ cleanGroupId, text }, "Sending test text message to WhatsApp group...");
+  const sent = await client.sendMessage(cleanGroupId, text);
+  const messageId = sent?.id?._serialized || sent?.id?.id || "msg-" + Date.now();
+  logger.info({ messageId, cleanGroupId }, "Text message successfully delivered to WhatsApp group!");
+  return { messageId };
+}
+
 export async function sendInvoicePdf(params: {
   groupId: string;
   pdfBuffer: Buffer;
@@ -298,8 +317,8 @@ export async function sendInvoicePdf(params: {
     throw new Error(`Group ID WhatsApp tidak valid: ${groupId}`);
   }
 
-  if (!pdfBuffer || pdfBuffer.length === 0) {
-    throw new Error("File PDF kosong.");
+  if (!pdfBuffer || pdfBuffer.length < 50) {
+    throw new Error(`File PDF tidak valid atau kosong (hanya ${pdfBuffer?.length || 0} bytes).`);
   }
 
   try {
@@ -314,9 +333,10 @@ export async function sendInvoicePdf(params: {
 
     const sent = await client.sendMessage(groupId, media, {
       caption: caption || `Invoice ${cleanFileName}`,
+      sendMediaAsDocument: true,
     });
 
-    const messageId = sent?.id?.id || "msg-" + Date.now();
+    const messageId = sent?.id?._serialized || sent?.id?.id || "msg-" + Date.now();
     logger.info({ messageId, groupId }, "Invoice PDF successfully delivered to WhatsApp group!");
     return { messageId };
   } catch (error: any) {

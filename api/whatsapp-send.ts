@@ -246,12 +246,14 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       headers["Authorization"] = `Bearer ${waServiceApiKey}`;
     }
 
+    const cleanPdfBase64 = pdfBase64.includes(";base64,") ? pdfBase64.split(";base64,").pop() : pdfBase64.replace(/^data:[^;]+;base64,/, "");
+
     const response = await fetch(`${waServiceUrl}/send-invoice`, {
       method: "POST",
       headers,
       body: JSON.stringify({
         groupId,
-        pdfBase64,
+        pdfBase64: cleanPdfBase64,
         fileName,
         caption,
       }),
