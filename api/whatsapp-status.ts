@@ -108,7 +108,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const configDoc = await db.collection("system_settings").doc("whatsapp").get();
     const savedConfig = configDoc.exists ? configDoc.data() : null;
 
-    const waServiceUrl = (process.env.WHATSAPP_SERVICE_URL || "").replace(/\/$/, "");
+    // Prefer dynamically synced service_url from Firestore (auto-reported by laptop), fallback to Vercel env
+    const waServiceUrl = (savedConfig?.service_url || process.env.WHATSAPP_SERVICE_URL || "").replace(/\/$/, "");
     const waServiceApiKey = process.env.WHATSAPP_SERVICE_API_KEY || "";
 
     if (!waServiceUrl) {

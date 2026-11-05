@@ -188,4 +188,52 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log(`🔑 Auth protection: ${API_KEY ? "ENABLED (Bearer token required)" : "DISABLED"}`);
   console.log(`=============================================`);
   void initWhatsApp();
+
+  // Auto-sync tunnel URL to cloud
+  setTimeout(() => {
+    void syncCloudflareTunnelUrl();
+  }, 3000);
+  setInterval(() => {
+    void syncCloudflareTunnelUrl();
+  }, 10000);
 });
+
+// =========================================================================
+// 🔄 AUTOMATIC CLOUDFLARE TUNNEL URL DISCOVERY & CLOUD SYNC
+// Mendeteksi URL tunnel cloudflared dari port metrics (20241) dan mendaftarkannya ke Vercel
+// =========================================================================
+let lastRegisteredTunnelUrl: string | null = null;
+
+async function syncCloudflareTunnelUrl(): Promise<void> {
+  try {
+    const res = await fetch("http://127.0.0.1:20241/metrics");
+    if (!res.ok) return;
+    const text = await res.text();
+    const match = text.match(/userHostname="([^"]+)"/);
+    if (!match || !match[1]) return;
+
+    const currentUrl = match[1].trim().replace(/\/$/, "");
+    if (currentUrl === lastRegisteredTunnelUrl) return;
+
+    console.log(`[TUNNEL-SYNC] Discovered active Cloudflare Tunnel: ${currentUrl}`);
+    console.log(`[TUNNEL-SYNC] Registering to Tanabrew Cloud...`);
+
+    const syncRes = await fetch("https://tanabrew-stok-and-invoice.vercel.app/api/whatsapp-sync-url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        service_url: currentUrl,
+        sync_secret: "tanabrew-wa-secret-2026",
+      }),
+    });
+
+    if (syncRes.ok) {
+      lastRegisteredTunnelUrl = currentUrl;
+      console.log(`[TUNNEL-SYNC] ✅ Successfully registered tunnel URL to Tanabrew Cloud: ${currentUrl}`);
+    } else {
+      console.warn(`[TUNNEL-SYNC] Failed to register tunnel (${syncRes.status})`);
+    }
+  } catch {
+    // Ignore when cloudflared is not ready yet
+  }
+}

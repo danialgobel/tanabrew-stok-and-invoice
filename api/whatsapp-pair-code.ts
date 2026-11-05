@@ -138,7 +138,13 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       return;
     }
 
-    const waServiceUrl = (process.env.WHATSAPP_SERVICE_URL || "").replace(/\/$/, "");
+    const app = await getFirebaseAdminApp();
+    const { getFirestore } = await import("firebase-admin/firestore");
+    const db = getFirestore(app);
+    const configDoc = await db.collection("system_settings").doc("whatsapp").get();
+    const configData = configDoc.exists ? configDoc.data() : null;
+
+    const waServiceUrl = (configData?.service_url || process.env.WHATSAPP_SERVICE_URL || "").replace(/\/$/, "");
     const waServiceApiKey = process.env.WHATSAPP_SERVICE_API_KEY || "";
 
     if (!waServiceUrl) {

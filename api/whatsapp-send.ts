@@ -229,10 +229,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         `_Invoice otomatis dikirim oleh sistem Tanabrew._`;
     }
 
-    let waServiceUrl = (process.env.WHATSAPP_SERVICE_URL || "").replace(/\/$/, "");
-    if (!waServiceUrl && configData?.service_url) {
-      waServiceUrl = String(configData.service_url).replace(/\/$/, "");
-    }
+    // Prefer dynamically synced service_url from Firestore (auto-reported by laptop), fallback to Vercel env
+    const waServiceUrl = (configData?.service_url || process.env.WHATSAPP_SERVICE_URL || "").replace(/\/$/, "");
     const waServiceApiKey = process.env.WHATSAPP_SERVICE_API_KEY || "";
 
     if (!waServiceUrl) {

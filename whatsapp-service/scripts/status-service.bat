@@ -12,11 +12,10 @@ powershell -NoProfile -Command ^
 
 echo.
 powershell -NoProfile -Command ^
-  "if (Get-Process cloudflared -ErrorAction SilentlyContinue) { Write-Host 'Cloudflare Tunnel: AKTIF [OK]' -ForegroundColor Green; } else { Write-Host 'Cloudflare Tunnel: TIDAK AKTIF' -ForegroundColor Yellow; }"
+  "if (Get-Process cloudflared -ErrorAction SilentlyContinue) { Write-Host 'Cloudflare Tunnel: AKTIF [OK]' -ForegroundColor Green; try { $m = (Invoke-RestMethod -Uri 'http://127.0.0.1:20241/metrics' -TimeoutSec 2) -split \"`n\"; $u = ($m | Select-String 'userHostname=\"([^\"]+)\"'); if ($u -match 'userHostname=\"([^\"]+)\"') { Write-Host ('URL Publik       : ' + $matches[1]) -ForegroundColor Cyan; } } catch {} } else { Write-Host 'Cloudflare Tunnel: TIDAK AKTIF' -ForegroundColor Yellow; }"
 
 echo.
 echo ========================================================
 echo Tekan tombol apa saja untuk menutup jendela ini...
 pause >nul
 exit
-
