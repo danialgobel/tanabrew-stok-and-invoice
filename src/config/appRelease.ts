@@ -15,27 +15,27 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.6.6",
-  versionLabel: "v3.6.6",
+  version: "3.6.7",
+  versionLabel: "v3.6.7",
   releaseDate: "5 November 2026",
-  title: "Tombol Cetak & Kirim Otomatis Real-Time & Desain Faktur PDF Identik 100% (5 November 2026)",
-  subtitle: "Penyelarasan visual PDF WhatsApp dengan cetakan kasir, tombol gabungan Cetak & Kirim Otomatis dengan sinkronisasi loading, serta kirim faktur tersimpan",
+  title: "Dua Tombol Terpisah Cetak/Kirim Otomatis & Desain Faktur PDF Identik 100% (5 November 2026)",
+  subtitle: "Pemisahan tombol Cetak & Kirim Otomatis (tanpa popup) vs Cetak Manual (kertas), desain faktur PDF identik asli Tanabrew, serta testing ke grup aniv 7 mei",
   highlights: [
     {
-      title: "Desain PDF WhatsApp 100% Identik Cetakan Faktur Asli",
-      desc: "Dokumen PDF yang dikirim ke grup WhatsApp kini membawa logo resmi Tanabrew, header tabel warna hijau sage (#A5D6A7), font, layout, dan instruksi rekening yang sama persis dengan cetak manual kasir.",
-      badge: "Peningkatan",
-      badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-    },
-    {
-      title: "Tombol 'Cetak & Kirim Otomatis' dengan Sinkronisasi Loading",
-      desc: "Tombol cetak di Kasir dan Riwayat kini berlabel 'Cetak & Kirim Otomatis', menampilkan status loading 'Sedang Mencetak & Mengirim ke WhatsApp...' dan otomatis berubah hijau 'Terkirim ke WhatsApp ✅'.",
+      title: "Dua Tombol Terpisah di Kasir & Riwayat (Otomatis vs Manual)",
+      desc: "Tombol 'Cetak & Kirim Otomatis' kini hanya menampilkan status loading dan langsung mengirim PDF ke grup WhatsApp tanpa memicu pop-up blocker di mobile. Untuk cetak fisik kasir, disediakan tombol 'Cetak Manual'.",
       badge: "Fitur",
       badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
     {
-      title: "Dukungan Kirim Otomatis untuk Faktur Baru Maupun Tersimpan",
-      desc: "Baik pembuatan invoice baru di POS maupun pencetakan ulang invoice yang sudah jadi di Riwayat, file PDF langsung meluncur otomatis ke grup WhatsApp tanpa terhalang proteksi duplikasi.",
+      title: "Desain PDF WhatsApp 100% Identik Sesuai Format Cetak Asli",
+      desc: "Layout PDF telah diselaraskan penuh dengan dokumen cetak asli Tanabrew: logo tajam, header hijau sage (#A5D6A7), baris rincian pembayaran full-width, serta instruksi rekening SeaBank & Bank Jago a.n. AHMAD FARID MUSADDAD.",
+      badge: "Peningkatan",
+      badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+    },
+    {
+      title: "Perbaikan Izin Staf & Pengujian Grup WhatsApp 'aniv 7 mei'",
+      desc: "Semua staf kasir kini dapat langsung mengirimkan dokumen ke grup WhatsApp tanpa kendala error hak akses, dan dokumen uji coba telah sukses terkirim ke grup testing aniv 7 mei.",
       badge: "Perbaikan",
       badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20",
     },
@@ -43,6 +43,33 @@ export const CURRENT_RELEASE: AppReleaseInfo = {
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.6.6",
+    versionLabel: "v3.6.6",
+    releaseDate: "5 November 2026",
+    title: "Tombol Cetak & Kirim Otomatis Real-Time & Desain Faktur PDF Identik 100% (5 November 2026)",
+    subtitle: "Penyelarasan visual PDF WhatsApp dengan cetakan kasir, tombol gabungan Cetak & Kirim Otomatis dengan sinkronisasi loading, serta kirim faktur tersimpan",
+    highlights: [
+      {
+        title: "Desain PDF WhatsApp 100% Identik Cetakan Faktur Asli",
+        desc: "Dokumen PDF yang dikirim ke grup WhatsApp kini membawa logo resmi Tanabrew, header tabel warna hijau sage (#A5D6A7), font, layout, dan instruksi rekening yang sama persis dengan cetak manual kasir.",
+        badge: "Peningkatan",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+      {
+        title: "Tombol 'Cetak & Kirim Otomatis' dengan Sinkronisasi Loading",
+        desc: "Tombol cetak di Kasir dan Riwayat kini berlabel 'Cetak & Kirim Otomatis', menampilkan status loading 'Sedang Mencetak & Mengirim ke WhatsApp...' dan otomatis berubah hijau 'Terkirim ke WhatsApp ✅'.",
+        badge: "Fitur",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      },
+      {
+        title: "Dukungan Kirim Otomatis untuk Faktur Baru Maupun Tersimpan",
+        desc: "Baik pembuatan invoice baru di POS maupun pencetakan ulang invoice yang sudah jadi di Riwayat, file PDF langsung meluncur otomatis ke grup WhatsApp tanpa terhalang proteksi duplikasi.",
+        badge: "Perbaikan",
+        badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20",
+      },
+    ],
+  },
   {
     version: "3.6.5",
     versionLabel: "v3.6.5",

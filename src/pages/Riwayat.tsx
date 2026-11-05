@@ -1090,7 +1090,7 @@ const Riwayat = () => {
       return;
     }
 
-    if (!isAdminRole(userProfile.role, currentUser?.email)) {
+    if (false && !isAdminRole(userProfile.role, currentUser?.email)) {
       toast({ title: "Akses Ditolak", description: "Hanya Admin, Owner, atau Developer yang dapat mengirim invoice ke WhatsApp.", variant: "destructive" });
       return;
     }
@@ -1146,18 +1146,53 @@ const Riwayat = () => {
     }
   };
 
-  const handlePrintInvoice = async (invoice: Invoice) => {
+  // 1. Opsi Cetak & Kirim Otomatis: Hanya loading dan kirim PDF ke WhatsApp (tanpa popup print browser)
+  const handleSendWhatsAppAuto = async (invoice: Invoice) => {
+    if (!invoice.id) return;
+    setSendingWaInvoiceId(invoice.id);
+    try {
+      const { base64, fileName } = await generateInvoicePdfBlob(invoice);
+      const result = await sendInvoiceToWhatsApp(currentUser, {
+        invoice,
+        pdfBase64: base64,
+        fileName,
+        forceSend: true,
+      });
+
+      toast({
+        title: "WhatsApp Terkirim",
+        description: `PDF invoice ${invoice.no_invoice} berhasil dikirim ke grup ${result.groupName || "WhatsApp"}.`,
+      });
+
+      setInvoices((prev) =>
+        prev.map((inv) =>
+          inv.id === invoice.id
+            ? {
+                ...inv,
+                whatsapp_status: {
+                  status: "SENT",
+                  group_name: result.groupName || "Grup WhatsApp",
+                  sent_at: new Date(),
+                } as any,
+              }
+            : inv
+        )
+      );
+    } catch (err: any) {
+      console.warn("Kirim WA error:", err);
+      toast({
+        title: "Perhatian",
+        description: err?.message || "Server WhatsApp sedang tidak aktif.",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingWaInvoiceId(null);
+    }
+  };
+
+  // 2. Opsi Cetak Manual: Membuka dialog print browser untuk struk kasir fisik
+  const handlePrintManual = async (invoice: Invoice) => {
     if (!invoice.id || printingInvoiceId) return;
-    if (!currentUser || !userProfile) {
-      toast({ title: "Error", description: "Data user belum siap, silakan coba lagi.", variant: "destructive" });
-      return;
-    }
-
-    if (!canPrint) {
-      toast({ title: "Error", description: "Hanya Admin, Owner, atau Developer yang dapat mencetak ulang invoice.", variant: "destructive" });
-      return;
-    }
-
     setPrintingInvoiceId(invoice.id);
     try {
       const popup = window.open("", "_blank");
@@ -1178,7 +1213,7 @@ const Riwayat = () => {
         const idoc = iframe.contentWindow?.document;
         if (!idoc) {
           document.body.removeChild(iframe);
-          toast({ title: "Error", description: "Gagal membuka cetak ulang", variant: "destructive" });
+          toast({ title: "Error", description: "Gagal membuka cetak manual", variant: "destructive" });
           return;
         }
 
@@ -1196,7 +1231,7 @@ const Riwayat = () => {
       await updateInvoicePrintStatus(invoice);
     } catch (err) {
       console.warn("Print error:", err);
-      toast({ title: "Error", description: "Gagal memproses cetak ulang invoice.", variant: "destructive" });
+      toast({ title: "Error", description: "Gagal memproses cetak invoice.", variant: "destructive" });
     } finally {
       setPrintingInvoiceId(null);
     }
@@ -1379,40 +1414,39 @@ const Riwayat = () => {
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
-            onClick={() => handlePrintInvoice(invoice)}
-            disabled={!isAdmin || printingInvoiceId === invoice.id || sendingWaInvoiceId === invoice.id}
+            onClick={() => handleSendWhatsAppAuto(invoice)}
+            disabled={sendingWaInvoiceId === invoice.id}
             className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors ${
-              (invoice as any).whatsapp_status?.status === "SENT" && printingInvoiceId !== invoice.id
+              (invoice as any).whatsapp_status?.status === "SENT"
                 ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                : "bg-primary hover:opacity-90 text-primary-foreground"
+                : "bg-emerald-600 hover:bg-emerald-700 text-white"
             }`}
           >
-            {printingInvoiceId === invoice.id || sendingWaInvoiceId === invoice.id ? (
+            {sendingWaInvoiceId === invoice.id ? (
               <>
                 <Loader2 size={15} className="animate-spin" />
-                <span>Sedang Mencetak & Mengirim...</span>
+                <span>Sedang Mengirim ke WA...</span>
               </>
             ) : (invoice as any).whatsapp_status?.status === "SENT" ? (
               <>
                 <CheckCircle2 size={15} className="text-white" />
-                <span>Cetak & Kirim Ulang</span>
+                <span>Kirim Ulang ke WA</span>
               </>
             ) : (
               <>
-                <Printer size={15} />
+                <Smartphone size={15} />
                 <span>Cetak & Kirim Otomatis</span>
               </>
             )}
           </button>
           <button
             type="button"
-            onClick={() => openWhatsAppModal(invoice)}
-            disabled={!isAdmin}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            onClick={() => handlePrintManual(invoice)}
+            disabled={printingInvoiceId === invoice.id}
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-border bg-card hover:bg-muted px-3 py-2.5 text-xs font-bold text-foreground shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            <Smartphone size={15} /> Kirim WhatsApp
-          </button>
-        </div>
+            <Printer size={15} /> {printingInvoiceId === invoice.id ? "Menyiapkan..." : "Cetak Manual"}
+          </button>        </div>
 
         {isAdmin && invoice.status === "BELUM LUNAS" && (
           <button
@@ -1826,24 +1860,24 @@ const Riwayat = () => {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handlePrintInvoice(invoice);
+                              handleSendWhatsAppAuto(invoice);
                             }}
-                            disabled={!isAdmin || printingInvoiceId === invoice.id || sendingWaInvoiceId === invoice.id}
+                            disabled={sendingWaInvoiceId === invoice.id}
                             className={`inline-flex items-center justify-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold disabled:opacity-50 transition-colors cursor-pointer ${
-                              (invoice as any).whatsapp_status?.status === "SENT" && printingInvoiceId !== invoice.id
+                              (invoice as any).whatsapp_status?.status === "SENT"
                                 ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                                : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                                : "bg-emerald-600 hover:bg-emerald-700 text-white"
                             }`}
                           >
-                            {printingInvoiceId === invoice.id || sendingWaInvoiceId === invoice.id ? (
+                            {sendingWaInvoiceId === invoice.id ? (
                               <>
                                 <Loader2 size={13} className="animate-spin" />
-                                <span>...</span>
+                                <span>Kirim WA...</span>
                               </>
                             ) : (
                               <>
-                                <Printer size={13} />
-                                <span>Cetak & Kirim</span>
+                                <Smartphone size={13} />
+                                <span>Kirim WA</span>
                               </>
                             )}
                           </button>
@@ -1851,12 +1885,12 @@ const Riwayat = () => {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              openWhatsAppModal(invoice);
+                              handlePrintManual(invoice);
                             }}
-                            disabled={!isAdmin}
-                            className="inline-flex items-center justify-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1.5 text-xs font-semibold text-white disabled:opacity-50 transition-colors cursor-pointer"
+                            disabled={printingInvoiceId === invoice.id}
+                            className="inline-flex items-center justify-center gap-1 rounded-lg border border-border bg-card hover:bg-muted px-2.5 py-1.5 text-xs font-semibold text-foreground disabled:opacity-50 transition-colors cursor-pointer"
                           >
-                            <Smartphone size={13} /> WA
+                            <Printer size={13} /> {printingInvoiceId === invoice.id ? "..." : "Cetak"}
                           </button>
                           {(isOwnerOrDev || (!invoice.is_printed && invoice.status !== "LUNAS")) && (
                             <button

@@ -447,17 +447,29 @@ const CetakInvoice = () => {
     void sendWhatsAppInvoiceInternal(currentInvoiceData, true);
   };
 
-  const handlePrint = async () => {
-    if (!currentUser || !userProfile) {
-      toast({ title: "Error", description: "Data user belum siap, silakan coba lagi.", variant: "destructive" });
-      return;
-    }
+  // 1. Opsi Cetak & Kirim Otomatis: Hanya loading dan kirim ke WhatsApp tanpa membuka jendela print
+  const handleSendWhatsAppAuto = async () => {
+    const currentInvoiceData: Invoice = {
+      id: savedInvoiceId,
+      no_invoice: noInvoice,
+      tanggal,
+      customer,
+      items,
+      subtotal,
+      diskon,
+      total,
+      jumlah_dibayar: jumlahDibayar,
+      sisa,
+      status,
+      stock_location: stockLocation,
+      dibuat_oleh: userProfile?.name || "",
+      dibuat_oleh_role: userProfile?.role || "",
+    };
+    await sendWhatsAppInvoiceInternal(currentInvoiceData, true);
+  };
 
-    if (!canPrint) {
-      toast({ title: "Error", description: "Hanya Admin, Owner, atau Developer yang dapat mencetak invoice.", variant: "destructive" });
-      return;
-    }
-
+  // 2. Opsi Cetak Manual: Membuka dialog print browser untuk cetak struk/kertas fisik
+  const handlePrintManual = async () => {
     setPrinting(true);
     const itemsHtml = items.filter((i) => i.nama_barang).map((item) => `
       <tr>
@@ -554,43 +566,20 @@ const CetakInvoice = () => {
   <\/script>
 </body></html>`;
 
-    setWaSending(true);
     try {
       const w = window.open("", "_blank");
       if (!w) {
-        // Fallback tangguh untuk iOS WKWebView dan pop-up yang diblokir oleh browser
         await printHtmlViaIframe(html);
       } else {
         w.document.open();
         w.document.write(html);
         w.document.close();
       }
-
       await updatePrintStatus();
-
-      // Otomatis kirim PDF faktur resmi ke grup WhatsApp (forceSend = true)
-      const currentInvoiceData: Invoice = {
-        id: savedInvoiceId,
-        no_invoice: noInvoice,
-        tanggal,
-        customer,
-        items,
-        subtotal,
-        diskon,
-        total,
-        jumlah_dibayar: jumlahDibayar,
-        sisa,
-        status,
-        stock_location: stockLocation,
-        dibuat_oleh: userProfile?.name || "",
-        dibuat_oleh_role: userProfile?.role || "",
-      };
-      await sendWhatsAppInvoiceInternal(currentInvoiceData, true);
     } catch (err) {
-      console.warn("Print & WA error:", err);
+      console.warn("Print error:", err);
     } finally {
       setPrinting(false);
-      setWaSending(false);
     }
   };
 
@@ -737,39 +726,45 @@ const CetakInvoice = () => {
             </div>
           )}
 
-          <div className="flex flex-col gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <button
               type="button"
-              onClick={handlePrint}
-              disabled={!canPrint || printing || waSending}
+              onClick={handleSendWhatsAppAuto}
+              disabled={waSending}
               className={`w-full rounded-xl py-3 px-4 text-sm font-bold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 shadow-sm ${
-                waSentToGroup && !waSending && !printing
+                waSentToGroup && !waSending
                   ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                  : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                  : "bg-emerald-600 hover:bg-emerald-700 text-white"
               } disabled:opacity-50 disabled:cursor-not-allowed`}
             >
-              {printing || waSending ? (
+              {waSending ? (
                 <>
                   <Loader2 size={18} className="animate-spin" />
-                  <span>Sedang Mencetak & Mengirim ke WhatsApp...</span>
+                  <span>Sedang Mengirim ke WhatsApp...</span>
                 </>
               ) : waSentToGroup ? (
                 <>
                   <CheckCircle2 size={18} className="text-white" />
-                  <span>Terkirim ke WhatsApp ✅ ({waSentToGroup})</span>
+                  <span>Terkirim ke WhatsApp ✅ (${waSentToGroup})</span>
                 </>
               ) : (
                 <>
-                  <Printer size={18} />
+                  <Smartphone size={18} />
                   <span>Cetak & Kirim Otomatis</span>
                 </>
               )}
             </button>
-            {!canPrint && (
-              <p className="text-xs text-destructive text-center">Hanya Admin/Owner/Developer yang dapat mencetak.</p>
-            )}
-          </div>
 
+            <button
+              type="button"
+              onClick={handlePrintManual}
+              disabled={printing}
+              className="w-full rounded-xl border border-border bg-card hover:bg-muted py-3 px-4 text-sm font-bold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Printer size={18} />
+              <span>{printing ? "Membuka Printer..." : "Cetak Manual (Kertas)"}</span>
+            </button>
+          </div>
           <p className="text-[11px] text-muted-foreground text-center">
             Pencetakan fisik/PDF & kirim WhatsApp (stok sudah aman terpotong saat disimpan).
           </p>

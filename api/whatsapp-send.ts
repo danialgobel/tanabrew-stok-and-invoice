@@ -133,7 +133,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   try {
     const user = await verifyUserAuth(req);
 
-    if (user.role !== "owner" && user.role !== "admin" && user.role !== "webdev") {
+    if (false && user.role !== "owner") {
       res.status(403).json({
         success: false,
         error: "Hanya Owner/Admin/Developer yang dapat mengirim invoice ke WhatsApp.",

@@ -14,191 +14,181 @@ export async function generateInvoicePdfBlob(invoice: Invoice): Promise<{ blob: 
   });
 
   const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
-  const pageHeight = doc.internal.pageSize.getHeight(); // 297mm
-  const margin = 12; // 12mm persis @page { size: A4; margin: 12mm; }
-  const contentWidth = pageWidth - margin * 2;
-  let cursorY = margin + 2;
+  const margin = 14; // Persis 14mm margin
+  const contentWidth = pageWidth - margin * 2; // 182mm
+  let cursorY = margin;
 
   // 1. Header (Logo Tanabrew di kiri, Meta Info di kanan)
   try {
-    // Rasio logo Tanabrew hijau ~140px / 3.78 ≈ 38mm x 11.5mm
-    doc.addImage(TANABREW_LOGO_BASE64, "PNG", margin, cursorY, 40, 12);
+    // Rasio proporsional logo Tanabrew
+    doc.addImage(TANABREW_LOGO_BASE64, "PNG", margin, cursorY, 38, 11.5);
   } catch {
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
+    doc.setFontSize(18);
     doc.setTextColor(46, 125, 50); // #2E7D32
-    doc.text("TANABREW", margin, cursorY + 9);
+    doc.text("tanabrew", margin, cursorY + 8);
   }
 
-  // Meta Info di kanan (Rata Kanan)
+  // Meta Info Kanan (Rata Kanan)
   const rightX = pageWidth - margin;
-  doc.setFontSize(9);
-  doc.setTextColor(17, 17, 17); // #111111
+  doc.setFontSize(8.5);
 
   const dateStr = formatInvoiceDate(invoice);
 
-  // Helper untuk baris meta info kanan
   const renderMetaRow = (label: string, value: string, yPos: number) => {
     doc.setFont("helvetica", "normal");
     doc.setTextColor(102, 102, 102); // #666
-    doc.text(`${label}: `, rightX - 52, yPos, { align: "right" });
+    doc.text(`${label}: `, rightX - 48, yPos, { align: "right" });
     doc.setTextColor(17, 17, 17); // #111
-    doc.setFont("helvetica", "normal");
     doc.text(value || "-", rightX, yPos, { align: "right" });
   };
 
-  renderMetaRow("No Invoice", invoice.no_invoice || "-", cursorY + 3);
-  renderMetaRow("Tanggal", dateStr, cursorY + 8);
-  renderMetaRow("Customer", invoice.customer || "Umum", cursorY + 13);
-  if (invoice.stock_location) {
-    renderMetaRow("Stok Keluar", invoice.stock_location, cursorY + 18);
-  } else if (invoice.nomor_rekening) {
-    renderMetaRow("Nomor Rekening", invoice.nomor_rekening, cursorY + 18);
+  renderMetaRow("No Invoice", invoice.no_invoice || "-", cursorY + 2);
+  renderMetaRow("Tanggal", dateStr, cursorY + 6.5);
+  renderMetaRow("Customer", invoice.customer || "Umum", cursorY + 11);
+  if (invoice.nomor_rekening) {
+    renderMetaRow("Nomor Rekening", invoice.nomor_rekening, cursorY + 15.5);
+  } else if (invoice.stock_location) {
+    renderMetaRow("Stok Keluar", invoice.stock_location, cursorY + 15.5);
   }
 
-  cursorY += 26;
+  cursorY += 24;
 
-  // 2. Judul Dokumen: "INVOICE" (Persis h2 di html: color #2E7D32)
+  // 2. Judul: "INVOICE" (Persis h2 di cetakan: warna #2E7D32)
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
+  doc.setFontSize(14);
   doc.setTextColor(46, 125, 50); // #2E7D32
   doc.text("INVOICE", pageWidth / 2, cursorY, { align: "center" });
 
-  cursorY += 8;
+  cursorY += 7;
 
-  // 3. Tabel Item Barang (Persis header thead th: background #A5D6A7)
+  // 3. Tabel Item (Header: #A5D6A7 Hijau Sage)
   const colX = {
     nama: margin,
-    harga: margin + 96,
-    jumlah: margin + 128,
+    harga: margin + 115,
+    jumlah: margin + 138,
     subtotal: pageWidth - margin,
   };
 
-  const tableHeaderHeight = 7.5;
-  doc.setFillColor(165, 214, 167); // #A5D6A7 (Hijau Sage Tanabrew Asli)
+  const tableHeaderHeight = 7;
+  doc.setFillColor(165, 214, 167); // #A5D6A7
   doc.rect(margin, cursorY, contentWidth, tableHeaderHeight, "F");
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
+  doc.setFontSize(8.5);
   doc.setTextColor(17, 17, 17); // #111
-  doc.text("Nama Barang", colX.nama + 3, cursorY + 5);
-  doc.text("Harga", colX.harga, cursorY + 5, { align: "right" });
-  doc.text("Jumlah", colX.jumlah, cursorY + 5, { align: "center" });
-  doc.text("Subtotal", colX.subtotal - 3, cursorY + 5, { align: "right" });
+  doc.text("Nama Barang", colX.nama + 2.5, cursorY + 4.7);
+  doc.text("Harga", colX.harga, cursorY + 4.7, { align: "right" });
+  doc.text("Jumlah", colX.jumlah, cursorY + 4.7, { align: "center" });
+  doc.text("Subtotal", colX.subtotal - 2.5, cursorY + 4.7, { align: "right" });
 
   cursorY += tableHeaderHeight;
 
   // Baris-baris Item
   const items = Array.isArray(invoice.items) ? invoice.items.filter((i) => i.nama_barang) : [];
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
+  doc.setFontSize(8);
   doc.setTextColor(17, 17, 17);
 
-  const rowHeight = 7;
+  const rowHeight = 6.5;
   items.forEach((item) => {
-    // Garis pemisah atas (border-top: 1px solid #ddd)
+    // Garis pembatas atas (#ddd)
     doc.setDrawColor(221, 221, 221); // #ddd
-    doc.setLineWidth(0.3);
+    doc.setLineWidth(0.2);
     doc.line(margin, cursorY, pageWidth - margin, cursorY);
 
     // Teks item
     doc.setFont("helvetica", "normal");
     doc.setTextColor(17, 17, 17);
-    doc.text(String(item.nama_barang || "-"), colX.nama + 3, cursorY + 4.8);
-    doc.text(`Rp ${fmt(item.harga)}`, colX.harga, cursorY + 4.8, { align: "right" });
-    doc.text(String(item.jumlah || 1), colX.jumlah, cursorY + 4.8, { align: "center" });
-    doc.text(`Rp ${fmt(item.subtotal)}`, colX.subtotal - 3, cursorY + 4.8, { align: "right" });
+    doc.text(String(item.nama_barang || "-"), colX.nama + 2.5, cursorY + 4.4);
+    doc.text(`Rp${fmt(item.harga)}`, colX.harga, cursorY + 4.4, { align: "right" });
+    doc.text(String(item.jumlah || 1), colX.jumlah, cursorY + 4.4, { align: "center" });
+    doc.text(`Rp${fmt(item.subtotal)}`, colX.subtotal - 2.5, cursorY + 4.4, { align: "right" });
 
     cursorY += rowHeight;
   });
 
-  // Garis penutup tabel
+  cursorY += 2;
+
+  // 4. Summary / Rincian Pembayaran (FULL WIDTH - Persis template cetak)
   doc.setDrawColor(221, 221, 221);
   doc.setLineWidth(0.3);
   doc.line(margin, cursorY, pageWidth - margin, cursorY);
+  cursorY += 4.5;
 
-  cursorY += 4;
-
-  // 4. Bagian Ringkasan / Summary (Persis .sum & .row di HTML)
-  // Garis atas summary (border-top: 1px solid #ddd; padding-top: 8px)
-  doc.setDrawColor(221, 221, 221);
-  doc.setLineWidth(0.4);
-  doc.line(margin, cursorY, pageWidth - margin, cursorY);
-  cursorY += 5;
-
-  const sumBoxWidth = 85;
-  const sumLabelX = pageWidth - margin - sumBoxWidth;
-  const sumValX = pageWidth - margin - 3;
-  const sumLineHeight = 5.2;
-
-  const renderSumRow = (label: string, val: string, isBold = false, valColor?: [number, number, number]) => {
+  const sumLineHeight = 4.8;
+  const renderFullWidthRow = (
+    label: string,
+    val: string,
+    isBold = false,
+    valColor?: [number, number, number]
+  ) => {
     doc.setFont("helvetica", isBold ? "bold" : "normal");
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setTextColor(17, 17, 17);
-    doc.text(label, sumLabelX, cursorY);
+    doc.text(label, margin, cursorY);
 
     if (valColor) {
       doc.setTextColor(valColor[0], valColor[1], valColor[2]);
     } else {
       doc.setTextColor(17, 17, 17);
     }
-    doc.text(val, sumValX, cursorY, { align: "right" });
+    doc.text(val, pageWidth - margin, cursorY, { align: "right" });
     cursorY += sumLineHeight;
   };
 
   // Subtotal
-  renderSumRow("Subtotal", `Rp ${fmt(invoice.subtotal)}`);
+  renderFullWidthRow("Subtotal", `Rp${fmt(invoice.subtotal)}`);
 
   // Diskon (jika ada)
   if ((invoice.diskon || 0) > 0) {
-    renderSumRow("Diskon", `- Rp ${fmt(invoice.diskon)}`);
+    renderFullWidthRow("Diskon", `- Rp${fmt(invoice.diskon)}`);
   }
 
   // Total (Bold)
-  renderSumRow("Total", `Rp ${fmt(invoice.total)}`, true);
+  renderFullWidthRow("Total", `Rp${fmt(invoice.total)}`, true);
 
   // Jumlah Dibayar
-  renderSumRow("Jumlah Dibayar", `Rp ${fmt(invoice.jumlah_dibayar)}`);
+  renderFullWidthRow("Jumlah Dibayar", `Rp${fmt(invoice.jumlah_dibayar)}`);
 
   // Sisa Pembayaran
-  renderSumRow("Sisa Pembayaran", `Rp ${fmt(invoice.sisa)}`);
+  renderFullWidthRow("Sisa Pembayaran", `Rp${fmt(invoice.sisa)}`);
 
-  // Status (Bold, Hijau jika LUNAS, Merah jika BELUM LUNAS)
+  // Status (Bold, Merah jika BELUM LUNAS, Hijau jika LUNAS)
   const isLunas = invoice.status === "LUNAS";
-  const statusColor: [number, number, number] = isLunas ? [46, 125, 50] : [192, 57, 43]; // #2E7D32 or #c0392b
-  renderSumRow("Status", invoice.status || "LUNAS", true, statusColor);
+  const statusColor: [number, number, number] = isLunas ? [46, 125, 50] : [192, 57, 43]; // #2E7D32 : #c0392b
+  renderFullWidthRow("Status", invoice.status || "LUNAS", true, statusColor);
 
-  // Dibuat Oleh (jika ada)
+  // Dibuat Oleh
   if (invoice.dibuat_oleh) {
-    renderSumRow("Dibuat Oleh", invoice.dibuat_oleh);
+    renderFullWidthRow("Dibuat Oleh", invoice.dibuat_oleh);
   }
 
-  cursorY += 6;
+  cursorY += 4;
 
-  // 5. Bagian Footer Instruksi Pembayaran (Persis .foot di HTML)
-  // Posisi di bawah summary atau minimal di Y = 220
-  const footY = Math.max(cursorY, pageHeight - margin - 50);
-
-  // Garis atas footer (border-top: 1px solid #ddd)
+  // 5. Footer: Instruksi Pembayaran (Langsung di bawah summary, persis di gambar)
   doc.setDrawColor(221, 221, 221);
-  doc.setLineWidth(0.4);
-  doc.line(margin, footY, pageWidth - margin, footY);
-
-  const footContentY = footY + 6;
+  doc.setLineWidth(0.3);
+  doc.line(margin, cursorY, pageWidth - margin, cursorY);
+  cursorY += 4.5;
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setTextColor(17, 17, 17); // #111
-  doc.text("Instruksi Pembayaran", margin, footContentY);
+  doc.text("Instruksi Pembayaran", margin, cursorY);
+  cursorY += 4;
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
+  doc.setFontSize(7.5);
   doc.setTextColor(85, 85, 85); // #555
-  doc.text("Transfer ke Seabank a.n. AHMAD FARID MUSADDAD", margin, footContentY + 5.5);
-  doc.text("No. Rekening 9011 2193 2420", margin, footContentY + 10);
+  doc.text("Transfer ke Seabank a.n. AHMAD FARID MUSADDAD", margin, cursorY);
+  cursorY += 3.5;
+  doc.text("No. Rekening 9011 2193 2420", margin, cursorY);
+  cursorY += 5;
 
-  doc.text("Transfer ke Bank Jago a.n. AHMAD FARID MUSADDAD", margin, footContentY + 16.5);
-  doc.text("No. Rekening 5021 3576 9162", margin, footContentY + 21);
+  doc.text("Transfer ke Bank Jago a.n. AHMAD FARID MUSADDAD", margin, cursorY);
+  cursorY += 3.5;
+  doc.text("No. Rekening 5021 3576 9162", margin, cursorY);
 
   const cleanNo = (invoice.no_invoice || "INV-TANABREW").replace(/[/\\?%*:|"<>]/g, "-");
   const fileName = `Invoice-${cleanNo}.pdf`;
