@@ -15,29 +15,29 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.7.0",
-  versionLabel: "v3.7.0",
+  version: "3.7.1",
+  versionLabel: "v3.7.1",
   releaseDate: "5 November 2026",
-  title: "Manajemen Server URL WhatsApp Dinamis & Pemulihan Koneksi Otomatis (5 November 2026)",
-  subtitle: "Penambahan kontrol URL server WhatsApp di pengaturan, sinkronisasi dinamis Cloudflare Tunnel via Firestore, dan pembersihan build Vercel",
+  title: "Konsolidasi Serverless API Vercel (Limit 12) & Auto-Sync Tunnel WhatsApp (5 November 2026)",
+  subtitle: "Konsolidasi 5 fungsi serverless WhatsApp menjadi 1 endpoint terpadu (bebas batas kuota Vercel Hobby) dan auto-sinkronisasi URL Cloudflare Tunnel tanpa copy-paste manual",
   highlights: [
     {
-      title: "Input & Sinkronisasi URL Server WhatsApp Langsung di UI",
-      desc: "Owner & Admin kini dapat melihat dan memperbarui URL server publik WhatsApp (Cloudflare / Ngrok) langsung dari jendela Otomasi WhatsApp hanya dengan menempelkan URL aktif dari shortcut desktop, tanpa perlu membuka pengaturan Vercel.",
-      badge: "Fitur",
+      title: "Konsolidasi Endpoint Serverless (Solusi Batas 12 Fungsi Vercel Hobby)",
+      desc: "Seluruh endpoint status, konfigurasi, pairing code, dan disconnect disatukan ke dalam 1 fungsi terpadu api/whatsapp.ts, memangkas fungsi dari 12 menjadi 9 dan membebaskan 3 slot aman permanen.",
+      badge: "Peningkatan",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
     {
-      title: "Resolusi Status WhatsApp 'Belum Terhubung' Pasca Laptop Restart",
-      desc: "Endpoint status dan pengiriman invoice kini membaca URL server langsung dari Firestore secara seketika, mengeliminasi kendala pergantian subdomain acak pada Cloudflare quick tunnel.",
-      badge: "Perbaikan",
-      badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20",
+      title: "Auto-Sync URL Tunnel Otomatis (Tanpa Copy-Paste Manual)",
+      desc: "Laptop kasir kini secara mandiri melaporkan URL Cloudflare aktif langsung ke basis data cloud setiap kali menyala, sehingga status WhatsApp di web kasir otomatis 'Terhubung 🟢' seketika tanpa perlu salin-tempel URL lagi.",
+      badge: "Fitur",
+      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
     {
-      title: "Stabilisasi Pengiriman Dokumen Faktur PDF",
-      desc: "Patch engine Chrome terverifikasi mengirimkan dokumen faktur PDF secara presisi ke grup WhatsApp toko tanpa hambatan getter data WhatsApp Web.",
-      badge: "Peningkatan",
-      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      title: "Perbaikan Resolusi Konfigurasi Dokumen Faktur",
+      desc: "Memastikan URL server laptop selalu terbaca dengan tepat dari Firestore saat kasir mencetak dan mengirim invoice dari perangkat apa pun.",
+      badge: "Perbaikan",
+      badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20",
     },
   ],
 };

@@ -45,3 +45,4 @@ Write-Host ""
 Write-Host "========================================================" -ForegroundColor DarkGray
 Write-Host "Tekan tombol apa saja untuk menutup jendela ini..." -ForegroundColor Gray
 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+

@@ -182,10 +182,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       return;
     }
 
-    // 2. Resolve Target Group if not explicitly passed
+    // 2. Resolve Target Group & Config from Firestore
+    const configDoc = await db.collection("system_settings").doc("whatsapp").get();
+    const configData = configDoc.exists ? configDoc.data() : null;
+
     if (!groupId) {
-      const configDoc = await db.collection("system_settings").doc("whatsapp").get();
-      const configData = configDoc.exists ? configDoc.data() : null;
       groupId = configData?.target_group_id;
       groupName = configData?.target_group_name || "Grup Tanabrew";
     }

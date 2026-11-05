@@ -181,6 +181,48 @@ app.post("/disconnect", requireAuth, async (_req, res) => {
   }
 });
 
+
+// =========================================================================
+// 🔄 AUTOMATIC CLOUDFLARE TUNNEL URL DISCOVERY & CLOUD SYNC
+// Mendeteksi URL tunnel cloudflared dari port metrics (20241) dan mendaftarkannya ke Vercel
+// =========================================================================
+let lastRegisteredTunnelUrl: string | null = null;
+
+async function syncCloudflareTunnelUrl(): Promise<void> {
+  try {
+    const res = await fetch("http://127.0.0.1:20241/metrics");
+    if (!res.ok) return;
+    const text = await res.text();
+    const match = text.match(/userHostname="([^"]+)"/);
+    if (!match || !match[1]) return;
+
+    const currentUrl = match[1].trim().replace(/\/$/, "");
+    if (currentUrl === lastRegisteredTunnelUrl) return;
+
+    console.log(`[TUNNEL-SYNC] Discovered active Cloudflare Tunnel: ${currentUrl}`);
+    console.log("[TUNNEL-SYNC] Registering to Tanabrew Cloud...");
+
+    const syncRes = await fetch("https://tanabrew-stok-and-invoice.vercel.app/api/whatsapp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "sync_url",
+        sync_secret: "tanabrew-wa-sync-key-2026",
+        service_url: currentUrl,
+      }),
+    });
+
+    if (syncRes.ok) {
+      lastRegisteredTunnelUrl = currentUrl;
+      console.log(`[TUNNEL-SYNC] ✅ Successfully registered tunnel URL to Tanabrew Cloud: ${currentUrl}`);
+    } else {
+      console.warn(`[TUNNEL-SYNC] Cloud sync returned HTTP ${syncRes.status}`);
+    }
+  } catch {
+    // Ignore when cloudflared or internet not ready yet
+  }
+}
+
 // Start Server & Initialize WhatsApp
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`=============================================`);
@@ -188,4 +230,13 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log(`🔑 Auth protection: ${API_KEY ? "ENABLED (Bearer token required)" : "DISABLED"}`);
   console.log(`=============================================`);
   void initWhatsApp();
+
+  // Auto-sync tunnel URL to cloud
+  setTimeout(() => {
+    void syncCloudflareTunnelUrl();
+  }, 2000);
+  setInterval(() => {
+    void syncCloudflareTunnelUrl();
+  }, 10000);
 });
+

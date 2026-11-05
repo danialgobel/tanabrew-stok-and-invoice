@@ -37,7 +37,7 @@ export const fetchWhatsAppStatus = async (currentUser: User | null | undefined):
   }
 
   const token = await currentUser.getIdToken();
-  const response = await fetch("/api/whatsapp-status", {
+  const response = await fetch("/api/whatsapp", {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -68,13 +68,13 @@ export const saveWhatsAppTargetGroup = async (
   }
 
   const token = await currentUser.getIdToken();
-  const response = await fetch("/api/whatsapp-config", {
+  const response = await fetch("/api/whatsapp", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(params),
+    body: JSON.stringify({ action: "config", ...params }),
   });
 
   const data = await response.json();
@@ -138,12 +138,13 @@ export const disconnectWhatsAppSession = async (
   }
 
   const token = await currentUser.getIdToken();
-  const response = await fetch("/api/whatsapp-disconnect", {
+  const response = await fetch("/api/whatsapp", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
+    body: JSON.stringify({ action: "disconnect" }),
   });
 
   const data = await response.json();
@@ -163,13 +164,13 @@ export const requestWhatsAppPairingCode = async (
   }
 
   const token = await currentUser.getIdToken();
-  const response = await fetch("/api/whatsapp-pair-code", {
+  const response = await fetch("/api/whatsapp", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ phoneNumber }),
+    body: JSON.stringify({ action: "pair_code", phoneNumber }),
   });
 
   const data = await response.json();
