@@ -105,7 +105,7 @@ const Akun = () => {
     try {
       const res = await fetchWhatsAppStatus(currentUser);
       setWaStatus(res);
-      setWaServerOnline(Boolean(res.serverOnline !== false && (res.connected !== undefined || res.status)));
+      setWaServerOnline(Boolean(res.serviceConfigured !== false && res.success !== false));
     } catch {
       setWaServerOnline(false);
       setWaStatus(null);
@@ -644,8 +644,8 @@ const Akun = () => {
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Akun WhatsApp:</span>
                 <span className="font-mono font-medium text-foreground">
-                  {waStatus?.connected && waStatus?.user
-                    ? `+${waStatus.user.replace(/[^0-9]/g, "")}`
+                  {waStatus?.connected && waStatus?.user?.id
+                    ? `+${waStatus.user.id.replace(/[^0-9]/g, "")}`
                     : waServerOnline
                       ? "Belum Terhubung (Pindai QR)"
                       : "Server Laptop Offline"}
@@ -654,7 +654,7 @@ const Akun = () => {
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Grup Tujuan:</span>
                 <span className="font-medium text-foreground truncate max-w-[170px]">
-                  {waStatus?.target_group_name || "Belum dipilih"}
+                  {waStatus?.savedConfig?.target_group_name || "Belum dipilih"}
                 </span>
               </div>
             </div>

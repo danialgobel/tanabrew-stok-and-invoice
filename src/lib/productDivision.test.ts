@@ -137,6 +137,7 @@ describe("productDivision helper", () => {
       {
         id: "inv-002",
         no_invoice: "INV/TNB/2026/10/0002",
+        tanggal: "2026-10-06",
         customer: "Kedai Warehouse Only",
         items: [
           {
@@ -149,6 +150,8 @@ describe("productDivision helper", () => {
         ],
         subtotal: 170000,
         total: 170000,
+        jumlah_dibayar: 170000,
+        sisa: 0,
         status: "LUNAS",
       },
     ];
@@ -216,6 +219,8 @@ describe("productDivision helper", () => {
       ],
       subtotal: 525000,
       total: 525000,
+      jumlah_dibayar: 525000,
+      sisa: 0,
       status: "LUNAS",
     };
 

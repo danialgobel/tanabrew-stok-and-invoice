@@ -5,6 +5,7 @@ import {
   fetchWhatsAppStatus,
   saveWhatsAppTargetGroup,
   disconnectWhatsAppSession,
+  requestWhatsAppPairingCode,
   type WhatsAppStatusResponse,
 } from "@/lib/whatsappClient";
 import { isAdminRole } from "@/lib/roleUtils";
@@ -25,6 +26,8 @@ import {
   Server,
   QrCode,
   ShieldAlert,
+  KeyRound,
+  Phone,
 } from "lucide-react";
 
 interface WhatsAppSettingsModalProps {
