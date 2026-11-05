@@ -1380,10 +1380,29 @@ const Riwayat = () => {
           <button
             type="button"
             onClick={() => handlePrintInvoice(invoice)}
-            disabled={!isAdmin || printingInvoiceId === invoice.id}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2.5 text-xs font-bold text-primary-foreground shadow-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            disabled={!isAdmin || printingInvoiceId === invoice.id || sendingWaInvoiceId === invoice.id}
+            className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors ${
+              (invoice as any).whatsapp_status?.status === "SENT" && printingInvoiceId !== invoice.id
+                ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                : "bg-primary hover:opacity-90 text-primary-foreground"
+            }`}
           >
-            <Printer size={15} /> {printingInvoiceId === invoice.id ? "Menyiapkan..." : "Cetak Ulang PDF"}
+            {printingInvoiceId === invoice.id || sendingWaInvoiceId === invoice.id ? (
+              <>
+                <Loader2 size={15} className="animate-spin" />
+                <span>Sedang Mencetak & Mengirim...</span>
+              </>
+            ) : (invoice as any).whatsapp_status?.status === "SENT" ? (
+              <>
+                <CheckCircle2 size={15} className="text-white" />
+                <span>Cetak & Kirim Ulang</span>
+              </>
+            ) : (
+              <>
+                <Printer size={15} />
+                <span>Cetak & Kirim Otomatis</span>
+              </>
+            )}
           </button>
           <button
             type="button"
@@ -1809,10 +1828,24 @@ const Riwayat = () => {
                               e.stopPropagation();
                               handlePrintInvoice(invoice);
                             }}
-                            disabled={!isAdmin || printingInvoiceId === invoice.id}
-                            className="inline-flex items-center justify-center gap-1 rounded-lg bg-primary hover:bg-primary/90 px-2.5 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50 transition-colors cursor-pointer"
+                            disabled={!isAdmin || printingInvoiceId === invoice.id || sendingWaInvoiceId === invoice.id}
+                            className={`inline-flex items-center justify-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold disabled:opacity-50 transition-colors cursor-pointer ${
+                              (invoice as any).whatsapp_status?.status === "SENT" && printingInvoiceId !== invoice.id
+                                ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                            }`}
                           >
-                            <Printer size={13} /> {printingInvoiceId === invoice.id ? "..." : "Cetak"}
+                            {printingInvoiceId === invoice.id || sendingWaInvoiceId === invoice.id ? (
+                              <>
+                                <Loader2 size={13} className="animate-spin" />
+                                <span>...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Printer size={13} />
+                                <span>Cetak & Kirim</span>
+                              </>
+                            )}
                           </button>
                           <button
                             type="button"

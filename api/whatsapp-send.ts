@@ -215,7 +215,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         `_Invoice otomatis dikirim oleh sistem Tanabrew._`;
     }
 
-    const waServiceUrl = (process.env.WHATSAPP_SERVICE_URL || "").replace(/\/$/, "");
+    let waServiceUrl = (process.env.WHATSAPP_SERVICE_URL || "").replace(/\/$/, "");
+    if (!waServiceUrl && configData?.service_url) {
+      waServiceUrl = String(configData.service_url).replace(/\/$/, "");
+    }
     const waServiceApiKey = process.env.WHATSAPP_SERVICE_API_KEY || "";
 
     if (!waServiceUrl) {

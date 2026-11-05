@@ -554,20 +554,44 @@ const CetakInvoice = () => {
   <\/script>
 </body></html>`;
 
-    const w = window.open("", "_blank");
-    if (!w) {
-      // Fallback tangguh untuk iOS WKWebView dan pop-up yang diblokir oleh browser
-      await printHtmlViaIframe(html);
-      await updatePrintStatus();
-      setPrinting(false);
-      return;
-    }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
+    setWaSending(true);
+    try {
+      const w = window.open("", "_blank");
+      if (!w) {
+        // Fallback tangguh untuk iOS WKWebView dan pop-up yang diblokir oleh browser
+        await printHtmlViaIframe(html);
+      } else {
+        w.document.open();
+        w.document.write(html);
+        w.document.close();
+      }
 
-    await updatePrintStatus();
-    setPrinting(false);
+      await updatePrintStatus();
+
+      // Otomatis kirim PDF faktur resmi ke grup WhatsApp (forceSend = true)
+      const currentInvoiceData: Invoice = {
+        id: savedInvoiceId,
+        no_invoice: noInvoice,
+        tanggal,
+        customer,
+        items,
+        subtotal,
+        diskon,
+        total,
+        jumlah_dibayar: jumlahDibayar,
+        sisa,
+        status,
+        stock_location: stockLocation,
+        dibuat_oleh: userProfile?.name || "",
+        dibuat_oleh_role: userProfile?.role || "",
+      };
+      await sendWhatsAppInvoiceInternal(currentInvoiceData, true);
+    } catch (err) {
+      console.warn("Print & WA error:", err);
+    } finally {
+      setPrinting(false);
+      setWaSending(false);
+    }
   };
 
   if (loadingInvoice) {
@@ -713,41 +737,37 @@ const CetakInvoice = () => {
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <div>
-              <button
-                onClick={handlePrint}
-                disabled={!canPrint || printing || waSending}
-                className="w-full bg-primary text-primary-foreground rounded-lg py-2.5 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
-              >
-                <Printer size={16} />
-                {printing ? "Memproses Cetak..." : "Cetak Invoice"}
-              </button>
-              {!canPrint && (
-                <p className="mt-1 text-xs text-destructive text-center">Hanya Admin/Owner/Developer yang dapat mencetak.</p>
+          <div className="flex flex-col gap-2.5">
+            <button
+              type="button"
+              onClick={handlePrint}
+              disabled={!canPrint || printing || waSending}
+              className={`w-full rounded-xl py-3 px-4 text-sm font-bold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 shadow-sm ${
+                waSentToGroup && !waSending && !printing
+                  ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                  : "bg-primary hover:bg-primary/90 text-primary-foreground"
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              {printing || waSending ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  <span>Sedang Mencetak & Mengirim ke WhatsApp...</span>
+                </>
+              ) : waSentToGroup ? (
+                <>
+                  <CheckCircle2 size={18} className="text-white" />
+                  <span>Terkirim ke WhatsApp ✅ ({waSentToGroup})</span>
+                </>
+              ) : (
+                <>
+                  <Printer size={18} />
+                  <span>Cetak & Kirim Otomatis</span>
+                </>
               )}
-            </div>
-
-            <div>
-              <button
-                type="button"
-                onClick={handleManualSendWhatsApp}
-                disabled={waSending}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg py-2.5 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 shadow-sm"
-              >
-                {waSending ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    <span>Mengirim ke WA...</span>
-                  </>
-                ) : (
-                  <>
-                    <Smartphone size={16} />
-                    <span>Langsung Kirim ke Grup WA</span>
-                  </>
-                )}
-              </button>
-            </div>
+            </button>
+            {!canPrint && (
+              <p className="text-xs text-destructive text-center">Hanya Admin/Owner/Developer yang dapat mencetak.</p>
+            )}
           </div>
 
           <p className="text-[11px] text-muted-foreground text-center">
