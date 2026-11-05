@@ -39,7 +39,7 @@ const WelcomeAnimation = ({ name, role, onFinish }: WelcomeAnimationProps) => {
       <div className="tanabrew-welcome-panel">
         <div className="tanabrew-welcome-mark">
           <img
-            src="https://i.ibb.co.com/6CgfRK5/TM-LOGO-PUTIH.png"
+            src="/tanabrew-logo.png"
             alt="Tanabrew Logo"
             className="tanabrew-welcome-logo"
           />

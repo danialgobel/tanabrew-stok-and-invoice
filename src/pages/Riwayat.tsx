@@ -70,8 +70,8 @@ type ActionNotice = {
 const paymentInstructions = [
   "Transfer ke Seabank a.n. AHMAD FARID MUSADDAD",
   "No. Rekening 9011 2193 2420",
-  "Transfer ke BSI a.n. AHMAD FARID MUSADDAD",
-  "No. Rekening 7196999501",
+  "Transfer ke Bank Jago a.n. AHMAD FARID MUSADDAD",
+  "No. Rekening 5021 3576 9162",
 ];
 
 const formatCurrency = (value?: number) =>
@@ -218,7 +218,7 @@ const buildInvoicePrintHtml = (invoice: Invoice, autoPrint: boolean) => {
     <button type="button" class="print-btn" onclick="window.print()">🖨️ Cetak Ulang</button>
   </div>
   <div class="head">
-    <img src="https://i.ibb.co.com/Q7dCXq9q/logo-tanabrew-hijau.png" alt="Tanabrew" />
+    <img src="${window.location.origin}/logo-tanabrew-hijau.png" alt="Tanabrew" />
     <div class="info">
       <div><span>No Invoice:</span> ${escapeHtml(invoice.no_invoice)}</div>
       <div><span>Tanggal:</span> ${escapeHtml(formatInvoiceDate(invoice))}</div>
@@ -244,8 +244,8 @@ const buildInvoicePrintHtml = (invoice: Invoice, autoPrint: boolean) => {
     <b>Instruksi Pembayaran</b>
     <div>Transfer ke Seabank a.n. AHMAD FARID MUSADDAD</div>
     <div>No. Rekening 9011 2193 2420</div>
-    <div style="margin-top:6px;">Transfer ke BSI a.n. AHMAD FARID MUSADDAD</div>
-    <div>No. Rekening 7196999501</div>
+    <div style="margin-top:6px;">Transfer ke Bank Jago a.n. AHMAD FARID MUSADDAD</div>
+    <div>No. Rekening 5021 3576 9162</div>
   </div>
   <script>
     function kembaliTanabrew(){
@@ -1233,7 +1233,7 @@ const Riwayat = () => {
       <div className="rounded-xl border border-border/80 p-4 bg-background/60">
         <div className="flex justify-between items-start gap-3 mb-4">
           <img
-            src="https://i.ibb.co.com/Q7dCXq9q/logo-tanabrew-hijau.png"
+            src="/logo-tanabrew-hijau.png"
             alt="Tanabrew"
             style={{ width: 120, height: "auto" }}
           />

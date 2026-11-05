@@ -961,7 +961,7 @@ export default async function handler(req: any, res: any) {
           if (status.includes("belum") || method.includes("tempo")) {
             tempoCount++;
             tempoOmzet += total;
-          } else if (method.includes("transfer") || method.includes("seabank") || method.includes("bsi") || method.includes("9011") || method.includes("7196")) {
+          } else if (method.includes("transfer") || method.includes("seabank") || method.includes("jago") || method.includes("bsi") || method.includes("9011") || method.includes("5021") || method.includes("7196")) {
             transferCount++;
             transferOmzet += total;
           } else {

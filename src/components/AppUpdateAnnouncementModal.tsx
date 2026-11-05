@@ -100,7 +100,7 @@ export const AppUpdateAnnouncementModal = ({
           <div className="relative mb-3">
             <div className="absolute -inset-1.5 rounded-full bg-gradient-to-tr from-emerald-500 to-emerald-300 opacity-60 blur-xs animate-pulse"></div>
             <img
-              src="https://i.ibb.co.com/6CgfRK5/TM-LOGO-PUTIH.png"
+              src="/tanabrew-logo.png"
               alt="Tanabrew Logo"
               className="relative w-20 h-20 rounded-full object-cover border-2 border-primary bg-primary shadow-md"
             />

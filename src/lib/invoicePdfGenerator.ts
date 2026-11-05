@@ -226,7 +226,7 @@ export async function generateInvoicePdfBlob(invoice: Invoice): Promise<{ blob: 
   doc.setFontSize(8.5);
   doc.setTextColor(71, 85, 105);
   doc.text("• Transfer Seabank : 9011 2193 2420  (a.n. AHMAD FARID MUSADDAD)", margin + 4, footBoxY + 13);
-  doc.text("• Transfer BSI         : 7196999501          (a.n. AHMAD FARID MUSADDAD)", margin + 4, footBoxY + 19);
+  doc.text("• Transfer Bank Jago : 5021 3576 9162  (a.n. AHMAD FARID MUSADDAD)", margin + 4, footBoxY + 19);
 
   doc.setFontSize(8);
   doc.setTextColor(148, 163, 184);

@@ -15,21 +15,21 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.6.1",
-  versionLabel: "v3.6.1",
-  releaseDate: "6 Oktober 2026",
-  title: "Penyempurnaan Isolasi Pemfilteran Cetak Laporan Divisi Roastery & Warehouse (6 Oktober 2026)",
-  subtitle: "Penetapan Presisi Klasifikasi Item Invoice Berdasarkan Master Produk dan Kamus Biji Kopi / Bahan Gudang",
+  version: "3.6.2",
+  versionLabel: "v3.6.2",
+  releaseDate: "5 November 2026",
+  title: "Pembaruan Rekening Pembayaran Resmi Bank Jago & Migrasi Total Aset Brand Mandiri (5 November 2026)",
+  subtitle: "Penetapan Rekening Transfer Bank Jago a.n. AHMAD FARID MUSADDAD Serta Kemandirian Aset Logo Lokal Anti-Bug",
   highlights: [
     {
-      title: "Isolasi Cetak & Ekspor Laporan Khusus Divisi di Riwayat",
-      desc: "Menghubungkan master produk database ke penyaring cetak & ekspor CSV riwayat sehingga produk Roastery (biji kopi roasted / single origin / blend) dan Warehouse (cup, sirup, kemasan, alat) terisolasi 100% tanpa risiko data tercampur.",
-      badge: "Perbaikan",
+      title: "Pembaruan Rekening Pembayaran Resmi: Bank Jago",
+      desc: "Metode transfer Bank BSI resmi diganti menjadi Bank Jago (No. Rekening 5021 3576 9162 a.n. AHMAD FARID MUSADDAD) pada seluruh dokumen faktur POS kasir, nota pratinjau live, cetak ulang riwayat, dokumen PDF resmi, serta deteksi omzet harian.",
+      badge: "Peningkatan",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
     {
-      title: "Pencocokan Cerdas & Kamus Istilah Biji Kopi",
-      desc: "Memperkuat deteksi item invoice dengan pencocokan ID produk, nama presisi, serta kamus lengkap nama daerah asal (origin), proses pascapanen kopi, dan perlengkapan gudang.",
+      title: "Migrasi Total Aset Brand Tanabrew Mandiri (Self-Hosted)",
+      desc: "Mengalihkan seluruh tautan logo eksternal ImgBB ke aset lokal proyek secara mandiri. Menjamin logo tampil seketika, bebas pemblokiran AdBlocker/DNS, serta mencegah bug gambar putih polos atau watermark pihak ketiga secara permanen.",
       badge: "Peningkatan",
       badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
@@ -37,6 +37,27 @@ export const CURRENT_RELEASE: AppReleaseInfo = {
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.6.1",
+    versionLabel: "v3.6.1",
+    releaseDate: "6 Oktober 2026",
+    title: "Penyempurnaan Isolasi Pemfilteran Cetak Laporan Divisi Roastery & Warehouse (6 Oktober 2026)",
+    subtitle: "Penetapan Presisi Klasifikasi Item Invoice Berdasarkan Master Produk dan Kamus Biji Kopi / Bahan Gudang",
+    highlights: [
+      {
+        title: "Isolasi Cetak & Ekspor Laporan Khusus Divisi di Riwayat",
+        desc: "Menghubungkan master produk database ke penyaring cetak & ekspor CSV riwayat sehingga produk Roastery (biji kopi roasted / single origin / blend) dan Warehouse (cup, sirup, kemasan, alat) terisolasi 100% tanpa risiko data tercampur.",
+        badge: "Perbaikan",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+      {
+        title: "Pencocokan Cerdas & Kamus Istilah Biji Kopi",
+        desc: "Memperkuat deteksi item invoice dengan pencocokan ID produk, nama presisi, serta kamus lengkap nama daerah asal (origin), proses pascapanen kopi, dan perlengkapan gudang.",
+        badge: "Peningkatan",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      },
+    ],
+  },
   {
     version: "3.6.0",
     versionLabel: "v3.6.0",

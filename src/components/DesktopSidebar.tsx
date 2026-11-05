@@ -147,7 +147,7 @@ export const DesktopSidebar = ({ onSecretLogoClick }: DesktopSidebarProps) => {
             title="Klik 5x untuk menu rahasia Price List"
           >
             <img
-              src="https://i.ibb.co.com/6CgfRK5/TM-LOGO-PUTIH.png"
+              src="/tanabrew-logo.png"
               alt="Tanabrew"
               className="h-full w-full object-cover"
             />

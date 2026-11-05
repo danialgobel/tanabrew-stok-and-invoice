@@ -1029,7 +1029,7 @@ const Beranda = () => {
         {/* Mobile Header Logo & Brand (Hidden on Desktop) */}
         <div className="lg:hidden tanabrew-waterfall-1 flex flex-col items-center mb-6">
           <img
-            src="https://i.ibb.co.com/6CgfRK5/TM-LOGO-PUTIH.png"
+            src="/tanabrew-logo.png"
             alt="Tanabrew Logo"
             onClick={handleLogoClick}
             className="w-24 h-24 rounded-full object-cover border-2 border-primary bg-primary cursor-pointer select-none active:scale-95 transition-transform shadow-md"

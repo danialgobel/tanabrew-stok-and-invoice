@@ -62,7 +62,7 @@ Sebelum sistem ini diimplementasikan, operasional Tanabrew menghadapi sejumlah k
 
 1. **Selisih Stok Multi-Lokasi**: Operasional sangrai dan distribusi berlangsung di Yogyakarta dan Lombok. Pencatatan manual menggunakan spreadsheet rentan mengalami konflik data, stok ganda, atau pesanan masuk ketika stok fisik di cabang tersebut sebenarnya telah habis.
 2. **Antrean Kasir & Kesalahan Kembalian**: Penghitungan transaksi tunai secara manual di kasir memicu kelambatan layanan saat jam sibuk dan memperbesar risiko salah hitung uang kembalian.
-3. **Penagihan B2B yang Memakan Waktu**: Mitra coffee shop rekanan membutuhkan faktur penagihan formal berpenomoran standar dengan rincian rekening bank resmi (SeaBank & BSI a.n. Ahmad Farid Musaddad). Pembuatan manual menggunakan pengolah kata memakan waktu 5-10 menit per transaksi.
+3. **Penagihan B2B yang Memakan Waktu**: Mitra coffee shop rekanan membutuhkan faktur penagihan formal berpenomoran standar dengan rincian rekening bank resmi (SeaBank & Bank Jago a.n. Ahmad Farid Musaddad). Pembuatan manual menggunakan pengolah kata memakan waktu 5-10 menit per transaksi.
 4. **Keterbatasan Layanan POS Komersial**: Layanan POS pihak ketiga di pasaran membebankan biaya lisensi bulanan per cabang, fitur multi-gudang berbayar mahal, dan tidak memiliki integrasi spesifik terhadap profil roastery (seperti klasifikasi origin beans, mode harga normal vs B2B, dan pembagian stok regional).
 
 ---

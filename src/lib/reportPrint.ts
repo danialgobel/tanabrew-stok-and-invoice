@@ -44,7 +44,7 @@ export interface PrintMonthlyProductsReportInput extends ReportMeta {
 
 type ReportWindow = Window | null;
 
-const logoUrl = "https://i.ibb.co.com/Q7dCXq9q/logo-tanabrew-hijau.png";
+const logoUrl = typeof window !== "undefined" ? `${window.location.origin}/logo-tanabrew-hijau.png` : "/logo-tanabrew-hijau.png";
 
 const escapeHtml = (value: unknown) =>
   String(value ?? "")

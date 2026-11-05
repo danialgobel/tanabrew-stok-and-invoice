@@ -34,7 +34,7 @@ const Register = () => {
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-6">
           <img
-            src="https://i.ibb.co.com/6CgfRK5/TM-LOGO-PUTIH.png"
+            src="/tanabrew-logo.png"
             alt="Tanabrew Logo"
             className="w-20 h-20 rounded-full object-cover border-2 border-primary bg-primary"
           />

@@ -462,7 +462,7 @@ const CetakInvoice = () => {
     <span id="back-note" class="back-note">Gunakan tombol kembali browser untuk kembali ke Tanabrew.</span>
   </div>
   <div class="head">
-    <img src="https://i.ibb.co.com/Q7dCXq9q/logo-tanabrew-hijau.png" alt="Tanabrew" />
+    <img src="${window.location.origin}/logo-tanabrew-hijau.png" alt="Tanabrew" />
     <div class="info">
       <div><span>No Invoice:</span> ${noInvoice}</div>
       <div><span>Tanggal:</span> ${formatDisplayDate(tanggal)}</div>
@@ -487,8 +487,8 @@ const CetakInvoice = () => {
     <b>Instruksi Pembayaran</b>
     <div>Transfer ke Seabank a.n. AHMAD FARID MUSADDAD</div>
     <div>No. Rekening 9011 2193 2420</div>
-    <div style="margin-top:6px;">Transfer ke BSI a.n. AHMAD FARID MUSADDAD</div>
-    <div>No. Rekening 7196999501</div>
+    <div style="margin-top:6px;">Transfer ke Bank Jago a.n. AHMAD FARID MUSADDAD</div>
+    <div>No. Rekening 5021 3576 9162</div>
   </div>
   <script>
     function kembaliTanabrew(){
@@ -585,7 +585,7 @@ const CetakInvoice = () => {
         <div id="invoice" className="tanabrew-page-enter bg-card rounded-xl border border-border p-5">
           <div className="flex justify-between items-start mb-4">
             <img
-              src="https://i.ibb.co.com/Q7dCXq9q/logo-tanabrew-hijau.png"
+              src="/logo-tanabrew-hijau.png"
               alt="Tanabrew"
               style={{ width: 140, height: "auto" }}
             />
@@ -647,8 +647,8 @@ const CetakInvoice = () => {
             <p className="font-semibold text-foreground mb-1">Instruksi Pembayaran</p>
             <p>Transfer ke Seabank a.n. AHMAD FARID MUSADDAD</p>
             <p>No. Rekening 9011 2193 2420</p>
-            <p className="mt-2">Transfer ke BSI a.n. AHMAD FARID MUSADDAD</p>
-            <p>No. Rekening 7196999501</p>
+            <p className="mt-2">Transfer ke Bank Jago a.n. AHMAD FARID MUSADDAD</p>
+            <p>No. Rekening 5021 3576 9162</p>
           </div>
         </div>
 
