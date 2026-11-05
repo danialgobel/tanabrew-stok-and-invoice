@@ -54,11 +54,17 @@ export default function WhatsAppSettingsModal({
 
   const handleRequestPairingCode = async () => {
     if (!currentUser) return;
-    const clean = phoneInput.replace(/\D/g, "");
+    let clean = phoneInput.replace(/\D/g, "");
+    if (clean.startsWith("0")) {
+      clean = "62" + clean.slice(1);
+    } else if (clean.startsWith("8")) {
+      clean = "62" + clean;
+    }
+
     if (clean.length < 10) {
       toast({
         title: "Nomor Tidak Valid",
-        description: "Masukkan nomor lengkap dengan kode negara, contoh: 628123456789.",
+        description: "Masukkan nomor WhatsApp yang benar (contoh: 0857... atau 62857...).",
         variant: "destructive",
       });
       return;

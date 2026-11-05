@@ -118,6 +118,7 @@ export async function initWhatsApp(forceNewSession = false): Promise<void> {
       if (connection === "close") {
         isConnected = false;
         isConnecting = false;
+        sock = null;
         const statusCode = (lastDisconnect?.error as any)?.output?.statusCode;
         const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
         lastErrorMessage = (lastDisconnect?.error as Error)?.message || `Disconnected with code: ${statusCode}`;
@@ -174,9 +175,15 @@ export async function requestPairingCode(phoneNumber: string): Promise<string> {
     throw new Error("WhatsApp sudah terhubung.");
   }
 
-  const cleanedNumber = phoneNumber.replace(/\D/g, "");
+  let cleanedNumber = phoneNumber.replace(/\D/g, "");
+  if (cleanedNumber.startsWith("0")) {
+    cleanedNumber = "62" + cleanedNumber.slice(1);
+  } else if (cleanedNumber.startsWith("8")) {
+    cleanedNumber = "62" + cleanedNumber;
+  }
+
   if (cleanedNumber.length < 10) {
-    throw new Error("Nomor telepon tidak valid. Masukkan nomor lengkap dengan kode negara (contoh: 628123456789).");
+    throw new Error("Nomor telepon tidak valid. Masukkan nomor lengkap (contoh: 0857... atau 62857...).");
   }
 
   // Inisialisasi ulang sesi bersih agar handshake pairing code segar
