@@ -15,34 +15,55 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.6.8",
-  versionLabel: "v3.6.8",
+  version: "3.6.9",
+  versionLabel: "v3.6.9",
   releaseDate: "5 November 2026",
-  title: "Sistem Keamanan Whitelist WhatsApp (Anti-Bocor) & Manajemen Kontrol Laptop (5 November 2026)",
-  subtitle: "Penguncian ketat bot WhatsApp hanya ke grup resmi Tanabrew, isolasi total kontak/grup pribadi, serta penonaktifan autostart laptop untuk mencegah overheat",
+  title: "Sinkronisasi Otomatis URL Cloudflare Tunnel & Ketahanan Koneksi WhatsApp Kasir (5 November 2026)",
+  subtitle: "Sinkronisasi otomatis domain tunnel cloudflared ke basis data cloud, eliminasi kendala status koneksi offline setelah laptop restart, dan penyempurnaan endpoint API",
   highlights: [
     {
-      title: "Proteksi Whitelist Ketat Penerima WhatsApp (Anti-Bocor)",
-      desc: "Layanan WhatsApp kini dilindungi whitelist ganda di cloud dan server lokal. Pesan dan faktur PDF hanya dapat dikirim ke grup resmi Tanabrew ('Tanabrew transaksi' dan 'aniv 7 mei'). Seluruh pengiriman ke nomor atau grup pribadi otomatis ditolak keras (Block 403).",
+      title: "Auto-Sync Dynamic Tunnel URL ke Cloud",
+      desc: "Layanan WhatsApp di laptop kini otomatis mendeteksi alamat publik Cloudflare Tunnel (trycloudflare) saat menyala dan mendaftarkannya ke server cloud dalam hitungan detik. Kasir tidak akan lagi mengalami status 'Belum Terhubung' setelah laptop dinyalakan manual.",
       badge: "Peningkatan",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
     {
-      title: "Privasi Total Akun Pribadi & Filter Grup Otomatis",
-      desc: "Daftar grup di web kasir kini otomatis menyaring dan menyembunyikan seluruh grup keluarga atau obrolan pribadi pemilik akun, sehingga hanya grup transaksi toko yang dapat dipilih.",
+      title: "Fallback Cerdas URL Server di Seluruh Endpoint API",
+      desc: "Endpoint status, kirim invoice, pairing code, dan disconnect kini selalu memprioritaskan URL aktif yang dilaporkan secara langsung oleh laptop kasir, menjaga bot tetap responsif di semua perangkat.",
       badge: "Perbaikan",
       badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20",
-    },
-    {
-      title: "Manajemen Kontrol Manual: Auto-Start Dimatikan (Anti-Overheat)",
-      desc: "Layanan latar belakang tidak lagi otomatis berjalan saat laptop dinyalakan agar laptop tetap adem dan hemat RAM. Kontrol penuh dapat diaktifkan atau dinonaktifkan secara manual melalui shortcut desktop resmi Tanabrew.",
-      badge: "Fitur",
-      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
   ],
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.6.8",
+    versionLabel: "v3.6.8",
+    releaseDate: "5 November 2026",
+    title: "Sistem Keamanan Whitelist WhatsApp (Anti-Bocor) & Manajemen Kontrol Laptop (5 November 2026)",
+    subtitle: "Penguncian ketat bot WhatsApp hanya ke grup resmi Tanabrew, isolasi total kontak/grup pribadi, serta penonaktifan autostart laptop untuk mencegah overheat",
+    highlights: [
+      {
+        title: "Proteksi Whitelist Ketat Penerima WhatsApp (Anti-Bocor)",
+        desc: "Layanan WhatsApp kini dilindungi whitelist ganda di cloud dan server lokal. Pesan dan faktur PDF hanya dapat dikirim ke grup resmi Tanabrew ('Tanabrew transaksi' dan 'aniv 7 mei'). Seluruh pengiriman ke nomor atau grup pribadi otomatis ditolak keras (Block 403).",
+        badge: "Peningkatan",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+      {
+        title: "Privasi Total Akun Pribadi & Filter Grup Otomatis",
+        desc: "Daftar grup di web kasir kini otomatis menyaring dan menyembunyikan seluruh grup keluarga atau obrolan pribadi pemilik akun, sehingga hanya grup transaksi toko yang dapat dipilih.",
+        badge: "Perbaikan",
+        badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20",
+      },
+      {
+        title: "Manajemen Kontrol Manual: Auto-Start Dimatikan (Anti-Overheat)",
+        desc: "Layanan latar belakang tidak lagi otomatis berjalan saat laptop dinyalakan agar laptop tetap adem dan hemat RAM. Kontrol penuh dapat diaktifkan atau dinonaktifkan secara manual melalui shortcut desktop resmi Tanabrew.",
+        badge: "Fitur",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      },
+    ],
+  },
   {
     version: "3.6.7",
     versionLabel: "v3.6.7",

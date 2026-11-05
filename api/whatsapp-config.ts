@@ -128,9 +128,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const payload = parseBody(req.body);
     const targetGroupId = payload?.target_group_id as string;
     const targetGroupName = payload?.target_group_name as string;
+    const serviceUrl = ((payload?.service_url as string) || "").trim();
 
-    if (!targetGroupId || typeof targetGroupId !== "string") {
-      res.status(400).json({ success: false, error: "target_group_id wajib diisi." });
+    if (!targetGroupId && !serviceUrl) {
+      res.status(400).json({ success: false, error: "target_group_id atau service_url wajib diisi." });
       return;
     }
 
@@ -138,21 +139,25 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const { getFirestore, FieldValue } = await import("firebase-admin/firestore");
     const db = getFirestore(app);
 
-    await db.collection("system_settings").doc("whatsapp").set(
-      {
-        target_group_id: targetGroupId,
-        target_group_name: targetGroupName || "Grup WhatsApp",
-        updated_at: FieldValue.serverTimestamp(),
-        updated_by: user.name || user.email,
-        updated_by_uid: user.uid,
-        updated_by_role: user.role,
-      },
-      { merge: true }
-    );
+    const updateData: Record<string, any> = {
+      updated_at: FieldValue.serverTimestamp(),
+      updated_by: user.name || user.email,
+      updated_by_uid: user.uid,
+      updated_by_role: user.role,
+    };
+    if (targetGroupId) {
+      updateData.target_group_id = targetGroupId;
+      updateData.target_group_name = targetGroupName || "Grup WhatsApp";
+    }
+    if (serviceUrl) {
+      updateData.service_url = serviceUrl.replace(/\/$/, "");
+    }
+
+    await db.collection("system_settings").doc("whatsapp").set(updateData, { merge: true });
 
     res.status(200).json({
       success: true,
-      message: `Grup tujuan WhatsApp berhasil disimpan: ${targetGroupName || targetGroupId}`,
+      message: "Pengaturan WhatsApp berhasil diperbarui.",
     });
   } catch (error: any) {
     console.error("Error in /api/whatsapp-config:", error);
