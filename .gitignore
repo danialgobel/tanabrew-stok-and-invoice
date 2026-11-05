@@ -36,3 +36,6 @@ pnpm-lock.yaml
 # WhatsApp Auth Sessions
 wa_auth/
 whatsapp-service/wa_auth/
+whatsapp-service/wa_session/
+wa_session/
+*.tsbuildinfo

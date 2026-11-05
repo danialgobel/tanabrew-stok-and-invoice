@@ -28,6 +28,17 @@ export interface InvoiceItem {
   subtotal: number;
 }
 
+export interface WhatsAppInvoiceStatus {
+  status?: "SENT" | "SENDING" | "FAILED";
+  group_id?: string;
+  group_name?: string;
+  message_id?: string;
+  sent_at?: unknown;
+  last_attempt?: unknown;
+  error_message?: string | null;
+  triggered_by?: string;
+}
+
 export interface Invoice {
   id?: string;
   tanggal: string;
@@ -58,6 +69,7 @@ export interface Invoice {
   paid_by_uid?: string;
   paid_by_role?: string;
   updated_at?: unknown;
+  whatsapp_status?: WhatsAppInvoiceStatus;
 }
 
 export interface ActivityLog {

@@ -16,7 +16,7 @@ import {
   type DocumentData,
   type QueryDocumentSnapshot,
 } from "firebase/firestore";
-import { Activity, Download, Edit, Eye, FileText, Package, Printer, RotateCcw, Search, Trash2, X, Smartphone, Receipt, Share2, Copy, ExternalLink, Coffee } from "lucide-react";
+import { Activity, Download, Edit, Eye, FileText, Package, Printer, RotateCcw, Search, Trash2, X, Smartphone, Receipt, Share2, Copy, ExternalLink, Coffee, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { addActivityLog } from "@/lib/activityLog";
 import { triggerHaptic } from "@/lib/haptics";
@@ -1254,6 +1254,74 @@ const Riwayat = () => {
           </div>
         </div>
 
+        {/* Indikator Konfirmasi Pengiriman WhatsApp (Anti-Miskomunikasi) */}
+        <div className="mb-3">
+          {(invoice as any).whatsapp_status?.status === "SENT" ? (
+            <div className="flex items-center justify-between rounded-xl bg-emerald-500/10 border border-emerald-500/20 py-2.5 px-3 text-xs">
+              <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300">
+                <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                <div>
+                  <p className="font-bold">✓ Dokumen PDF Telah Terkirim ke WhatsApp</p>
+                  <p className="text-[10px] text-emerald-700/80 dark:text-emerald-400/80">
+                    Grup: <span className="font-semibold">{(invoice as any).whatsapp_status.group_name || "Grup Tanabrew"}</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void handleSendWhatsAppInvoice(invoice, true);
+                }}
+                disabled={!isAdmin}
+                className="shrink-0 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 hover:underline px-2.5 py-1 rounded bg-emerald-500/15 cursor-pointer"
+              >
+                Kirim Ulang
+              </button>
+            </div>
+          ) : (invoice as any).whatsapp_status?.status === "FAILED" ? (
+            <div className="flex items-center justify-between rounded-xl bg-rose-500/10 border border-rose-500/20 py-2.5 px-3 text-xs">
+              <div className="flex items-center gap-2 text-rose-800 dark:text-rose-300">
+                <AlertCircle size={16} className="text-rose-600 shrink-0" />
+                <div>
+                  <p className="font-bold">Pengiriman WhatsApp Otomatis Belum Terkirim</p>
+                  <p className="text-[10px] text-rose-700/80 dark:text-rose-400/80">
+                    {(invoice as any).whatsapp_status.error_message || "Server WhatsApp laptop belum online"}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void handleSendWhatsAppInvoice(invoice, true);
+                }}
+                disabled={!isAdmin}
+                className="shrink-0 text-[11px] font-bold text-white bg-rose-600 hover:bg-rose-700 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+              >
+                Kirim Sekarang
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between rounded-xl bg-muted/60 border border-border py-2 px-3 text-xs">
+              <span className="text-muted-foreground flex items-center gap-1.5 text-[11px]">
+                <Smartphone size={13} /> Dokumen belum dikirim ke grup WhatsApp
+              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void handleSendWhatsAppInvoice(invoice, true);
+                }}
+                disabled={!isAdmin}
+                className="text-[11px] font-semibold text-primary hover:underline px-2 py-0.5 cursor-pointer"
+              >
+                Kirim ke WA
+              </button>
+            </div>
+          )}
+        </div>
+
         <h3 className="text-center text-sm font-black text-primary mb-3 uppercase tracking-wider">INVOICE</h3>
 
         <div className="overflow-x-auto">
@@ -1704,20 +1772,22 @@ const Riwayat = () => {
                         {/* WhatsApp Status Badge */}
                         <div className="rounded-lg bg-muted/60 px-3 py-1.5 text-xs flex justify-between items-center">
                           <span className="text-muted-foreground flex items-center gap-1">
-                            <Smartphone size={11} className="text-emerald-600" /> WhatsApp
+                            <Smartphone size={11} className={(invoice as any).whatsapp_status?.status === "SENT" ? "text-emerald-600" : "text-muted-foreground"} /> WhatsApp
                           </span>
-                          <span className={`font-semibold ${
+                          <span className={`font-semibold inline-flex items-center gap-1 text-[11px] ${
                             (invoice as any).whatsapp_status?.status === "SENT"
                               ? "text-emerald-600 dark:text-emerald-400"
                               : (invoice as any).whatsapp_status?.status === "FAILED"
                               ? "text-destructive"
                               : "text-muted-foreground"
                           }`}>
-                            {(invoice as any).whatsapp_status?.status === "SENT"
-                              ? "✓ Terkirim"
-                              : (invoice as any).whatsapp_status?.status === "FAILED"
-                              ? "Gagal"
-                              : "Belum"}
+                            {(invoice as any).whatsapp_status?.status === "SENT" ? (
+                              <><CheckCircle2 size={12} className="text-emerald-600" /> Terkirim</>
+                            ) : (invoice as any).whatsapp_status?.status === "FAILED" ? (
+                              <><AlertCircle size={12} className="text-destructive" /> Gagal</>
+                            ) : (
+                              "Belum"
+                            )}
                           </span>
                         </div>
 

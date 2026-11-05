@@ -1,19 +1,11 @@
 import readline from "node:readline";
 import fs from "node:fs";
 import path from "node:path";
-import makeWASocket, {
-  DisconnectReason,
-  useMultiFileAuthState,
-  fetchLatestBaileysVersion,
-  makeCacheableSignalKeyStore,
-  Browsers,
-  type ConnectionState,
-  type GroupMetadata,
-} from "@whiskeysockets/baileys";
-import pino from "pino";
+import pkg from "whatsapp-web.js";
+const { Client, LocalAuth } = pkg;
 import QRCode from "qrcode";
 
-const AUTH_DIR = path.resolve(process.cwd(), "wa_auth");
+const SESSION_DIR = path.resolve(process.cwd(), "wa_session");
 const CONFIG_FILE = path.resolve(process.cwd(), "wa_config.json");
 
 const rl = readline.createInterface({
@@ -24,17 +16,30 @@ const rl = readline.createInterface({
 const ask = (query: string): Promise<string> =>
   new Promise((resolve) => rl.question(query, (ans) => resolve(ans.trim())));
 
+const getChromePath = (): string | undefined => {
+  const candidates = [
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium-browser",
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return undefined;
+};
+
 async function main() {
   console.clear();
   console.log("========================================================");
-  console.log("☕ TANABREW WHATSAPP PAIRING WIZARD (CLI) 🚀");
+  console.log("☕ TANABREW WHATSAPP PAIRING WIZARD (CHROME ENGINE) 🚀");
   console.log("========================================================\n");
 
-  if (fs.existsSync(AUTH_DIR)) {
+  if (fs.existsSync(SESSION_DIR)) {
     const reset = await ask("Sesi WhatsApp lama terdeteksi. Reset dan buat sesi baru? (Y/n): ");
     if (reset.toLowerCase() !== "n") {
       try {
-        fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+        fs.rmSync(SESSION_DIR, { recursive: true, force: true });
         console.log("🗑️  Folder sesi lama berhasil dibersihkan.\n");
       } catch (e: any) {
         console.warn("Gagal menghapus folder sesi:", e.message);
@@ -42,41 +47,42 @@ async function main() {
     }
   }
 
-  if (!fs.existsSync(AUTH_DIR)) {
-    fs.mkdirSync(AUTH_DIR, { recursive: true });
+  if (!fs.existsSync(SESSION_DIR)) {
+    fs.mkdirSync(SESSION_DIR, { recursive: true });
   }
 
   console.log("Pilih metode penautan WhatsApp:");
-  console.log("1. Kode 8 Digit di HP (Sangat Direkomendasikan, 100% Bebas Kamera)");
-  console.log("2. Scan QR Code Langsung di Layar Terminal");
+  console.log("1. Buka Jendela Chrome di Layar Laptop (SANGAT DIREKOMENDASIKAN - 100% Anti-Gagal)");
+  console.log("2. Scan QR Code Langsung di Terminal");
+  console.log("3. Kode 8 Digit di HP (Pairing Code)");
   const choice = (await ask("\nPilihan Anda [1]: ")) || "1";
 
-  const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
-  const { version, isLatest } = await fetchLatestBaileysVersion();
-  console.log(`\nMenghubungkan ke WhatsApp gateway (Baileys v${version.join(".")}, isLatest: ${isLatest})...`);
+  const isVisualChrome = choice === "1";
+  const executablePath = getChromePath();
 
-  const sock = makeWASocket({
-    version,
-    logger: pino({ level: "silent" }),
-    auth: {
-      creds: state.creds,
-      keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "silent" })),
+  console.log("\nMemulai engine Google Chrome...");
+  if (executablePath) {
+    console.log(`Menggunakan browser: ${executablePath}`);
+  }
+
+  const client = new Client({
+    authStrategy: new LocalAuth({ dataPath: SESSION_DIR }),
+    puppeteer: {
+      headless: !isVisualChrome,
+      executablePath,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--no-first-run",
+        "--disable-gpu",
+      ],
     },
-    printQRInTerminal: false,
-    generateHighQualityLinkPreview: false,
-    connectTimeoutMs: 60000,
-    keepAliveIntervalMs: 25000,
-    browser: Browsers.macOS("Desktop"),
   });
 
-  sock.ev.on("creds.update", saveCreds);
-
-  let pairingCodeRequested = false;
-
-  sock.ev.on("connection.update", async (update: Partial<ConnectionState>) => {
-    const { connection, lastDisconnect, qr } = update;
-
-    if (qr && choice === "2") {
+  client.on("qr", async (qr: string) => {
+    if (choice === "2") {
       try {
         const qrTerminal = await QRCode.toString(qr, { type: "terminal", small: true });
         console.log("\nScan QR Code berikut dengan aplikasi WhatsApp di HP Anda:");
@@ -85,71 +91,91 @@ async function main() {
       } catch (err: any) {
         console.error("Gagal merender QR di terminal:", err.message);
       }
-    }
-
-    if (connection === "open") {
-      const userPhone = sock.user?.id ? sock.user.id.split(":")[0] : "Nomor WhatsApp";
-      const userName = sock.user?.name || "Tanabrew Operator";
-
-      console.log("\n========================================================");
-      console.log("🎉 ALHAMDULILLAH! WHATSAPP BERHASIL TERHUBUNG! 🟢");
-      console.log("========================================================");
-      console.log(`Nomor HP : +${userPhone}`);
-      console.log(`Akun     : ${userName}`);
-      console.log(`Sesi     : Tersimpan aman di folder wa_auth/\n`);
-
-      try {
-        console.log("Memuat daftar grup WhatsApp dari akun Anda...");
-        const groupsMap: Record<string, GroupMetadata> = await sock.groupFetchAllParticipating();
-        const groups = Object.values(groupsMap).sort((a, b) => (a.subject || "").localeCompare(b.subject || ""));
-
-        if (groups.length === 0) {
-          console.log("⚠️  Tidak ada grup yang ditemukan di akun WhatsApp ini.");
-        } else {
-          console.log("\n📋 DAFTAR GRUP WHATSAPP ANDA:");
-          groups.forEach((g, idx) => {
-            console.log(`  [${idx + 1}] ${g.subject} (${g.participants?.length || 0} anggota)`);
-          });
-
-          const groupChoiceStr = await ask("\nPilih nomor grup tujuan penerima invoice PDF (contoh: 1): ");
-          const groupIdx = parseInt(groupChoiceStr, 10) - 1;
-
-          if (!isNaN(groupIdx) && groups[groupIdx]) {
-            const chosen = groups[groupIdx];
-            const cfg = {
-              target_group_id: chosen.id,
-              target_group_name: chosen.subject,
-              updated_at: new Date().toISOString(),
-              linked_phone: userPhone,
-            };
-            fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2), "utf8");
-            console.log(`\n✅ Grup tujuan disimpan: "${chosen.subject}"`);
-          }
-        }
-      } catch (gErr: any) {
-        console.warn("Catatan: Grup dapat dipilih nanti melalui Web App.", gErr.message);
-      }
-
-      console.log("\n========================================================");
-      console.log("🚀 PENYIAPAN SELESAI!");
-      console.log("Sekarang jalankan server utama dengan:");
-      console.log("    npm run start");
-      console.log("========================================================\n");
-      rl.close();
-      process.exit(0);
-    }
-
-    if (connection === "close") {
-      const statusCode = (lastDisconnect?.error as any)?.output?.statusCode;
-      if (statusCode === DisconnectReason.loggedOut) {
-        console.log("\n❌ Sesi dikeluarkan dari WhatsApp di HP. Silakan jalankan pairing ulang.");
-        rl.close();
-        process.exit(1);
-      }
+    } else if (choice === "1") {
+      console.log("\n🌐 Jendela Google Chrome telah terbuka di layar laptop Anda!");
+      console.log("Silakan arahkan kamera WhatsApp di HP Anda ke QR Code yang tampil di layar Chrome.");
+      console.log("(WhatsApp -> Setelan / Titik Tiga -> Perangkat Tertaut -> Tautkan Perangkat)\n");
     }
   });
 
-  if (choice === "1") {
+  client.on("authenticated", () => {
+    console.log("✅ Berhasil terautentikasi oleh server WhatsApp!");
+  });
+
+  client.on("ready", async () => {
+    const userPhone = client.info?.wid?.user || "Nomor WhatsApp";
+    const userName = client.info?.pushname || "Tanabrew Operator";
+
+    console.log("\n========================================================");
+    console.log("🎉 ALHAMDULILLAH! WHATSAPP BERHASIL TERHUBUNG! 🟢");
+    console.log("========================================================");
+    console.log(`Nomor HP : +${userPhone}`);
+    console.log(`Akun     : ${userName}`);
+    console.log(`Sesi     : Tersimpan aman dan permanen di wa_session/\n`);
+
+    try {
+      console.log("Memuat daftar grup WhatsApp dari akun Anda...");
+      const chats = await client.getChats();
+      const groups = chats
+        .filter((c: any) => c.isGroup)
+        .map((g: any) => ({
+          id: g.id._serialized,
+          name: g.name || "Tanpa Nama",
+          count: g.groupMetadata?.participants?.length || 0,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      if (groups.length === 0) {
+        console.log("⚠️  Tidak ada grup yang ditemukan di akun WhatsApp ini.");
+      } else {
+        console.log("\n📋 DAFTAR GRUP WHATSAPP ANDA:");
+        groups.forEach((g, idx) => {
+          console.log(`  [${idx + 1}] ${g.name} (${g.count} anggota)`);
+        });
+
+        const groupChoiceStr = await ask("\nPilih nomor grup tujuan penerima invoice PDF (contoh: 1): ");
+        const groupIdx = parseInt(groupChoiceStr, 10) - 1;
+
+        if (!isNaN(groupIdx) && groups[groupIdx]) {
+          const chosen = groups[groupIdx];
+          const cfg = {
+            target_group_id: chosen.id,
+            target_group_name: chosen.name,
+            updated_at: new Date().toISOString(),
+            linked_phone: userPhone,
+          };
+          fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2), "utf8");
+          console.log(`\n✅ Grup tujuan disimpan: "${chosen.name}"`);
+        }
+      }
+    } catch (gErr: any) {
+      console.warn("Catatan: Grup dapat dipilih nanti melalui Web App.", gErr.message);
+    }
+
+    console.log("\n========================================================");
+    console.log("🚀 PENYIAPAN SELESAI!");
+    console.log("Sesi sudah tersimpan. Sekarang jalankan server utama dengan:");
+    console.log("    npm run start");
+    console.log("Atau gunakan shortcut 'Nyalakan WhatsApp Tanabrew' di Desktop!");
+    console.log("========================================================\n");
+
+    try {
+      await client.destroy();
+    } catch {}
+    rl.close();
+    process.exit(0);
+  });
+
+  client.on("auth_failure", (msg) => {
+    console.error("❌ Autentikasi gagal:", msg);
+    rl.close();
+    process.exit(1);
+  });
+
+  console.log("Menginisialisasi WhatsApp Web...");
+  await client.initialize();
+
+  if (choice === "3") {
     let rawPhone = await ask("\nMasukkan Nomor WhatsApp Anda (contoh: 085746385424 atau 6285746385424): ");
     let cleaned = rawPhone.replace(/\D/g, "");
     if (cleaned.startsWith("0")) {
@@ -165,13 +191,11 @@ async function main() {
     }
 
     console.log(`\nMeminta kode pairing resmi dari WhatsApp untuk nomor: +${cleaned}...`);
-    // Wait 2.5s for WebSocket handshake to be ready
-    await new Promise((r) => setTimeout(r, 2500));
+    // Tunggu context browser siap
+    await new Promise((r) => setTimeout(r, 4000));
 
     try {
-      const code = await sock.requestPairingCode(cleaned);
-      pairingCodeRequested = true;
-
+      const code = await client.requestPairingCode(cleaned);
       console.log("\n========================================================");
       console.log("🔑 KODE PAIRING WHATSAPP ANDA:");
       console.log("");
@@ -181,7 +205,7 @@ async function main() {
       console.log("1. Buka WhatsApp di HP Anda");
       console.log("2. Masuk ke: Setelan / Titik Tiga (⋮) -> Perangkat Tertaut");
       console.log("3. Ketuk 'Tautkan Perangkat'");
-      console.log("4. Di bawah layar kamera, ketuk: 'Tautkan dengan nomor telepon saja'");
+      console.log("4. Di bawah kamera, ketuk: 'Tautkan dengan nomor telepon saja'");
       console.log(`5. Masukkan kode 8 karakter di atas: ${code}`);
       console.log("========================================================");
       console.log("Menunggu Anda memasukkan kode di HP... (jangan tutup terminal)");

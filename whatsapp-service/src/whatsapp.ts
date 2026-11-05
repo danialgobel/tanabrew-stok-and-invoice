@@ -1,13 +1,5 @@
-import makeWASocket, {
-  DisconnectReason,
-  useMultiFileAuthState,
-  fetchLatestBaileysVersion,
-  Browsers,
-  makeCacheableSignalKeyStore,
-  type WASocket,
-  type ConnectionState,
-  type GroupMetadata,
-} from "@whiskeysockets/baileys";
+import pkg from "whatsapp-web.js";
+const { Client, LocalAuth, MessageMedia } = pkg;
 import pino from "pino";
 import QRCode from "qrcode";
 import fs from "node:fs";
@@ -31,138 +23,163 @@ export interface WhatsAppStatus {
   lastError: string | null;
 }
 
-const AUTH_DIR = path.resolve(process.cwd(), "wa_auth");
+const SESSION_DIR = path.resolve(process.cwd(), "wa_session");
 const logger = pino({ level: process.env.LOG_LEVEL || "info" });
 
-let sock: WASocket | null = null;
+let client: InstanceType<typeof Client> | null = null;
 let currentQr: string | null = null;
 let currentQrDataUrl: string | null = null;
 let currentPairingCode: string | null = null;
 let isConnected = false;
 let isConnecting = false;
 let lastErrorMessage: string | null = null;
-let reconnectTimeout: NodeJS.Timeout | null = null;
+let initPromise: Promise<void> | null = null;
 
-export async function initWhatsApp(forceNewSession = false): Promise<void> {
-  if (sock && !forceNewSession) {
-    logger.info("WhatsApp socket already initialized.");
+const getExecutableChromePath = (): string | undefined => {
+  const candidates = [
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/chromium",
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) {
+      return c;
+    }
+  }
+  return undefined;
+};
+
+export async function initWhatsApp(forceNewSession = false, headless = true): Promise<void> {
+  if (initPromise && !forceNewSession) {
+    return initPromise;
+  }
+
+  if (client && !forceNewSession) {
+    logger.info("WhatsApp client already initialized.");
     return;
   }
 
-  if (forceNewSession && fs.existsSync(AUTH_DIR)) {
-    try {
-      fs.rmSync(AUTH_DIR, { recursive: true, force: true });
-      logger.info("Cleared previous session directory.");
-    } catch (err) {
-      logger.error({ err }, "Failed to clear auth directory");
+  if (forceNewSession) {
+    if (client) {
+      try {
+        await client.destroy();
+      } catch {}
+      client = null;
+    }
+    if (fs.existsSync(SESSION_DIR)) {
+      try {
+        fs.rmSync(SESSION_DIR, { recursive: true, force: true });
+        logger.info("Cleared previous session directory.");
+      } catch (err) {
+        logger.error({ err }, "Failed to clear session directory");
+      }
     }
   }
 
-  if (!fs.existsSync(AUTH_DIR)) {
-    fs.mkdirSync(AUTH_DIR, { recursive: true });
+  if (!fs.existsSync(SESSION_DIR)) {
+    fs.mkdirSync(SESSION_DIR, { recursive: true });
   }
 
   isConnecting = true;
+  isConnected = false;
   lastErrorMessage = null;
 
-  try {
-    const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
-    const { version, isLatest } = await fetchLatestBaileysVersion();
-    logger.info(`Using Baileys version ${version.join(".")}, isLatest: ${isLatest}`);
+  initPromise = (async () => {
+    try {
+      const executablePath = getExecutableChromePath();
+      logger.info({ executablePath, headless }, "Initializing WhatsApp Web client with Google Chrome...");
 
-    sock = makeWASocket({
-      version,
-      logger: pino({ level: "silent" }), // keep terminal clean
-      auth: {
-        creds: state.creds,
-        keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "silent" })),
-      },
-      printQRInTerminal: false,
-      generateHighQualityLinkPreview: false,
-      connectTimeoutMs: 60000,
-      keepAliveIntervalMs: 25000,
-      browser: Browsers.macOS("Desktop"),
-    });
+      client = new Client({
+        authStrategy: new LocalAuth({ dataPath: SESSION_DIR }),
+        puppeteer: {
+          headless,
+          executablePath,
+          args: [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-accelerated-2d-canvas",
+            "--no-first-run",
+            "--no-zygote",
+            "--disable-gpu",
+            "--disable-extensions",
+            "--disable-background-networking",
+            "--disable-default-apps",
+            "--disable-sync",
+            "--mute-audio",
+            "--js-flags=--max-old-space-size=256",
+          ],
+        },
+      });
 
-    sock.ev.on("creds.update", saveCreds);
-
-    sock.ev.on("connection.update", async (update: Partial<ConnectionState>) => {
-      const { connection, lastDisconnect, qr } = update;
-
-      if (qr) {
+      client.on("qr", async (qr: string) => {
         currentQr = qr;
+        isConnecting = true;
+        isConnected = false;
         try {
           currentQrDataUrl = await QRCode.toDataURL(qr, { margin: 2, scale: 7 });
-          logger.info("New QR Code generated for pairing.");
+          logger.info("New QR Code generated by WhatsApp Web.");
         } catch (qrErr) {
           logger.error({ qrErr }, "Failed to generate QR Data URL");
         }
-      }
+      });
 
-      if (connection === "connecting") {
-        isConnecting = true;
-        isConnected = false;
-        logger.info("WhatsApp connecting...");
-      }
-
-      if (connection === "open") {
+      client.on("ready", () => {
         isConnected = true;
         isConnecting = false;
         currentQr = null;
         currentQrDataUrl = null;
         currentPairingCode = null;
         lastErrorMessage = null;
-        logger.info({ user: sock?.user }, "WhatsApp connection OPEN and READY!");
-      }
+        logger.info({ user: client?.info?.wid?._serialized }, "WhatsApp connection READY! (Chrome Session Active)");
+      });
 
-      if (connection === "close") {
+      client.on("authenticated", () => {
+        isConnecting = false;
+        logger.info("WhatsApp client successfully AUTHENTICATED.");
+      });
+
+      client.on("auth_failure", (msg: string) => {
+        isConnecting = false;
+        isConnected = false;
+        lastErrorMessage = `Auth failure: ${msg}`;
+        logger.error({ msg }, "WhatsApp authentication failed");
+      });
+
+      client.on("disconnected", (reason: string) => {
         isConnected = false;
         isConnecting = false;
-        sock = null;
-        const statusCode = (lastDisconnect?.error as any)?.output?.statusCode;
-        const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-        lastErrorMessage = (lastDisconnect?.error as Error)?.message || `Disconnected with code: ${statusCode}`;
+        lastErrorMessage = `Disconnected: ${reason}`;
+        logger.warn({ reason }, "WhatsApp connection disconnected.");
+      });
 
-        logger.warn({ statusCode, shouldReconnect, err: lastDisconnect?.error }, "WhatsApp connection CLOSED");
+      await client.initialize();
+    } catch (error: any) {
+      isConnecting = false;
+      isConnected = false;
+      lastErrorMessage = error?.message || "Failed to initialize WhatsApp Web client";
+      logger.error({ error }, "Error during initWhatsApp");
+    } finally {
+      initPromise = null;
+    }
+  })();
 
-        if (shouldReconnect) {
-          if (reconnectTimeout) clearTimeout(reconnectTimeout);
-          reconnectTimeout = setTimeout(() => {
-            logger.info("Reconnecting to WhatsApp...");
-            void initWhatsApp();
-          }, 5000);
-        } else {
-          logger.warn("Logged out from WhatsApp. Resetting session...");
-          currentQr = null;
-          currentQrDataUrl = null;
-          currentPairingCode = null;
-          if (fs.existsSync(AUTH_DIR)) {
-            try {
-              fs.rmSync(AUTH_DIR, { recursive: true, force: true });
-            } catch {}
-          }
-          if (reconnectTimeout) clearTimeout(reconnectTimeout);
-          reconnectTimeout = setTimeout(() => {
-            void initWhatsApp(true);
-          }, 3000);
-        }
-      }
-    });
-  } catch (error: any) {
-    isConnecting = false;
-    isConnected = false;
-    lastErrorMessage = error?.message || "Failed to initialize WhatsApp socket";
-    logger.error({ error }, "Error during initWhatsApp");
-  }
+  return initPromise;
 }
 
 export function getWhatsAppStatus(): WhatsAppStatus {
+  const userWid = client?.info?.wid;
+  const userPhone = userWid?.user || "";
+  const userName = client?.info?.pushname || undefined;
+
   return {
     connected: isConnected,
     connecting: isConnecting,
-    user: isConnected && sock?.user ? {
-      id: sock.user.id.split(":")[0] || sock.user.id,
-      name: sock.user.name || undefined,
+    user: isConnected && userPhone ? {
+      id: userPhone,
+      name: userName,
     } : null,
     qrCode: currentQrDataUrl,
     pairingCode: currentPairingCode,
@@ -186,16 +203,16 @@ export async function requestPairingCode(phoneNumber: string): Promise<string> {
     throw new Error("Nomor telepon tidak valid. Masukkan nomor lengkap (contoh: 0857... atau 62857...).");
   }
 
-  // Inisialisasi ulang sesi bersih agar handshake pairing code segar
-  await initWhatsApp(true);
-  await new Promise((r) => setTimeout(r, 2000));
+  if (!client) {
+    await initWhatsApp();
+  }
 
-  if (!sock) {
-    throw new Error("Gagal menginisialisasi WhatsApp socket.");
+  if (!client) {
+    throw new Error("Gagal menginisialisasi WhatsApp client.");
   }
 
   try {
-    const code = await sock.requestPairingCode(cleanedNumber);
+    const code = await client.requestPairingCode(cleanedNumber);
     currentPairingCode = code;
     logger.info(`Pairing code requested for ${cleanedNumber}: ${code}`);
     return code;
@@ -206,20 +223,21 @@ export async function requestPairingCode(phoneNumber: string): Promise<string> {
 }
 
 export async function getWhatsAppGroups(): Promise<WhatsAppGroupInfo[]> {
-  if (!sock || !isConnected) {
+  if (!client || !isConnected) {
     throw new Error("WhatsApp belum terhubung.");
   }
 
   try {
-    const groupsMap: Record<string, GroupMetadata> = await sock.groupFetchAllParticipating();
-    const groupsList: WhatsAppGroupInfo[] = Object.values(groupsMap).map((g) => ({
-      id: g.id,
-      name: g.subject || "Tanpa Nama",
-      participantCount: g.participants?.length || 0,
-    }));
+    const chats = await client.getChats();
+    const groupsList: WhatsAppGroupInfo[] = chats
+      .filter((c: any) => c.isGroup)
+      .map((g: any) => ({
+        id: g.id._serialized,
+        name: g.name || "Tanpa Nama",
+        participantCount: g.groupMetadata?.participants?.length || 0,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
 
-    // Sort alphabetically by name
-    groupsList.sort((a, b) => a.name.localeCompare(b.name));
     return groupsList;
   } catch (error: any) {
     logger.error({ error }, "Failed to fetch WhatsApp groups");
@@ -233,13 +251,13 @@ export async function sendInvoicePdf(params: {
   fileName: string;
   caption: string;
 }): Promise<{ messageId: string }> {
-  if (!sock || !isConnected) {
+  if (!client || !isConnected) {
     throw new Error("WhatsApp tidak terhubung. Pastikan server WhatsApp aktif.");
   }
 
   const { groupId, pdfBuffer, fileName, caption } = params;
 
-  if (!groupId || !groupId.includes("@g.us")) {
+  if (!groupId) {
     throw new Error(`Group ID WhatsApp tidak valid: ${groupId}`);
   }
 
@@ -248,16 +266,20 @@ export async function sendInvoicePdf(params: {
   }
 
   try {
-    logger.info({ groupId, fileName, sizeBytes: pdfBuffer.length }, "Sending invoice PDF to WhatsApp group...");
+    logger.info({ groupId, fileName, sizeBytes: pdfBuffer.length }, "Sending invoice PDF to WhatsApp group via Chrome...");
 
-    const sent = await sock.sendMessage(groupId, {
-      document: pdfBuffer,
-      mimetype: "application/pdf",
-      fileName: fileName.endsWith(".pdf") ? fileName : `${fileName}.pdf`,
-      caption: caption || `Invoice ${fileName}`,
+    const cleanFileName = fileName.endsWith(".pdf") ? fileName : `${fileName}.pdf`;
+    const media = new MessageMedia(
+      "application/pdf",
+      pdfBuffer.toString("base64"),
+      cleanFileName
+    );
+
+    const sent = await client.sendMessage(groupId, media, {
+      caption: caption || `Invoice ${cleanFileName}`,
     });
 
-    const messageId = sent?.key?.id || "msg-" + Date.now();
+    const messageId = sent?.id?.id || "msg-" + Date.now();
     logger.info({ messageId, groupId }, "Invoice PDF successfully delivered to WhatsApp group!");
     return { messageId };
   } catch (error: any) {
@@ -267,14 +289,14 @@ export async function sendInvoicePdf(params: {
 }
 
 export async function disconnectWhatsApp(): Promise<void> {
-  if (sock) {
+  if (client) {
     try {
-      await sock.logout();
+      await client.logout();
     } catch {}
     try {
-      sock.end(undefined);
+      await client.destroy();
     } catch {}
-    sock = null;
+    client = null;
   }
 
   isConnected = false;
@@ -283,12 +305,12 @@ export async function disconnectWhatsApp(): Promise<void> {
   currentQrDataUrl = null;
   currentPairingCode = null;
 
-  if (fs.existsSync(AUTH_DIR)) {
+  if (fs.existsSync(SESSION_DIR)) {
     try {
-      fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+      fs.rmSync(SESSION_DIR, { recursive: true, force: true });
     } catch {}
   }
 
-  logger.info("WhatsApp session disconnected and auth directory cleared.");
+  logger.info("WhatsApp session disconnected and session directory cleared.");
   void initWhatsApp(true);
 }
