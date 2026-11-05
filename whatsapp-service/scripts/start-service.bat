@@ -24,9 +24,9 @@ if %errorlevel% equ 0 (
 ) else (
     echo [INFO] Menyalakan Cloudflare Tunnel...
     if exist "C:\Program Files (x86)\cloudflared\cloudflared.exe" (
-        start /min "Tanabrew Tunnel" "C:\Program Files (x86)\cloudflared\cloudflared.exe" tunnel --url http://localhost:3001
+        start /min "Tanabrew Tunnel" "C:\Program Files (x86)\cloudflared\cloudflared.exe" tunnel --url http://localhost:3001 --metrics 127.0.0.1:20241
     ) else (
-        start /min "Tanabrew Tunnel" cloudflared tunnel --url http://localhost:3001
+        start /min "Tanabrew Tunnel" cloudflared tunnel --url http://localhost:3001 --metrics 127.0.0.1:20241
     )
 )
 
@@ -37,4 +37,3 @@ echo ========================================================
 echo Jendela ini akan otomatis tertutup dalam 4 detik...
 timeout /t 4 >nul
 exit
-
