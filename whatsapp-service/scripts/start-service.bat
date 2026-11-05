@@ -13,7 +13,11 @@ if %errorlevel% equ 0 (
     echo [INFO] WhatsApp Service sudah aktif di port 3001.
 ) else (
     echo [INFO] Menyalakan Tanabrew WhatsApp Service...
-    start /min "Tanabrew WA Service" cmd /c "npm run start"
+    if exist "dist\index.js" (
+        start /min "Tanabrew WA Service" cmd /c "node dist/index.js"
+    ) else (
+        start /min "Tanabrew WA Service" cmd /c "npm run build && node dist/index.js"
+    )
     timeout /t 3 /nobreak >nul
 )
 

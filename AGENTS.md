@@ -13,6 +13,8 @@ Untuk rincian arsitektur mendalam, silakan rujuk modul dokumentasi berikut:
 * [Aturan Kueri & Optimasi Kuota Firestore](.agents/rules/firestore-best-practices.md)
 * [Standar & SOP Multi-Platform (Web, Android, iOS)](.agents/rules/cross-platform-standards.md)
 * [Panduan & Handoff Android APK](docs/TANABREW_ANDROID_HANDOFF.md)
+* [Panduan Integrasi Otomasi WhatsApp & Hybrid Daemon](docs/WHATSAPP_INTEGRATION.md)
+* [Aturan Serverless Vercel & WhatsApp](.agents/rules/whatsapp-and-serverless.md)
 
 ---
 
@@ -26,6 +28,7 @@ Untuk rincian arsitektur mendalam, silakan rujuk modul dokumentasi berikut:
   - **Smartphone & Tablet (< 1024px)**: *Floating Glassmorphic Bottom Navigation Bar* melayang (`BottomNav.tsx`), gesture tarik-layar muat ulang (`PullToRefresh.tsx`), dan dialog drawer layar sentuh.
   - **Desktop (≥ 1024px — Opsi 01 Enhanced)**: *Permanent Collapsible Left Sidebar* (`DesktopSidebar.tsx`), Multi-Kolom 12-Grid di Beranda, Split-Screen POS Touch Tiles di Cetak Invoice, dan Master-Detail Split Pane di Riwayat Transaksi.
 * **Perlindungan Crash Global**: Aplikasi dibungkus oleh `<ErrorBoundary>` di `src/App.tsx` untuk mencegah *blank white screen* jika terjadi kendala data sementara.
+* **WhatsApp Automation & Daemon**: Hybrid Architecture (Vercel Serverless Gateway `api/whatsapp-send.ts` + Local Node.js Daemon `whatsapp-service/` via Puppeteer Chromium & Cloudflare Quick Tunnel).
 
 ---
 
@@ -143,3 +146,22 @@ Repositori Tanabrew mengelola 3 platform sekaligus (*Web/Web PWA, Android App, d
 ### D. Disiplin Kebersihan Kode (*Clean Architecture*)
 1. Hindari membuat berkas komponen raksasa (*God Component* > 800 baris). Modal atau kartu mandiri baru wajib dibuat sebagai file terpisah di `src/components/`.
 2. Jangan melakukan perombakan massal (*massive refactor*) pada sistem kasir dan stok yang sedang berjalan stabil di toko. Lakukan perapian secara bertahap dan terukur.
+
+---
+
+## 7. Batas Serverless Vercel (Maksimal 12 Fungsi) & Integritas Dokumen Faktur WhatsApp
+
+1. **Batas Keras 12 Fungsi Vercel Hobby**:
+   - **Dilarang keras** membuat file serverless baru di direktori `api/` secara sembarangan.
+   - Gunakan selalu endpoint terpadu `api/whatsapp.ts` dengan parameter routing `action` (`status`, `config`, `pair-code`, `disconnect`, `sync_url`).
+2. **Proteksi Strict Security Whitelist**:
+   - Akun pengirim WhatsApp menggunakan nomor operasional kasir.
+   - Pengiriman hanya diizinkan ke ID resmi yang telah diaudit:
+     - Testing: `120363406655043675@g.us` (`aniv 7 mei`)
+     - Produksi: `120363422161770936@g.us` (`Tanabrew transaksi`)
+3. **Integritas Dokumen Faktur (100% Presisi)**:
+   - Dokumen PDF lunas wajib memakai `generateInvoicePdfBlob` tanpa mengubah layout, margin (14 mm), warna *Sage Green* (`#A5D6A7`), atau rekening bank.
+   - Hanya status yang berganti menjadi LUNAS hijau (`#2E7D32`), jumlah dibayar = total, dan sisa = 0.
+4. **Standardisasi Pengecekan Otorisasi Pengguna**:
+   - Wajib menggunakan `isAdminRole(userProfile?.role, currentUser?.email)` dari `src/lib/roleUtils.ts` untuk hak pelunasan atau administrasi invoice.
+   - Hindari pengecekan string manual kaku seperti `role !== "admin" && role !== "owner"` yang memblokir peran Developer/Webdev.

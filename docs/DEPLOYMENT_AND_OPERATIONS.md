@@ -31,6 +31,8 @@ Pastikan variabel-variabel berikut terisi dengan benar di **Vercel Project Setti
 | `VITE_FIREBASE_APP_ID` | Frontend | ID Aplikasi Web Firebase |
 | `VITE_ONESIGNAL_APP_ID` | Frontend & API | ID Aplikasi OneSignal |
 | `ONESIGNAL_REST_API_KEY` | Serverless API | Kunci otorisasi pengiriman notifikasi OneSignal |
+| `WHATSAPP_SERVICE_URL` | Serverless API | URL cadangan lokal jika Firestore kosong |
+| `WHATSAPP_SERVICE_API_KEY` | Serverless API & Daemon | Kunci keamanan autentikasi antar-layanan |
 
 ---
 
@@ -74,3 +76,25 @@ Untuk menjamin kedaulatan data Tanabrew dalam jangka panjang:
 
 ### C. Pemulihan Data (*Restore*)
 - Jika terjadi kesalahan input masal oleh kasir atau kendala teknis, file backup JSON dari GodMode dapat dipulihkan kembali melalui fitur *Restore Data* di halaman GodMode.
+
+---
+
+## 📲 5. Operasional Harian WhatsApp Service & Manajemen Laptop Kasir
+
+Untuk panduan lengkap, lihat [Panduan Integrasi Otomasi WhatsApp & Hybrid Daemon](WHATSAPP_INTEGRATION.md).
+
+### A. Pengoperasian Melalui Desktop Shortcut:
+Pengguna dapat mengelola layanan langsung dari Desktop tanpa perlu membuka terminal atau IDE:
+1. **`Nyalakan WhatsApp Tanabrew.lnk`**:
+   - Dijalankan saat toko buka. Mengaktifkan port 3001 dan Cloudflare Tunnel secara terminimalkan (*minimized*).
+2. **`Cek Status WhatsApp Tanabrew.lnk`**:
+   - Membuka jendela PowerShell untuk memeriksa koneksi port 3001, status autentikasi WhatsApp, dan URL Cloudflare aktif.
+3. **`Matikan WhatsApp Tanabrew.lnk`**:
+   - Dijalankan saat toko tutup. Menghentikan seluruh proses Node.js dan Cloudflare untuk menghemat baterai & memori RAM.
+
+### B. Manajemen Daya & Suhu (Anti-Overheat):
+1. **Gunakan Profil Daya Balanced (Seimbang)**:
+   - Hindari mode High Performance. Mode Balanced menjaga laptop tetap dingin (38°C–45°C) saat tidak ada invoice.
+2. **Layar Mati vs Laptop Tidur (Sleep)**:
+   - Layar mati setelah 5–10 menit sangat dianjurkan untuk menghemat listrik dan mengurangi panas. Layar mati **tidak mematikan** server WhatsApp.
+   - Pastikan laptop disetel **Sleep: Never** saat dicolok charger agar koneksi internet dan server WA tetap siaga.

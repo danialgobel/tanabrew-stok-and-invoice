@@ -104,4 +104,20 @@ graph TD
 3. **Pemberlakuan Fallback Otomatis**:
    - Kegagalan fitur native (misal: popup terblokir di iOS WKWebView) wajib otomatis mengalihkan pengguna ke standar web tanpa melempar error tak tertangani (*unhandled crash*).
 
+---
 
+## 📲 7. Sub-Sistem Otomasi WhatsApp & Arsitektur Hybrid Edge-Cloud
+
+Untuk rincian mendalam, lihat [Panduan Integrasi Otomasi WhatsApp & Hybrid Daemon](WHATSAPP_INTEGRATION.md).
+
+### Karakteristik Arsitektur:
+1. **Pemisahan Peran Gateway & Worker**:
+   - **Vercel Serverless Function (`api/whatsapp-send.ts` & `api/whatsapp.ts`)**: Bertindak sebagai gateway aman tanpa state (*stateless*), memvalidasi hak akses (`isAdminRole`), dan menjaga whitelist tujuan sebelum meneruskan payload ke laptop kasir.
+   - **Local Worker Daemon (`whatsapp-service/`)**: Berjalan di laptop kasir pada port `3001` menggunakan Puppeteer Chromium untuk mengelola sesi enkripsi WhatsApp Web resmi secara persisten.
+2. **Konektivitas Cloudflare Quick Tunnel**:
+   - Laptop mempublikasikan port 3001 melalui `cloudflared.exe` dengan metrik internal pada `127.0.0.1:20241`.
+   - Daemon mendeteksi perubahan URL publik secara otomatis dan menyinkronkannya ke koleksi Firestore `system_settings/whatsapp` tanpa campur tangan pengguna.
+3. **Batas Kuota Vercel Hobby (Maksimal 12 Serverless Functions)**:
+   - Seluruh fungsionalitas pendukung (status, config, pair code, disconnect, sync URL) dikonsolidasikan dalam `api/whatsapp.ts` untuk memastikan proyek tetap aman di bawah batas kuota Vercel.
+4. **Strict Security Whitelist**:
+   - Guardrail keamanan ganda di level serverless dan daemon lokal memblokir seluruh pengiriman di luar grup resmi Tanabrew demi melindungi privasi akun pribadi kasir.
