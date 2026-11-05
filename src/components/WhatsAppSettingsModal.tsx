@@ -44,6 +44,41 @@ export default function WhatsAppSettingsModal({
   const [statusData, setStatusData] = useState<WhatsAppStatusResponse | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<string>("");
   const [disconnecting, setDisconnecting] = useState(false);
+  const [pairingMode, setPairingMode] = useState<"qr" | "code">("qr");
+  const [phoneInput, setPhoneInput] = useState("");
+  const [pairingCodeResult, setPairingCodeResult] = useState<string | null>(null);
+  const [requestingCode, setRequestingCode] = useState(false);
+
+  const handleRequestPairingCode = async () => {
+    if (!currentUser) return;
+    const clean = phoneInput.replace(/\D/g, "");
+    if (clean.length < 10) {
+      toast({
+        title: "Nomor Tidak Valid",
+        description: "Masukkan nomor lengkap dengan kode negara, contoh: 628123456789.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setRequestingCode(true);
+    try {
+      const res = await requestWhatsAppPairingCode(currentUser, clean);
+      setPairingCodeResult(res.pairingCode);
+      toast({
+        title: "Kode Berhasil Dibuat",
+        description: "Buka WhatsApp di HP Anda dan masukkan kode 8 digit ini.",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Gagal Meminta Kode",
+        description: err.message || "Pastikan nomor WA benar dan server aktif.",
+        variant: "destructive",
+      });
+    } finally {
+      setRequestingCode(false);
+    }
+  };
 
   const handleDisconnect = async () => {
     if (!currentUser) return;
