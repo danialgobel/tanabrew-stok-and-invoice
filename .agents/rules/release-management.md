@@ -1,8 +1,3 @@
----
-description: Aturan Wajib Manajemen Rilis & Pop-up Update Aplikasi Tanabrew
-globs: ["src/**/*", "package.json", "src/config/appRelease.ts"]
----
-
 # Aturan Wajib: Pembaruan Versi & Pop-up Update Aplikasi
 
 Setiap kali melakukan perubahan kode (fitur baru, perbaikan bug, atau perubahan UI):

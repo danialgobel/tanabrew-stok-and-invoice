@@ -1,8 +1,3 @@
----
-description: Aturan Kestabilan Kode, Pencegahan Layar Putih (Blank Screen) & Standar Komponen
-globs: ["src/**/*.tsx", "src/**/*.ts"]
----
-
 # Aturan Kestabilan Kode & Pencegahan Blank Screen
 
 Setiap kode React dan TypeScript di repositori ini wajib mematuhi panduan keamanan berikut:

@@ -1,8 +1,3 @@
----
-description: Aturan Serverless Functions Vercel (Maksimal 12) & Standar Sub-Sistem Otomasi WhatsApp
-globs: ["api/**/*.ts", "api/**/*.js", "whatsapp-service/**/*.ts", "src/pages/Riwayat.tsx", "src/pages/CetakInvoice.tsx"]
----
-
 # Aturan Serverless Functions Vercel & Sub-Sistem Otomasi WhatsApp
 
 Setiap developer dan AI Coding Agent wajib mematuhi panduan ini untuk mencegah kegagalan build pada platform Vercel dan menjaga privasi serta keandalan WhatsApp kasir:
@@ -27,3 +22,4 @@ Setiap developer dan AI Coding Agent wajib mematuhi panduan ini untuk mencegah k
 ### 4. Standardisasi Hak Akses Pengguna
 * Selalu gunakan `isAdminRole(userProfile?.role, currentUser?.email)` dari `src/lib/roleUtils.ts` untuk memeriksa hak akses pelunasan dan administrasi invoice.
 * Hindari pengecekan string manual kaku seperti `role !== "admin" && role !== "owner"` yang dapat memblokir peran `developer`/`webdev`.
+

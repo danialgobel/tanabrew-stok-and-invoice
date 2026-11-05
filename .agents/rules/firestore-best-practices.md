@@ -1,8 +1,3 @@
----
-description: Aturan Kueri Firestore, Pencegahan Overquota & Optimasi Kuota Gratis (Spark Plan 50k Reads/Hari)
-globs: ["src/lib/**/*.ts", "src/pages/**/*.tsx", "api/**/*.ts", "src/context/**/*.tsx", "src/hooks/**/*.ts"]
----
-
 # Aturan Kueri Firestore & Perlindungan Kuota (Anti-Overquota)
 
 Untuk menjaga basis data Cloud Firestore tetap stabil di bawah batas gratis Firebase Spark (50.000 Reads/hari & 20.000 Writes/hari):
