@@ -33,8 +33,6 @@ let currentPairingCode: string | null = null;
 let isConnected = false;
 let isConnecting = false;
 let lastErrorMessage: string | null = null;
-let lastKnownUserPhone: string | null = "6285746385424";
-let lastKnownUserName: string | null = "danial";
 let initPromise: Promise<void> | null = null;
 
 const getExecutableChromePath = (): string | undefined => {
@@ -67,7 +65,7 @@ export async function initWhatsApp(forceNewSession = false, headless = true): Pr
     if (client) {
       try {
         await client.destroy();
-      } catch {}
+      } catch { }
       client = null;
     }
     if (fs.existsSync(SESSION_DIR)) {
@@ -111,9 +109,6 @@ export async function initWhatsApp(forceNewSession = false, headless = true): Pr
             "--disable-default-apps",
             "--disable-sync",
             "--mute-audio",
-            "--disable-background-timer-throttling",
-            "--disable-backgrounding-occluded-windows",
-            "--disable-renderer-backgrounding",
             "--js-flags=--max-old-space-size=256",
           ],
         },
@@ -142,10 +137,8 @@ export async function initWhatsApp(forceNewSession = false, headless = true): Pr
       });
 
       client.on("authenticated", () => {
-        isConnected = true;
         isConnecting = false;
-        lastErrorMessage = null;
-        logger.info("WhatsApp client successfully AUTHENTICATED and ACTIVE.");
+        logger.info("WhatsApp client successfully AUTHENTICATED.");
       });
 
       client.on("auth_failure", (msg: string) => {
@@ -184,9 +177,9 @@ export function getWhatsAppStatus(): WhatsAppStatus {
   return {
     connected: isConnected,
     connecting: isConnecting,
-    user: isConnected ? {
-      id: userPhone || "6285746385424",
-      name: userName || "danial",
+    user: isConnected && userPhone ? {
+      id: userPhone,
+      name: userName,
     } : null,
     qrCode: currentQrDataUrl,
     pairingCode: currentPairingCode,
@@ -229,10 +222,46 @@ export async function requestPairingCode(phoneNumber: string): Promise<string> {
   }
 }
 
+// =========================================================================
+// 🛡️ SECURITY GUARDRAIL: RECIPIENT WHITELIST (ANTI-LEAK / ANTI-HIJACK)
+// Akun WA pribadi Danial dilindungi 100% dari pengiriman ke luar Tanabrew
+// =========================================================================
+export const TANABREW_TRANSAKSI_GROUP_ID = "120363422161770936@g.us"; // Resmi Toko Tanabrew
+export const ANIV_7_MEI_TEST_GROUP_ID = "120363406655043675@g.us";   // Khusus Testing Internal
+
+// Whitelist Resmi Tanabrew (HANYA dua grup ini yang diizinkan sistem)
+// Seluruh kontak pribadi, keluarga, dan grup lain 100% diblokir demi keamanan akun pribadi Danial.
+export const ALLOWED_GROUP_IDS: ReadonlySet<string> = new Set([
+  ANIV_7_MEI_TEST_GROUP_ID,
+  TANABREW_TRANSAKSI_GROUP_ID,
+]);
+
+export function validateRecipient(targetId: string): string {
+  if (!targetId || typeof targetId !== "string") {
+    throw new Error("[SECURITY BLOCKED] ID penerima WhatsApp tidak valid atau kosong.");
+  }
+  const cleanId = targetId.includes("@") ? targetId.trim() : `${targetId.trim()}@g.us`;
+
+  if (!ALLOWED_GROUP_IDS.has(cleanId)) {
+    const allowedList = Array.from(ALLOWED_GROUP_IDS).join(", ");
+    logger.error(
+      { cleanId, allowed: allowedList },
+      "[SECURITY VIOLATION] Target ID ditolak! Demi keamanan akun pribadi, pesan dilarang dikirim ke luar whitelist."
+    );
+    throw new Error(
+      `[SECURITY BLOCKED] Pengiriman dibatalkan! Demi keamanan akun pribadi Anda, WhatsApp Tanabrew hanya diizinkan mengirim ke grup terverifikasi (${allowedList}). Target (${cleanId}) ditolak.`
+    );
+  }
+
+  return cleanId;
+}
+
 export async function getWhatsAppGroups(): Promise<WhatsAppGroupInfo[]> {
   if (!client || !isConnected) {
     throw new Error("WhatsApp belum terhubung.");
   }
+
+  const rawGroups: WhatsAppGroupInfo[] = [];
 
   // Method 1: Direct Puppeteer evaluation to bypass modern WhatsApp Web serialize obfuscation ('r' bug)
   try {
@@ -261,8 +290,7 @@ export async function getWhatsAppGroups(): Promise<WhatsAppGroupInfo[]> {
       });
 
       if (Array.isArray(extracted) && extracted.length > 0) {
-        logger.info(`Successfully retrieved ${extracted.length} WhatsApp groups via direct collection.`);
-        return extracted.sort((a, b) => a.name.localeCompare(b.name));
+        rawGroups.push(...extracted);
       }
     }
   } catch (evalErr: any) {
@@ -270,31 +298,44 @@ export async function getWhatsAppGroups(): Promise<WhatsAppGroupInfo[]> {
   }
 
   // Method 2: Standard whatsapp-web.js getChats() fallback
-  try {
-    const chats = await client.getChats();
-    const groupsList: WhatsAppGroupInfo[] = chats
-      .filter((c: any) => c.isGroup)
-      .map((g: any) => ({
-        id: g.id?._serialized || String(g.id),
-        name: g.name || "Tanpa Nama",
-        participantCount: g.groupMetadata?.participants?.length || 0,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-
-    return groupsList;
-  } catch (error: any) {
-    logger.warn({ error: error?.message }, "Standard getChats failed to fetch WhatsApp groups");
+  if (rawGroups.length === 0) {
+    try {
+      const chats = await client.getChats();
+      const groupsList: WhatsAppGroupInfo[] = chats
+        .filter((c: any) => c.isGroup)
+        .map((g: any) => ({
+          id: g.id?._serialized || String(g.id),
+          name: g.name || "Tanpa Nama",
+          participantCount: g.groupMetadata?.participants?.length || 0,
+        }));
+      rawGroups.push(...groupsList);
+    } catch (error: any) {
+      logger.warn({ error: error?.message }, "Standard getChats failed to fetch WhatsApp groups");
+    }
   }
 
-  return [];
+  // 🛡️ STRICT SECURITY FILTER: Saring HANYA grup yang ada di whitelist
+  // Grup pribadi Danial (keluarga, teman, pekerjaan lain) 100% tersembunyi dan tidak pernah diekspos ke web!
+  const filtered = rawGroups.filter((g) => ALLOWED_GROUP_IDS.has(g.id));
+
+  if (filtered.length > 0) {
+    logger.info(`Retrieved ${filtered.length} allowed WhatsApp groups (filtered from ${rawGroups.length} total).`);
+    return filtered.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  // Fallback cadangan jika chat belum dimuat browser agar dropdown tidak pernah kosong
+  return [
+    { id: TANABREW_TRANSAKSI_GROUP_ID, name: "Tanabrew transaksi", participantCount: 0 },
+    { id: ANIV_7_MEI_TEST_GROUP_ID, name: "aniv 7 mei", participantCount: 2 },
+  ];
 }
 
 export async function sendTextMessage(groupId: string, text: string): Promise<{ messageId: string }> {
   if (!client || !isConnected) {
     throw new Error("WhatsApp tidak terhubung. Pastikan server WhatsApp aktif.");
   }
-  const cleanGroupId = groupId.includes("@") ? groupId : `${groupId}@g.us`;
-  logger.info({ cleanGroupId, text }, "Sending test text message to WhatsApp group...");
+  const cleanGroupId = validateRecipient(groupId);
+  logger.info({ cleanGroupId, text }, "Sending test text message to verified WhatsApp group...");
   const sent = await client.sendMessage(cleanGroupId, text);
   const messageId = sent?.id?._serialized || sent?.id?.id || "msg-" + Date.now();
   logger.info({ messageId, cleanGroupId }, "Text message successfully delivered to WhatsApp group!");
@@ -317,12 +358,15 @@ export async function sendInvoicePdf(params: {
     throw new Error(`Group ID WhatsApp tidak valid: ${groupId}`);
   }
 
+  // 🛡️ Kunci mati penerima
+  const cleanGroupId = validateRecipient(groupId);
+
   if (!pdfBuffer || pdfBuffer.length < 50) {
     throw new Error(`File PDF tidak valid atau kosong (hanya ${pdfBuffer?.length || 0} bytes).`);
   }
 
   try {
-    logger.info({ groupId, fileName, sizeBytes: pdfBuffer.length }, "Sending invoice PDF to WhatsApp group via Chrome...");
+    logger.info({ cleanGroupId, fileName, sizeBytes: pdfBuffer.length }, "Sending invoice PDF to WhatsApp group via Chrome...");
 
     const cleanFileName = fileName.endsWith(".pdf") ? fileName : `${fileName}.pdf`;
     const media = new MessageMedia(
@@ -331,16 +375,16 @@ export async function sendInvoicePdf(params: {
       cleanFileName
     );
 
-    const sent = await client.sendMessage(groupId, media, {
+    const sent = await client.sendMessage(cleanGroupId, media, {
       caption: caption || `Invoice ${cleanFileName}`,
       sendMediaAsDocument: true,
     });
 
     const messageId = sent?.id?._serialized || sent?.id?.id || "msg-" + Date.now();
-    logger.info({ messageId, groupId }, "Invoice PDF successfully delivered to WhatsApp group!");
+    logger.info({ messageId, cleanGroupId }, "Invoice PDF successfully delivered to WhatsApp group!");
     return { messageId };
   } catch (error: any) {
-    logger.error({ error, groupId, fileName }, "Failed to send invoice PDF to WhatsApp group");
+    logger.error({ error, cleanGroupId, fileName }, "Failed to send invoice PDF to WhatsApp group");
     throw new Error(error?.message || "Gagal mengirim dokumen PDF ke grup WhatsApp.");
   }
 }
@@ -349,10 +393,10 @@ export async function disconnectWhatsApp(): Promise<void> {
   if (client) {
     try {
       await client.logout();
-    } catch {}
+    } catch { }
     try {
       await client.destroy();
-    } catch {}
+    } catch { }
     client = null;
   }
 
@@ -365,7 +409,7 @@ export async function disconnectWhatsApp(): Promise<void> {
   if (fs.existsSync(SESSION_DIR)) {
     try {
       fs.rmSync(SESSION_DIR, { recursive: true, force: true });
-    } catch {}
+    } catch { }
   }
 
   logger.info("WhatsApp session disconnected and session directory cleared.");

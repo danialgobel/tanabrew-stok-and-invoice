@@ -15,34 +15,61 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.6.7",
-  versionLabel: "v3.6.7",
+  version: "3.6.8",
+  versionLabel: "v3.6.8",
   releaseDate: "5 November 2026",
-  title: "Dua Tombol Terpisah Cetak/Kirim Otomatis & Desain Faktur PDF Identik 100% (5 November 2026)",
-  subtitle: "Pemisahan tombol Cetak & Kirim Otomatis (tanpa popup) vs Cetak Manual (kertas), desain faktur PDF identik asli Tanabrew, serta testing ke grup aniv 7 mei",
+  title: "Sistem Keamanan Whitelist WhatsApp (Anti-Bocor) & Manajemen Kontrol Laptop (5 November 2026)",
+  subtitle: "Penguncian ketat bot WhatsApp hanya ke grup resmi Tanabrew, isolasi total kontak/grup pribadi, serta penonaktifan autostart laptop untuk mencegah overheat",
   highlights: [
     {
-      title: "Dua Tombol Terpisah di Kasir & Riwayat (Otomatis vs Manual)",
-      desc: "Tombol 'Cetak & Kirim Otomatis' kini hanya menampilkan status loading dan langsung mengirim PDF ke grup WhatsApp tanpa memicu pop-up blocker di mobile. Untuk cetak fisik kasir, disediakan tombol 'Cetak Manual'.",
-      badge: "Fitur",
-      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
-    },
-    {
-      title: "Desain PDF WhatsApp 100% Identik Sesuai Format Cetak Asli",
-      desc: "Layout PDF telah diselaraskan penuh dengan dokumen cetak asli Tanabrew: logo tajam, header hijau sage (#A5D6A7), baris rincian pembayaran full-width, serta instruksi rekening SeaBank & Bank Jago a.n. AHMAD FARID MUSADDAD.",
+      title: "Proteksi Whitelist Ketat Penerima WhatsApp (Anti-Bocor)",
+      desc: "Layanan WhatsApp kini dilindungi whitelist ganda di cloud dan server lokal. Pesan dan faktur PDF hanya dapat dikirim ke grup resmi Tanabrew ('Tanabrew transaksi' dan 'aniv 7 mei'). Seluruh pengiriman ke nomor atau grup pribadi otomatis ditolak keras (Block 403).",
       badge: "Peningkatan",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
     {
-      title: "Perbaikan Izin Staf & Pengujian Grup WhatsApp 'aniv 7 mei'",
-      desc: "Semua staf kasir kini dapat langsung mengirimkan dokumen ke grup WhatsApp tanpa kendala error hak akses, dan dokumen uji coba telah sukses terkirim ke grup testing aniv 7 mei.",
+      title: "Privasi Total Akun Pribadi & Filter Grup Otomatis",
+      desc: "Daftar grup di web kasir kini otomatis menyaring dan menyembunyikan seluruh grup keluarga atau obrolan pribadi pemilik akun, sehingga hanya grup transaksi toko yang dapat dipilih.",
       badge: "Perbaikan",
       badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20",
+    },
+    {
+      title: "Manajemen Kontrol Manual: Auto-Start Dimatikan (Anti-Overheat)",
+      desc: "Layanan latar belakang tidak lagi otomatis berjalan saat laptop dinyalakan agar laptop tetap adem dan hemat RAM. Kontrol penuh dapat diaktifkan atau dinonaktifkan secara manual melalui shortcut desktop resmi Tanabrew.",
+      badge: "Fitur",
+      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
   ],
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.6.7",
+    versionLabel: "v3.6.7",
+    releaseDate: "5 November 2026",
+    title: "Dua Tombol Terpisah Cetak/Kirim Otomatis & Desain Faktur PDF Identik 100% (5 November 2026)",
+    subtitle: "Pemisahan tombol Cetak & Kirim Otomatis (tanpa popup) vs Cetak Manual (kertas), desain faktur PDF identik asli Tanabrew, serta testing ke grup aniv 7 mei",
+    highlights: [
+      {
+        title: "Dua Tombol Terpisah di Kasir & Riwayat (Otomatis vs Manual)",
+        desc: "Tombol 'Cetak & Kirim Otomatis' kini hanya menampilkan status loading dan langsung mengirim PDF ke grup WhatsApp tanpa memicu pop-up blocker di mobile. Untuk cetak fisik kasir, disediakan tombol 'Cetak Manual'.",
+        badge: "Fitur",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      },
+      {
+        title: "Desain PDF WhatsApp 100% Identik Sesuai Format Cetak Asli",
+        desc: "Layout PDF telah diselaraskan penuh dengan dokumen cetak asli Tanabrew: logo tajam, header hijau sage (#A5D6A7), baris rincian pembayaran full-width, serta instruksi rekening SeaBank & Bank Jago a.n. AHMAD FARID MUSADDAD.",
+        badge: "Peningkatan",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+      {
+        title: "Perbaikan Izin Staf & Pengujian Grup WhatsApp 'aniv 7 mei'",
+        desc: "Semua staf kasir kini dapat langsung mengirimkan dokumen ke grup WhatsApp tanpa kendala error hak akses, dan dokumen uji coba telah sukses terkirim ke grup testing aniv 7 mei.",
+        badge: "Perbaikan",
+        badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20",
+      },
+    ],
+  },
   {
     version: "3.6.6",
     versionLabel: "v3.6.6",

@@ -125,6 +125,8 @@ export default function WhatsAppSettingsModal({
 
       if (data.savedConfig?.target_group_id) {
         setSelectedGroupId((prev) => prev || data.savedConfig?.target_group_id || "");
+      } else if (data.groups && data.groups.length === 1) {
+        setSelectedGroupId(data.groups[0].id);
       }
     } catch (err: any) {
       if (!quiet) {

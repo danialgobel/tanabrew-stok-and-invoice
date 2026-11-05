@@ -198,6 +198,20 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       return;
     }
 
+    // 🛡️ SECURITY GUARDRAIL: Strict Whitelist Destination Check
+    const ALLOWED_GROUPS = new Set([
+      "120363406655043675@g.us", // aniv 7 mei (Testing)
+      "120363422161770936@g.us", // Tanabrew transaksi (Resmi)
+    ]);
+    const cleanCheckId = groupId.includes("@") ? groupId.trim() : `${groupId.trim()}@g.us`;
+    if (!ALLOWED_GROUPS.has(cleanCheckId)) {
+      res.status(403).json({
+        success: false,
+        error: `[KEAMANAN DITOLAK] Pengiriman ke ID (${cleanCheckId}) dilarang demi melindungi privasi akun pribadi Anda. Hanya grup resmi Tanabrew yang diizinkan.`,
+      });
+      return;
+    }
+
     // 3. Build Caption if not provided
     if (!caption) {
       const noInv = invoiceData.no_invoice || invoiceId;
