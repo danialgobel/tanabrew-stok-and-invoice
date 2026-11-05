@@ -772,7 +772,7 @@ const Beranda = () => {
       return;
     }
 
-    if (userProfile.role !== "admin") {
+    if (!isAdminRole(userProfile.role, currentUser?.email)) {
       toast({ title: "Error", description: "Hanya admin yang dapat mengirim test notifikasi.", variant: "destructive" });
       return;
     }

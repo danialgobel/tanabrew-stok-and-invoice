@@ -842,8 +842,8 @@ const Riwayat = () => {
       return;
     }
 
-    if (userProfile.role !== "admin" && userProfile.role !== "owner") {
-      toast({ title: "Error", description: "Hanya admin/owner yang dapat menandai invoice lunas.", variant: "destructive" });
+    if (!isAdminRole(userProfile.role, currentUser?.email)) {
+      toast({ title: "Error", description: "Hanya admin/owner/developer yang dapat menandai invoice lunas.", variant: "destructive" });
       return;
     }
 
@@ -902,8 +902,8 @@ const Riwayat = () => {
       return;
     }
 
-    if (userProfile.role !== "admin" && userProfile.role !== "owner") {
-      toast({ title: "Error", description: "Hanya admin/owner yang dapat mencetak ulang invoice.", variant: "destructive" });
+    if (!isAdminRole(userProfile.role, currentUser?.email)) {
+      toast({ title: "Error", description: "Hanya admin/owner/developer yang dapat mencetak ulang invoice.", variant: "destructive" });
       return;
     }
 

@@ -218,7 +218,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       const noInv = invoiceData.no_invoice || invoiceId;
       const cust = invoiceData.customer || "Umum";
       const totalFmt = formatCurrency(invoiceData.total || 0);
-      const statusPay = invoiceData.status || "LUNAS";
+      const isPaid = invoiceData.status === "LUNAS";
+      const statusPay = isPaid ? "🟢 LUNAS" : `🔴 ${invoiceData.status || "BELUM LUNAS"}`;
       const dibuatOleh = invoiceData.dibuat_oleh || user.name;
 
       caption = `📄 *INVOICE TANABREW ROASTERY*\n\n` +
