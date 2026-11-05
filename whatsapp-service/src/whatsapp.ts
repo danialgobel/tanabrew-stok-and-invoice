@@ -2,6 +2,7 @@ import makeWASocket, {
   DisconnectReason,
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
+  Browsers,
   makeCacheableSignalKeyStore,
   type WASocket,
   type ConnectionState,
@@ -80,7 +81,7 @@ export async function initWhatsApp(forceNewSession = false): Promise<void> {
       generateHighQualityLinkPreview: false,
       connectTimeoutMs: 60000,
       keepAliveIntervalMs: 25000,
-      browser: ["Tanabrew Roastery", "Chrome", "1.0.0"],
+      browser: Browsers.macOS("Desktop"),
     });
 
     sock.ev.on("creds.update", saveCreds);

@@ -152,3 +152,29 @@ export const disconnectWhatsAppSession = async (
 
   return data;
 };
+
+export const requestWhatsAppPairingCode = async (
+  currentUser: User | null | undefined,
+  phoneNumber: string,
+): Promise<{ success: boolean; pairingCode: string }> => {
+  if (!currentUser) {
+    throw new Error("User belum login.");
+  }
+
+  const token = await currentUser.getIdToken();
+  const response = await fetch("/api/whatsapp-pair-code", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ phoneNumber }),
+  });
+
+  const data = await response.json();
+  if (!response.ok || !data.success) {
+    throw new Error(data.error || "Gagal meminta kode pairing WhatsApp.");
+  }
+
+  return data;
+};

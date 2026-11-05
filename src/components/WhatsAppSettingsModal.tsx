@@ -234,25 +234,107 @@ export default function WhatsAppSettingsModal({
                   </div>
                 </div>
 
-                {/* QR Code display */}
-                {statusData?.qrCode ? (
-                  <div className="flex flex-col items-center justify-center p-3 bg-white rounded-xl border border-border">
-                    <img
-                      src={statusData.qrCode}
-                      alt="WhatsApp QR Code"
-                      className="w-48 h-48 object-contain rounded-lg"
-                    />
-                    <p className="text-[11px] text-slate-500 mt-2 font-medium flex items-center gap-1">
-                      <QrCode size={13} />
-                      Arahkan kamera WhatsApp Linked Devices ke QR ini
-                    </p>
-                  </div>
+                {/* Mode Switcher */}
+                <div className="grid grid-cols-2 gap-1.5 p-1 bg-muted/60 rounded-xl text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setPairingMode("qr")}
+                    className={`py-1.5 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      pairingMode === "qr"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <QrCode size={13} />
+                    <span>Scan QR Code</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPairingMode("code")}
+                    className={`py-1.5 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      pairingMode === "code"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <KeyRound size={13} />
+                    <span>Kode 8 Digit (No HP)</span>
+                  </button>
+                </div>
+
+                {pairingMode === "qr" ? (
+                  /* QR Code display */
+                  statusData?.qrCode ? (
+                    <div className="flex flex-col items-center justify-center p-3 bg-white rounded-xl border border-border">
+                      <img
+                        src={statusData.qrCode}
+                        alt="WhatsApp QR Code"
+                        className="w-48 h-48 object-contain rounded-lg"
+                      />
+                      <p className="text-[11px] text-slate-600 mt-2 font-medium flex items-center gap-1">
+                        <QrCode size={13} />
+                        Arahkan kamera WhatsApp Perangkat Tertaut ke QR ini
+                      </p>
+                      <p className="text-[10px] text-muted-foreground text-center mt-1">
+                        Jika WhatsApp di HP menolak scan, beralihlah ke tab <b>Kode 8 Digit</b> di atas!
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 bg-muted/40 rounded-xl border border-dashed text-xs text-muted-foreground">
+                      <p>Memuat QR Code pairing...</p>
+                      <p className="text-[10px] mt-1 text-muted-foreground/80">
+                        Jika QR belum muncul, klik tombol &quot;Muat Ulang&quot; di atas.
+                      </p>
+                    </div>
+                  )
                 ) : (
-                  <div className="text-center py-4 bg-muted/40 rounded-xl border border-dashed text-xs text-muted-foreground">
-                    <p>Memuat QR Code pairing...</p>
-                    <p className="text-[10px] mt-1 text-muted-foreground/80">
-                      Jika QR belum muncul, klik tombol &quot;Muat Ulang&quot; di atas.
-                    </p>
+                  /* Pairing Code display */
+                  <div className="bg-muted/30 border border-border/70 rounded-xl p-3.5 space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-foreground flex items-center gap-1">
+                        <Phone size={12} />
+                        <span>Nomor WhatsApp Anda (Gunakan 62):</span>
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="tel"
+                          placeholder="contoh: 628123456789"
+                          value={phoneInput}
+                          onChange={(e) => setPhoneInput(e.target.value)}
+                          className="flex-1 text-xs px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 font-mono"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleRequestPairingCode}
+                          disabled={requestingCode}
+                          className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                        >
+                          {requestingCode ? "Membuat..." : "Minta Kode"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {pairingCodeResult ? (
+                      <div className="p-3 bg-emerald-500/10 border border-emerald-500/25 rounded-xl text-center space-y-1.5">
+                        <p className="text-[10px] font-semibold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
+                          Kode Pairing WhatsApp Anda:
+                        </p>
+                        <div className="text-2xl font-black font-mono tracking-widest text-emerald-600 dark:text-emerald-400 select-all py-1">
+                          {pairingCodeResult}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground text-left space-y-1 pt-1 border-t border-emerald-500/15">
+                          <p className="font-semibold text-foreground">Cara memasukkan di HP:</p>
+                          <p>1. Buka WhatsApp di HP ➔ <b>Perangkat Tertaut</b>.</p>
+                          <p>2. Ketuk <b>Tautkan Perangkat</b>.</p>
+                          <p>3. Di layar kamera scan QR, ketuk <b>&quot;Tautkan dengan nomor telepon saja&quot;</b> di bagian bawah.</p>
+                          <p>4. Masukkan kode 8 karakter di atas.</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-muted-foreground leading-relaxed">
+                        Metode ini sangat disarankan jika scan kamera di HP sering gagal atau muncul peringatan limit. WhatsApp akan mengirimkan notifikasi resmi untuk memasukkan 8 karakter.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
