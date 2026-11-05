@@ -170,16 +170,21 @@ export function getWhatsAppStatus(): WhatsAppStatus {
 }
 
 export async function requestPairingCode(phoneNumber: string): Promise<string> {
-  if (!sock) {
-    throw new Error("WhatsApp socket is not initialized.");
-  }
   if (isConnected) {
-    throw new Error("WhatsApp is already connected.");
+    throw new Error("WhatsApp sudah terhubung.");
   }
 
   const cleanedNumber = phoneNumber.replace(/\D/g, "");
   if (cleanedNumber.length < 10) {
-    throw new Error("Nomor telepon tidak valid. Masukkan dengan format internasional (contoh: 628123456789).");
+    throw new Error("Nomor telepon tidak valid. Masukkan nomor lengkap dengan kode negara (contoh: 628123456789).");
+  }
+
+  // Inisialisasi ulang sesi bersih agar handshake pairing code segar
+  await initWhatsApp(true);
+  await new Promise((r) => setTimeout(r, 2000));
+
+  if (!sock) {
+    throw new Error("Gagal menginisialisasi WhatsApp socket.");
   }
 
   try {

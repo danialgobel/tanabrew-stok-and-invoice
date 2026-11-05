@@ -28,6 +28,20 @@ const getHeader = (req: ApiRequest, name: string) => {
   return Array.isArray(value) ? value[0] : value;
 };
 
+const parseBody = (body: unknown) => {
+  if (typeof body === "string") {
+    try {
+      return JSON.parse(body) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  }
+  if (body && typeof body === "object") {
+    return body as Record<string, unknown>;
+  }
+  return null;
+};
+
 const getServiceAccount = () => {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (!raw) {
@@ -114,7 +128,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       return;
     }
 
-    const { phoneNumber } = (req.body as { phoneNumber?: string }) || {};
+    const body = parseBody(req.body);
+    const phoneNumber = (body?.phoneNumber as string) || "";
     if (!phoneNumber) {
       res.status(400).json({
         success: false,
@@ -157,4 +172,3 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     });
   }
 }
-
