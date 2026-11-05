@@ -6,7 +6,8 @@ type InvoiceNotificationType =
   | "UPDATE_PAYMENT_STATUS" 
   | "TEST_NOTIFICATION" 
   | "OWNER_ANNOUNCEMENT"
-  | "TEAM_CHAT_MESSAGE";
+  | "TEAM_CHAT_MESSAGE"
+  | "APP_UPDATE";
 type InvoiceNotificationRole = "owner" | "admin" | "staff" | "webdev";
 
 type ApiRequest = {
@@ -54,6 +55,7 @@ const allowedTypes: InvoiceNotificationType[] = [
   "TEST_NOTIFICATION",
   "OWNER_ANNOUNCEMENT",
   "TEAM_CHAT_MESSAGE",
+  "APP_UPDATE",
 ];
 
 const getHeader = (req: ApiRequest, name: string) => {
@@ -86,12 +88,13 @@ const isValidPayload = (payload: Record<string, unknown> | null): payload is Inv
   const isTestNotification = type === "TEST_NOTIFICATION";
   const isOwnerAnnouncement = type === "OWNER_ANNOUNCEMENT";
   const isTeamChatMessage = type === "TEAM_CHAT_MESSAGE";
+  const isAppUpdate = type === "APP_UPDATE";
 
   return (
     allowedTypes.includes(type) &&
-    (isTestNotification || isOwnerAnnouncement || isTeamChatMessage || (typeof payload.invoiceId === "string" && payload.invoiceId.trim().length > 0)) &&
-    (isOwnerAnnouncement || isTestNotification || isTeamChatMessage || (typeof payload.invoiceNumber === "string" && payload.invoiceNumber.trim().length > 0)) &&
-    (isOwnerAnnouncement || isTestNotification || isTeamChatMessage || typeof payload.customer === "string") &&
+    (isTestNotification || isOwnerAnnouncement || isTeamChatMessage || isAppUpdate || (typeof payload.invoiceId === "string" && payload.invoiceId.trim().length > 0)) &&
+    (isOwnerAnnouncement || isTestNotification || isTeamChatMessage || isAppUpdate || (typeof payload.invoiceNumber === "string" && payload.invoiceNumber.trim().length > 0)) &&
+    (isOwnerAnnouncement || isTestNotification || isTeamChatMessage || isAppUpdate || typeof payload.customer === "string") &&
     typeof payload.actorName === "string" &&
     payload.actorName.trim().length > 0 &&
     (actorRole === "owner" || actorRole === "admin" || actorRole === "staff" || actorRole === "webdev") &&
@@ -132,6 +135,13 @@ const buildNotificationContent = (payload: InvoiceNotificationPayload) => {
     return {
       title: payload.title || `[Pesan Tim] ${payload.actorName}`,
       message: payload.message || "Ada pesan baru di obrolan tim.",
+    };
+  }
+
+  if (payload.type === "APP_UPDATE") {
+    return {
+      title: payload.title || `Tanabrew - Pembaruan Aplikasi ${payload.invoiceNumber || ""}`.trim(),
+      message: payload.message || "Versi terbaru Tanabrew telah dirilis. Buka aplikasi untuk melihat fitur dan pembaruan terbaru!",
     };
   }
 
@@ -451,7 +461,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     });
   }
 
-  const isBroadcast = body.type === "OWNER_ANNOUNCEMENT" || body.type === "TEST_NOTIFICATION" || body.type === "TEAM_CHAT_MESSAGE";
+  const isBroadcast = body.type === "OWNER_ANNOUNCEMENT" || body.type === "TEST_NOTIFICATION" || body.type === "TEAM_CHAT_MESSAGE" || body.type === "APP_UPDATE";
   if (!isBroadcast && recipientUids.length === 0) {
     return res.status(404).json({
       success: false,
@@ -464,7 +474,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const origin = getRequestOrigin(req);
   const targetUrl = body.type === "TEAM_CHAT_MESSAGE"
     ? (origin ? `${origin}/obrolan` : "/obrolan")
-    : (origin ? `${origin}/riwayat` : "/riwayat");
+    : body.type === "APP_UPDATE"
+      ? (origin ? `${origin}/akun` : "/akun")
+      : (origin ? `${origin}/riwayat` : "/riwayat");
 
   const avatarUrl = origin
     ? `${origin}/api/user-avatar?name=${encodeURIComponent(body.actorName)}`

@@ -8,7 +8,8 @@ import { sendTanabrewNotification } from "@/lib/notificationSender";
 import { useProducts } from "@/hooks/useProducts";
 import { useAuth } from "@/context/AuthContext";
 import type { Invoice, InvoiceItem } from "@/types";
-import { Plus, Trash2, CheckCircle2, Package, Printer } from "lucide-react";
+import { Plus, Trash2, CheckCircle2, Package, Printer, Smartphone, Loader2 } from "lucide-react";
+import WhatsAppFallbackModal from "@/components/WhatsAppFallbackModal";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/Skeleton";
 import { useSearchParams, useNavigate } from "react-router-dom";
@@ -57,6 +58,11 @@ const CetakInvoice = () => {
   const [savedInvoiceId, setSavedInvoiceId] = useState("");
   const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
   const [loadingInvoice, setLoadingInvoice] = useState(false);
+  const [waSending, setWaSending] = useState(false);
+  const [waSentToGroup, setWaSentToGroup] = useState<string | null>(null);
+  const [fallbackModalOpen, setFallbackModalOpen] = useState(false);
+  const [fallbackInvoice, setFallbackInvoice] = useState<Invoice | null>(null);
+  const [fallbackError, setFallbackError] = useState("");
 
   const [frequentCustomers, setFrequentCustomers] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -383,31 +389,62 @@ const CetakInvoice = () => {
       dibuat_oleh_role: userProfile.role,
     };
 
-    void (async () => {
-      try {
-        const { base64, fileName } = await generateInvoicePdfBlob(currentInvoiceData);
-        const waRes = await sendInvoiceToWhatsApp(currentUser, {
-          invoice: currentInvoiceData,
-          pdfBase64: base64,
-          fileName,
-        });
+    void sendWhatsAppInvoiceInternal(currentInvoiceData, false);
+  };
 
-        if (waRes.alreadySent) {
-          console.log("Invoice sudah terkirim ke WhatsApp sebelumnya.");
-        } else {
-          toast({
-            title: "WhatsApp Terkirim",
-            description: `PDF invoice berhasil dikirim ke grup ${waRes.groupName || "WhatsApp"}.`,
-          });
-        }
-      } catch (waErr: any) {
-        console.warn("Gagal mengirim PDF invoice ke WhatsApp:", waErr);
-        toast({
-          title: "Status WhatsApp",
-          description: `Invoice berhasil dicetak, namun pengiriman WhatsApp gagal: ${waErr.message || "Server belum siap"}`,
-        });
-      }
-    })();
+  const sendWhatsAppInvoiceInternal = async (invoiceData: Invoice, isManualTrigger = false) => {
+    if (!currentUser) return;
+    setWaSending(true);
+    try {
+      const { base64, fileName } = await generateInvoicePdfBlob(invoiceData);
+      const waRes = await sendInvoiceToWhatsApp(currentUser, {
+        invoice: invoiceData,
+        pdfBase64: base64,
+        fileName,
+        forceSend: isManualTrigger,
+      });
+
+      setWaSentToGroup(waRes.groupName || "Grup WhatsApp");
+      toast({
+        title: "WhatsApp Terkirim",
+        description: `PDF invoice berhasil dikirim ke grup ${waRes.groupName || "WhatsApp"}.`,
+      });
+    } catch (waErr: any) {
+      console.warn("Gagal mengirim PDF invoice ke WhatsApp:", waErr);
+      const errMsg = waErr?.message || "Server WhatsApp belum aktif atau offline.";
+      setFallbackInvoice(invoiceData);
+      setFallbackError(errMsg);
+      setFallbackModalOpen(true);
+      toast({
+        title: "Server WA Tidak Terhubung",
+        description: isManualTrigger
+          ? "Server WhatsApp di laptop offline. Membuka opsi kirim manual..."
+          : "Invoice dicetak, namun server WA offline. Membuka opsi kirim manual...",
+        variant: "destructive",
+      });
+    } finally {
+      setWaSending(false);
+    }
+  };
+
+  const handleManualSendWhatsApp = () => {
+    const currentInvoiceData: Invoice = {
+      id: savedInvoiceId,
+      no_invoice: noInvoice,
+      tanggal,
+      customer,
+      items,
+      subtotal,
+      diskon,
+      total,
+      jumlah_dibayar: jumlahDibayar,
+      sisa,
+      status,
+      stock_location: stockLocation,
+      dibuat_oleh: userProfile?.name || "",
+      dibuat_oleh_role: userProfile?.role || "",
+    };
+    void sendWhatsAppInvoiceInternal(currentInvoiceData, true);
   };
 
   const handlePrint = async () => {
@@ -652,23 +689,71 @@ const CetakInvoice = () => {
           </div>
         </div>
 
-        <div className="mt-4 flex gap-3 print:hidden">
-          <div className="flex-1">
-            <button
-              onClick={handlePrint}
-              disabled={!canPrint || printing}
-              className="w-full bg-primary text-primary-foreground rounded-lg py-2.5 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
-            >
-              <Printer size={16} />
-              {printing ? "Memproses Cetak..." : "Cetak Invoice"}
-            </button>
-            <p className="mt-1.5 text-[11px] text-muted-foreground text-center">
-              Pencetakan fisik/PDF & kirim WhatsApp (stok sudah aman terpotong saat disimpan).
-            </p>
-            {!canPrint && (
-              <p className="mt-1 text-xs text-destructive text-center">Hanya Admin, Owner, atau Developer yang dapat mencetak invoice.</p>
-            )}
+        <div className="mt-4 flex flex-col gap-2.5 print:hidden">
+          {waSending && (
+            <div className="flex items-center justify-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 py-2.5 px-3 text-xs font-semibold text-emerald-800 dark:text-emerald-300 animate-pulse">
+              <Loader2 size={15} className="animate-spin text-emerald-600" />
+              <span>Server sedang mengirim dokumen ke grup WA...</span>
+            </div>
+          )}
+
+          {waSentToGroup && !waSending && (
+            <div className="flex items-center justify-between rounded-xl bg-emerald-500/10 border border-emerald-500/20 py-2 px-3 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 size={15} className="text-emerald-600" />
+                Terkirim ke grup {waSentToGroup}
+              </span>
+              <button
+                type="button"
+                onClick={handleManualSendWhatsApp}
+                className="text-[11px] underline text-emerald-700 hover:text-emerald-900 cursor-pointer"
+              >
+                Kirim Ulang
+              </button>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div>
+              <button
+                onClick={handlePrint}
+                disabled={!canPrint || printing || waSending}
+                className="w-full bg-primary text-primary-foreground rounded-lg py-2.5 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+              >
+                <Printer size={16} />
+                {printing ? "Memproses Cetak..." : "Cetak Invoice"}
+              </button>
+              {!canPrint && (
+                <p className="mt-1 text-xs text-destructive text-center">Hanya Admin/Owner/Developer yang dapat mencetak.</p>
+              )}
+            </div>
+
+            <div>
+              <button
+                type="button"
+                onClick={handleManualSendWhatsApp}
+                disabled={waSending}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg py-2.5 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 shadow-sm"
+              >
+                {waSending ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Mengirim ke WA...</span>
+                  </>
+                ) : (
+                  <>
+                    <Smartphone size={16} />
+                    <span>Langsung Kirim ke Grup WA</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
+
+          <p className="text-[11px] text-muted-foreground text-center">
+            Pencetakan fisik/PDF & kirim WhatsApp (stok sudah aman terpotong saat disimpan).
+          </p>
+
           <button
             onClick={() => {
               setSaved(false);
@@ -680,13 +765,21 @@ const CetakInvoice = () => {
               setCustomer("");
               setTanggal(todayInputValue());
               setStockLocation("Jogja");
+              setWaSentToGroup(null);
               navigate("/cetak-invoice");
             }}
-            className="flex-1 bg-muted text-muted-foreground rounded-lg py-2.5 text-sm font-medium"
+            className="w-full bg-muted hover:bg-muted/80 text-muted-foreground rounded-lg py-2.5 text-sm font-medium cursor-pointer transition-colors"
           >
             Invoice Baru
           </button>
         </div>
+
+        <WhatsAppFallbackModal
+          open={fallbackModalOpen}
+          onOpenChange={setFallbackModalOpen}
+          invoice={fallbackInvoice}
+          errorMessage={fallbackError}
+        />
       </div>
     );
   }
@@ -860,6 +953,13 @@ const CetakInvoice = () => {
           {saving ? "Menyimpan Invoice..." : loadingProducts ? "Memuat Produk..." : "Simpan & Lihat Invoice"}
         </button>
       </form>
+
+      <WhatsAppFallbackModal
+        open={fallbackModalOpen}
+        onOpenChange={setFallbackModalOpen}
+        invoice={fallbackInvoice}
+        errorMessage={fallbackError}
+      />
     </div>
   );
 };

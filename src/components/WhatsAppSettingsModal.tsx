@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   fetchWhatsAppStatus,
   saveWhatsAppTargetGroup,
+  disconnectWhatsAppSession,
   type WhatsAppStatusResponse,
 } from "@/lib/whatsappClient";
 import { isAdminRole } from "@/lib/roleUtils";
@@ -42,6 +43,32 @@ export default function WhatsAppSettingsModal({
   const [saving, setSaving] = useState(false);
   const [statusData, setStatusData] = useState<WhatsAppStatusResponse | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<string>("");
+  const [disconnecting, setDisconnecting] = useState(false);
+
+  const handleDisconnect = async () => {
+    if (!currentUser) return;
+    if (!window.confirm("Apakah Anda yakin ingin memutuskan akun WhatsApp ini dan menggantinya dengan akun baru?")) {
+      return;
+    }
+
+    setDisconnecting(true);
+    try {
+      await disconnectWhatsAppSession(currentUser);
+      toast({
+        title: "Koneksi Diputuskan",
+        description: "Sesi WhatsApp berhasil dilepas. Silakan scan QR Code baru di bawah dengan akun WhatsApp Anda yang baru.",
+      });
+      void loadStatus(true);
+    } catch (err: any) {
+      toast({
+        title: "Gagal Memutuskan",
+        description: err.message || "Pastikan server WhatsApp aktif.",
+        variant: "destructive",
+      });
+    } finally {
+      setDisconnecting(false);
+    }
+  };
   const [autoRefreshInterval, setAutoRefreshInterval] = useState<number | null>(null);
 
   const loadStatus = useCallback(async (quiet = false) => {
@@ -162,21 +189,33 @@ export default function WhatsAppSettingsModal({
             </div>
 
             {statusData?.connected ? (
-              <div className="flex items-start gap-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3.5">
-                <CheckCircle2 className="text-emerald-600 shrink-0 mt-0.5" size={18} />
-                <div className="space-y-0.5 text-xs">
-                  <p className="font-bold text-emerald-700 dark:text-emerald-400">
-                    WhatsApp Terhubung 🟢
-                  </p>
-                  <p className="text-muted-foreground">
-                    Nomor: <span className="font-semibold text-foreground">{statusData.user?.id ? `+${statusData.user.id}` : "-"}</span>
-                  </p>
-                  {statusData.user?.name && (
-                    <p className="text-muted-foreground">
-                      Akun: <span className="font-semibold text-foreground">{statusData.user.name}</span>
+              <div className="flex items-start justify-between bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3.5 gap-2">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="text-emerald-600 shrink-0 mt-0.5" size={18} />
+                  <div className="space-y-0.5 text-xs">
+                    <p className="font-bold text-emerald-700 dark:text-emerald-400">
+                      WhatsApp Terhubung 🟢
                     </p>
-                  )}
+                    <p className="text-muted-foreground">
+                      Nomor: <span className="font-semibold text-foreground">{statusData.user?.id ? `+${statusData.user.id}` : "-"}</span>
+                    </p>
+                    {statusData.user?.name && (
+                      <p className="text-muted-foreground">
+                        Akun: <span className="font-semibold text-foreground">{statusData.user.name}</span>
+                      </p>
+                    )}
+                  </div>
                 </div>
+                {isOwnerOrAdmin && (
+                  <button
+                    type="button"
+                    onClick={handleDisconnect}
+                    disabled={disconnecting}
+                    className="text-[11px] text-rose-600 dark:text-rose-400 font-semibold border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                  >
+                    {disconnecting ? "Memutuskan..." : "Ganti Akun"}
+                  </button>
+                )}
               </div>
             ) : statusData?.connecting ? (
               <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3.5 text-xs text-amber-700 dark:text-amber-400">

@@ -34,6 +34,7 @@ import { deleteInvoiceWithStock } from "@/lib/invoiceNumber";
 import { downloadCsv, monthFileStamp } from "@/lib/csvExport";
 import { generateInvoicePdfBlob } from "@/lib/invoicePdfGenerator";
 import { sendInvoiceToWhatsApp } from "@/lib/whatsappClient";
+import WhatsAppFallbackModal from "@/components/WhatsAppFallbackModal";
 import {
   type ProductDivision,
   filterInvoicesByDivision,
@@ -385,6 +386,9 @@ const Riwayat = () => {
   const [reportSortDirection, setReportSortDirection] = useState<"asc" | "desc">("asc");
   const [loadingReport, setLoadingReport] = useState<ReportType | null>(null);
   const [sendingWaInvoiceId, setSendingWaInvoiceId] = useState<string | null>(null);
+  const [fallbackModalOpen, setFallbackModalOpen] = useState(false);
+  const [fallbackInvoice, setFallbackInvoice] = useState<Invoice | null>(null);
+  const [fallbackError, setFallbackError] = useState("");
   const [printingInvoiceId, setPrintingInvoiceId] = useState<string | null>(null);
   const [waShareInvoice, setWaShareInvoice] = useState<Invoice | null>(null);
   const [waPhone, setWaPhone] = useState("");
@@ -884,6 +888,7 @@ const Riwayat = () => {
       showActionNotice("Invoice berhasil ditandai lunas", `No Invoice: ${paidInvoice.no_invoice}`);
       toast({ title: "Berhasil", description: `Invoice ${paidInvoice.no_invoice} sudah LUNAS.` });
       sendInvoiceNotification("UPDATE_PAYMENT_STATUS", paidInvoice);
+      void handleSendWhatsAppInvoice(paidInvoice, true);
     } catch {
       toast({ title: "Error", description: "Gagal menandai invoice lunas.", variant: "destructive" });
     } finally {
@@ -1127,9 +1132,13 @@ const Riwayat = () => {
       );
     } catch (err: any) {
       console.warn("Gagal mengirim invoice ke WhatsApp:", err);
+      const errMsg = err?.message || "Server WhatsApp belum aktif atau offline.";
+      setFallbackInvoice(invoice);
+      setFallbackError(errMsg);
+      setFallbackModalOpen(true);
       toast({
-        title: "Gagal Mengirim WhatsApp",
-        description: err.message || "Pastikan WhatsApp service aktif.",
+        title: "Server WA Tidak Terhubung",
+        description: "Server WhatsApp di laptop offline. Membuka opsi kirim manual...",
         variant: "destructive",
       });
     } finally {
@@ -1933,6 +1942,13 @@ const Riwayat = () => {
         loading={Boolean(deleteTarget?.id && deletingInvoiceId === deleteTarget.id)}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={() => void handleDeleteInvoice()}
+      />
+
+      <WhatsAppFallbackModal
+        open={fallbackModalOpen}
+        onOpenChange={setFallbackModalOpen}
+        invoice={fallbackInvoice}
+        errorMessage={fallbackError}
       />
 
       {/* MODAL SHARE WHATSAPP INVOICE */}

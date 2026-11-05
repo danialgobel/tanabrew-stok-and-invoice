@@ -127,3 +127,28 @@ export const sendInvoiceToWhatsApp = async (
 
   return data;
 };
+
+
+export const disconnectWhatsAppSession = async (
+  currentUser: User | null | undefined,
+): Promise<{ success: boolean; message: string }> => {
+  if (!currentUser) {
+    throw new Error("User belum login.");
+  }
+
+  const token = await currentUser.getIdToken();
+  const response = await fetch("/api/whatsapp-disconnect", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  const data = await response.json();
+  if (!response.ok || !data.success) {
+    throw new Error(data.error || "Gagal memutuskan koneksi WhatsApp.");
+  }
+
+  return data;
+};

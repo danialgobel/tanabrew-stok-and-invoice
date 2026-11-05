@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import WhatsAppSettingsModal from "@/components/WhatsAppSettingsModal";
+import { sendTanabrewNotification } from "@/lib/notificationSender";
+import { fetchWhatsAppStatus, type WhatsAppStatusResponse } from "@/lib/whatsappClient";
 import { CURRENT_RELEASE } from "@/config/appRelease";
 import { openAppChangelogModal } from "@/components/AppUpdateAnnouncementModal";
 import { triggerHaptic, isHapticEnabled, setHapticEnabled } from "@/lib/haptics";
@@ -83,6 +85,10 @@ const Akun = () => {
   });
   const [hapticOn, setHapticOn] = useState(() => isHapticEnabled());
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [waStatus, setWaStatus] = useState<WhatsAppStatusResponse | null>(null);
+  const [loadingWaStatus, setLoadingWaStatus] = useState(false);
+  const [waServerOnline, setWaServerOnline] = useState<boolean | null>(null);
+  const [broadcastingUpdate, setBroadcastingUpdate] = useState(false);
 
   // Help FAQ expanded state
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
@@ -92,6 +98,67 @@ const Akun = () => {
       setNameInput(userProfile.name);
     }
   }, [userProfile?.name]);
+
+  const loadWhatsAppStatus = async () => {
+    if (!currentUser) return;
+    setLoadingWaStatus(true);
+    try {
+      const res = await fetchWhatsAppStatus(currentUser);
+      setWaStatus(res);
+      setWaServerOnline(Boolean(res.serverOnline !== false && (res.connected !== undefined || res.status)));
+    } catch {
+      setWaServerOnline(false);
+      setWaStatus(null);
+    } finally {
+      setLoadingWaStatus(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadWhatsAppStatus();
+  }, [currentUser, showWhatsAppModal]);
+
+  const handleBroadcastAppUpdate = async () => {
+    if (!currentUser || !userProfile) return;
+    triggerHaptic(15);
+    setBroadcastingUpdate(true);
+    try {
+      const firstHighlight = CURRENT_RELEASE.highlights?.[0]?.title || "Pembaruan sistem & fitur terbaru";
+      await sendTanabrewNotification(
+        {
+          type: "APP_UPDATE",
+          invoiceId: CURRENT_RELEASE.version,
+          invoiceNumber: CURRENT_RELEASE.versionLabel,
+          customer: "Semua Karyawan",
+          total: 0,
+          actorName: userProfile.name,
+          actorRole: isDeveloperRole(userProfile.role, currentUser?.email)
+            ? "webdev"
+            : isOwnerRole(userProfile.role, currentUser?.email)
+              ? "owner"
+              : isAdminRole(userProfile.role, currentUser?.email)
+                ? "admin"
+                : "staff",
+          title: `Tanabrew - Pembaruan ${CURRENT_RELEASE.versionLabel}`,
+          message: `Versi ${CURRENT_RELEASE.versionLabel} telah dirilis: ${firstHighlight}. Buka aplikasi untuk menikmati update!`,
+        },
+        currentUser,
+      );
+      toast({
+        title: "Notifikasi Disiarkan",
+        description: `Pembaruan ${CURRENT_RELEASE.versionLabel} berhasil dikirim ke seluruh perangkat tim!`,
+      });
+    } catch (err: any) {
+      console.error("Gagal menyiarkan notifikasi update:", err);
+      toast({
+        title: "Gagal Menyiarkan Notifikasi",
+        description: err?.message || "Kendala mengirim notifikasi push OneSignal.",
+        variant: "destructive",
+      });
+    } finally {
+      setBroadcastingUpdate(false);
+    }
+  };
 
   const getInitials = (name?: string, email?: string) => {
     const text = name || email || "User";
@@ -535,24 +602,67 @@ const Akun = () => {
             </button>
           </div>
 
-          {/* Otomasi WhatsApp Invoice */}
+          {/* Otomasi WhatsApp Invoice Card */}
           <div
             onClick={() => {
               triggerHaptic(15);
               setShowWhatsAppModal(true);
             }}
-            className="flex items-center justify-between pt-2.5 border-t border-border/60 px-1 cursor-pointer hover:opacity-80 transition-opacity"
+            className="rounded-2xl border border-border/80 bg-muted/20 hover:bg-muted/40 p-3 cursor-pointer transition-all space-y-2 mt-1"
           >
-            <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600">
-                <Smartphone size={15} />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
+                  <Smartphone size={16} />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground text-xs">Otomasi WhatsApp Invoice</p>
+                  <p className="text-[10px] text-muted-foreground">Kirim PDF invoice otomatis ke grup</p>
+                </div>
               </div>
-              <div>
-                <p className="font-semibold text-foreground">Otomasi WhatsApp Invoice</p>
-                <p className="text-[11px] text-muted-foreground">Koneksi akun & pemilihan grup penerima PDF</p>
+              <div className="flex items-center gap-1.5">
+                {loadingWaStatus ? (
+                  <span className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium">
+                    <Loader2 size={11} className="animate-spin" /> Cek...
+                  </span>
+                ) : waServerOnline ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 text-[10px] font-bold">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Server Online
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-2 py-0.5 text-[10px] font-bold">
+                    <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
+                    Server Offline
+                  </span>
+                )}
+                <ChevronRight size={14} className="text-muted-foreground" />
               </div>
             </div>
-            <ChevronRight size={15} className="text-muted-foreground" />
+
+            <div className="rounded-xl bg-background/90 border border-border/60 p-2 text-[11px] space-y-1">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Akun WhatsApp:</span>
+                <span className="font-mono font-medium text-foreground">
+                  {waStatus?.connected && waStatus?.user
+                    ? `+${waStatus.user.replace(/[^0-9]/g, "")}`
+                    : waServerOnline
+                      ? "Belum Terhubung (Pindai QR)"
+                      : "Server Laptop Offline"}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Grup Tujuan:</span>
+                <span className="font-medium text-foreground truncate max-w-[170px]">
+                  {waStatus?.target_group_name || "Belum dipilih"}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-0.5 px-0.5">
+              <span>Ganti nomor WA atau ganti grup tujuan</span>
+              <span className="text-primary font-semibold">Kelola &rarr;</span>
+            </div>
           </div>
         </div>
       </div>
@@ -673,6 +783,32 @@ const Akun = () => {
           </div>
           <span className="font-mono font-bold text-foreground">Tanabrew {CURRENT_RELEASE.versionLabel} (Stable)</span>
         </div>
+
+        {isAdminRole(userProfile?.role, currentUser?.email) && (
+          <div className="pt-1.5 border-t border-border/40">
+            <button
+              type="button"
+              onClick={handleBroadcastAppUpdate}
+              disabled={broadcastingUpdate}
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 py-2 px-3 text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+            >
+              {broadcastingUpdate ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" />
+                  <span>Menyiarkan Notifikasi...</span>
+                </>
+              ) : (
+                <>
+                  <Bell size={13} />
+                  <span>Siarkan Notifikasi Pembaruan ({CURRENT_RELEASE.versionLabel})</span>
+                </>
+              )}
+            </button>
+            <p className="mt-1 text-[10px] text-muted-foreground text-center">
+              Kirim notifikasi push ke seluruh karyawan tentang rilis update {CURRENT_RELEASE.versionLabel}.
+            </p>
+          </div>
+        )}
         <div className="flex justify-between text-muted-foreground px-1">
           <span>Database Realtime</span>
           <span className="font-semibold text-emerald-600 dark:text-emerald-400">Firebase Firestore</span>

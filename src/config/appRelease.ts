@@ -15,28 +15,55 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.6.2",
-  versionLabel: "v3.6.2",
+  version: "3.6.3",
+  versionLabel: "v3.6.3",
   releaseDate: "5 November 2026",
-  title: "Pembaruan Rekening Pembayaran Resmi Bank Jago & Migrasi Total Aset Brand Mandiri (5 November 2026)",
-  subtitle: "Penetapan Rekening Transfer Bank Jago a.n. AHMAD FARID MUSADDAD Serta Kemandirian Aset Logo Lokal Anti-Bug",
+  title: "Otomasi Pengiriman WhatsApp Invoice Grup & Sistem Siaran Pembaruan Aplikasi (5 November 2026)",
+  subtitle: "Pengiriman PDF Faktur Realtime ke Grup WhatsApp, Deteksi Server Laptop Cerdas, Opsi Kirim Manual Anti-Gagal, serta Notifikasi Siaran Pembaruan",
   highlights: [
     {
-      title: "Pembaruan Rekening Pembayaran Resmi: Bank Jago",
-      desc: "Metode transfer Bank BSI resmi diganti menjadi Bank Jago (No. Rekening 5021 3576 9162 a.n. AHMAD FARID MUSADDAD) pada seluruh dokumen faktur POS kasir, nota pratinjau live, cetak ulang riwayat, dokumen PDF resmi, serta deteksi omzet harian.",
-      badge: "Peningkatan",
+      title: "Otomasi Pengiriman PDF Faktur ke Grup WhatsApp & Deteksi Offline",
+      desc: "Kirim PDF faktur beserta caption status (LUNAS / BELUM LUNAS) otomatis ke grup WhatsApp saat cetak invoice atau saat pelunasan oleh Owner. Jika server di laptop offline/mati lampu, sistem menampilkan dialog opsi kirim manual atau unduh PDF seketika.",
+      badge: "Fitur",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
     {
-      title: "Migrasi Total Aset Brand Tanabrew Mandiri (Self-Hosted)",
-      desc: "Mengalihkan seluruh tautan logo eksternal ImgBB ke aset lokal proyek secara mandiri. Menjamin logo tampil seketika, bebas pemblokiran AdBlocker/DNS, serta mencegah bug gambar putih polos atau watermark pihak ketiga secara permanen.",
+      title: "Pemantau Status Server WhatsApp & Ganti Akun di Profil Akun",
+      desc: "Kartu status server realtime (Online / Offline), nomor WhatsApp pengirim aktif, dan grup tujuan di menu Akun. Pemilik kini dapat mengganti akun WhatsApp kapan saja cukup dengan memindai kode QR.",
       badge: "Peningkatan",
       badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+    },
+    {
+      title: "Siaran Notifikasi Pembaruan Aplikasi (App Update Push)",
+      desc: "Fitur siaran notifikasi push OneSignal bagi Owner/Admin untuk menyiarkan info rilis versi terbaru Tanabrew langsung ke seluruh smartphone dan desktop karyawan dalam 1 klik.",
+      badge: "Baru",
+      badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
     },
   ],
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.6.2",
+    versionLabel: "v3.6.2",
+    releaseDate: "5 November 2026",
+    title: "Pembaruan Rekening Pembayaran Resmi Bank Jago & Migrasi Total Aset Brand Mandiri (5 November 2026)",
+    subtitle: "Penetapan Rekening Transfer Bank Jago a.n. AHMAD FARID MUSADDAD Serta Kemandirian Aset Logo Lokal Anti-Bug",
+    highlights: [
+      {
+        title: "Pembaruan Rekening Pembayaran Resmi: Bank Jago",
+        desc: "Metode transfer Bank BSI resmi diganti menjadi Bank Jago (No. Rekening 5021 3576 9162 a.n. AHMAD FARID MUSADDAD) pada seluruh dokumen faktur POS kasir, nota pratinjau live, cetak ulang riwayat, dokumen PDF resmi, serta deteksi omzet harian.",
+        badge: "Peningkatan",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+      {
+        title: "Migrasi Total Aset Brand Tanabrew Mandiri (Self-Hosted)",
+        desc: "Mengalihkan seluruh tautan logo eksternal ImgBB ke aset lokal proyek secara mandiri. Menjamin logo tampil seketika, bebas pemblokiran AdBlocker/DNS, serta mencegah bug gambar putih polos atau watermark pihak ketiga secara permanen.",
+        badge: "Peningkatan",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      },
+    ],
+  },
   {
     version: "3.6.1",
     versionLabel: "v3.6.1",
