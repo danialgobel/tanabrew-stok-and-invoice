@@ -39,3 +39,5 @@ whatsapp-service/wa_auth/
 whatsapp-service/wa_session/
 wa_session/
 *.tsbuildinfo
+whatsapp-service/.wwebjs_cache/
+.wwebjs_cache/

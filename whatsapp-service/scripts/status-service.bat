@@ -19,3 +19,4 @@ echo ========================================================
 echo Tekan tombol apa saja untuk menutup jendela ini...
 pause >nul
 exit
+

@@ -37,3 +37,4 @@ echo ========================================================
 echo Jendela ini akan otomatis tertutup dalam 4 detik...
 timeout /t 4 >nul
 exit
+

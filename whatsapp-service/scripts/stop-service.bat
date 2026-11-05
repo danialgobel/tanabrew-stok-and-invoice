@@ -20,3 +20,4 @@ echo Memori RAM Anda telah dibebaskan sepenuhnya.
 echo.
 timeout /t 3 >nul
 exit
+

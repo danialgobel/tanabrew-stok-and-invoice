@@ -227,12 +227,48 @@ export async function getWhatsAppGroups(): Promise<WhatsAppGroupInfo[]> {
     throw new Error("WhatsApp belum terhubung.");
   }
 
+  // Method 1: Direct Puppeteer evaluation to bypass modern WhatsApp Web serialize obfuscation ('r' bug)
+  try {
+    const page = (client as any).pupPage;
+    if (page) {
+      const extracted = await page.evaluate(() => {
+        try {
+          const win = globalThis as any;
+          const collections = win.require?.("WAWebCollections");
+          const chats = collections?.Chat?.getModelsArray?.() || [];
+          const groups: Array<{ id: string; name: string; participantCount?: number }> = [];
+
+          for (const c of chats) {
+            const isGroupChat = Boolean(c.isGroup) || (c.id?._serialized && String(c.id._serialized).endsWith("@g.us"));
+            if (isGroupChat) {
+              const id = c.id?._serialized || String(c.id);
+              const name = c.formattedTitle || c.name || c.contact?.name || "Grup Tanabrew";
+              const participantCount = c.groupMetadata?.participants?.length || 0;
+              groups.push({ id, name, participantCount });
+            }
+          }
+          return groups;
+        } catch {
+          return null;
+        }
+      });
+
+      if (Array.isArray(extracted) && extracted.length > 0) {
+        logger.info(`Successfully retrieved ${extracted.length} WhatsApp groups via direct collection.`);
+        return extracted.sort((a, b) => a.name.localeCompare(b.name));
+      }
+    }
+  } catch (evalErr: any) {
+    logger.warn({ evalErr: evalErr?.message }, "Direct page evaluation for groups failed, attempting fallback...");
+  }
+
+  // Method 2: Standard whatsapp-web.js getChats() fallback
   try {
     const chats = await client.getChats();
     const groupsList: WhatsAppGroupInfo[] = chats
       .filter((c: any) => c.isGroup)
       .map((g: any) => ({
-        id: g.id._serialized,
+        id: g.id?._serialized || String(g.id),
         name: g.name || "Tanpa Nama",
         participantCount: g.groupMetadata?.participants?.length || 0,
       }))
@@ -240,9 +276,10 @@ export async function getWhatsAppGroups(): Promise<WhatsAppGroupInfo[]> {
 
     return groupsList;
   } catch (error: any) {
-    logger.error({ error }, "Failed to fetch WhatsApp groups");
-    throw new Error(error?.message || "Gagal mengambil daftar grup WhatsApp.");
+    logger.warn({ error: error?.message }, "Standard getChats failed to fetch WhatsApp groups");
   }
+
+  return [];
 }
 
 export async function sendInvoicePdf(params: {
