@@ -51,6 +51,8 @@ export default function WhatsAppSettingsModal({
   const [phoneInput, setPhoneInput] = useState("");
   const [pairingCodeResult, setPairingCodeResult] = useState<string | null>(null);
   const [requestingCode, setRequestingCode] = useState(false);
+  const [serverUrlInput, setServerUrlInput] = useState("");
+  const [savingUrl, setSavingUrl] = useState(false);
 
   const handleRequestPairingCode = async () => {
     if (!currentUser) return;
@@ -123,6 +125,9 @@ export default function WhatsAppSettingsModal({
       const data = await fetchWhatsAppStatus(currentUser);
       setStatusData(data);
 
+      if (data.savedConfig?.service_url) {
+        setServerUrlInput((prev) => prev || data.savedConfig?.service_url || "");
+      }
       if (data.savedConfig?.target_group_id) {
         setSelectedGroupId((prev) => prev || data.savedConfig?.target_group_id || "");
       } else if (data.groups && data.groups.length === 1) {
@@ -196,6 +201,38 @@ export default function WhatsAppSettingsModal({
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveServerUrl = async () => {
+    if (!currentUser) return;
+    if (!serverUrlInput.trim()) {
+      toast({
+        title: "Perhatian",
+        description: "Masukkan URL publik server WhatsApp terlebih dahulu.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSavingUrl(true);
+    try {
+      await saveWhatsAppTargetGroup(currentUser, {
+        service_url: serverUrlInput.trim(),
+      });
+      toast({
+        title: "URL Server Disimpan",
+        description: "Alamat server WhatsApp berhasil diperbarui. Memeriksa koneksi...",
+      });
+      void loadStatus();
+    } catch (err: any) {
+      toast({
+        title: "Gagal Menyimpan URL",
+        description: err.message || "Terjadi kesalahan saat menyimpan URL.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingUrl(false);
     }
   };
 
@@ -452,6 +489,53 @@ export default function WhatsAppSettingsModal({
               </p>
             )}
           </div>
+
+          {/* 2.5 Server URL Configuration (for Owner/Admin) */}
+          {isOwnerOrAdmin && (
+            <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                  <Server size={16} className="text-primary" />
+                  <span>Alamat Server WhatsApp (Laptop)</span>
+                </div>
+                {statusData?.savedConfig?.service_url && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 font-semibold">
+                    Tersinkron
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] text-muted-foreground flex justify-between">
+                  <span>URL Publik Aktif (Cloudflare / Ngrok):</span>
+                  <span className="text-[10px] text-primary/80 font-mono">
+                    Lihat shortcut &quot;Status Layanan&quot; di desktop
+                  </span>
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    placeholder="https://...trycloudflare.com atau ngrok-free.app"
+                    value={serverUrlInput}
+                    onChange={(e) => setServerUrlInput(e.target.value)}
+                    className="flex-1 text-xs px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSaveServerUrl}
+                    disabled={savingUrl || !serverUrlInput.trim()}
+                    className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold transition-colors cursor-pointer shrink-0 disabled:opacity-50 flex items-center gap-1"
+                  >
+                    <Save size={13} />
+                    {savingUrl ? "Menyimpan..." : "Simpan URL"}
+                  </button>
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  Jika laptop baru saja dinyalakan dan URL Cloudflare berganti, salin URL dari status laptop lalu tempel di sini agar web langsung terhubung tanpa perlu build ulang.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* 3. Operational Info Notice */}
           <div className="rounded-xl border border-primary/20 bg-primary/5 p-3.5 space-y-1.5 text-xs">

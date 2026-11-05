@@ -15,28 +15,49 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.6.9",
-  versionLabel: "v3.6.9",
+  version: "3.7.0",
+  versionLabel: "v3.7.0",
   releaseDate: "5 November 2026",
-  title: "Sinkronisasi Otomatis URL Cloudflare Tunnel & Ketahanan Koneksi WhatsApp Kasir (5 November 2026)",
-  subtitle: "Sinkronisasi otomatis domain tunnel cloudflared ke basis data cloud, eliminasi kendala status koneksi offline setelah laptop restart, dan penyempurnaan endpoint API",
+  title: "Manajemen Server URL WhatsApp Dinamis & Pemulihan Koneksi Otomatis (5 November 2026)",
+  subtitle: "Penambahan kontrol URL server WhatsApp di pengaturan, sinkronisasi dinamis Cloudflare Tunnel via Firestore, dan pembersihan build Vercel",
   highlights: [
     {
-      title: "Auto-Sync Dynamic Tunnel URL ke Cloud",
-      desc: "Layanan WhatsApp di laptop kini otomatis mendeteksi alamat publik Cloudflare Tunnel (trycloudflare) saat menyala dan mendaftarkannya ke server cloud dalam hitungan detik. Kasir tidak akan lagi mengalami status 'Belum Terhubung' setelah laptop dinyalakan manual.",
-      badge: "Peningkatan",
+      title: "Input & Sinkronisasi URL Server WhatsApp Langsung di UI",
+      desc: "Owner & Admin kini dapat melihat dan memperbarui URL server publik WhatsApp (Cloudflare / Ngrok) langsung dari jendela Otomasi WhatsApp hanya dengan menempelkan URL aktif dari shortcut desktop, tanpa perlu membuka pengaturan Vercel.",
+      badge: "Fitur",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
     {
-      title: "Fallback Cerdas URL Server di Seluruh Endpoint API",
-      desc: "Endpoint status, kirim invoice, pairing code, dan disconnect kini selalu memprioritaskan URL aktif yang dilaporkan secara langsung oleh laptop kasir, menjaga bot tetap responsif di semua perangkat.",
+      title: "Resolusi Status WhatsApp 'Belum Terhubung' Pasca Laptop Restart",
+      desc: "Endpoint status dan pengiriman invoice kini membaca URL server langsung dari Firestore secara seketika, mengeliminasi kendala pergantian subdomain acak pada Cloudflare quick tunnel.",
       badge: "Perbaikan",
       badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20",
+    },
+    {
+      title: "Stabilisasi Pengiriman Dokumen Faktur PDF",
+      desc: "Patch engine Chrome terverifikasi mengirimkan dokumen faktur PDF secara presisi ke grup WhatsApp toko tanpa hambatan getter data WhatsApp Web.",
+      badge: "Peningkatan",
+      badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
   ],
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.6.9",
+    versionLabel: "v3.6.9",
+    releaseDate: "5 November 2026",
+    title: "Sinkronisasi Otomatis URL Cloudflare Tunnel & Ketahanan Koneksi WhatsApp Kasir",
+    subtitle: "Sinkronisasi dinamis domain tunnel cloudflared ke basis data cloud dan penyempurnaan endpoint API",
+    highlights: [
+      {
+        title: "Fallback Cerdas URL Server di Seluruh Endpoint API",
+        desc: "Endpoint status, kirim invoice, pairing code, dan disconnect kini memprioritaskan URL aktif yang tersimpan di Firestore.",
+        badge: "Peningkatan",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      },
+    ],
+  },
   {
     version: "3.6.8",
     versionLabel: "v3.6.8",

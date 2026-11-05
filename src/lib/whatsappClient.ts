@@ -23,6 +23,7 @@ export interface WhatsAppStatusResponse {
   savedConfig?: {
     target_group_id?: string;
     target_group_name?: string;
+    service_url?: string;
     updated_at?: unknown;
     updated_by?: string;
   } | null;
@@ -60,7 +61,7 @@ export const fetchWhatsAppStatus = async (currentUser: User | null | undefined):
 
 export const saveWhatsAppTargetGroup = async (
   currentUser: User | null | undefined,
-  params: { target_group_id: string; target_group_name: string },
+  params: { target_group_id?: string; target_group_name?: string; service_url?: string },
 ): Promise<{ success: boolean; message: string }> => {
   if (!currentUser) {
     throw new Error("User belum login.");
