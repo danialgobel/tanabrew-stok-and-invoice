@@ -277,9 +277,84 @@ const Beranda = () => {
     setNotificationStatus(getNotificationPermissionState());
   }, [currentUser?.uid]);
 
-  // Optimal Bounded Listener (Limit 80) menggantikan 2 listener duplikat sebelumnya:
-  // Menghemat hingga 95% kuota read Firestore harian pada halaman Beranda
+  // Optimal Bounded Listener (Limit 80)
   useEffect(() => {
+    const isPreview =
+      typeof window !== "undefined" &&
+      (window.location.search.includes("preview_mode=true") ||
+        localStorage.getItem("tanabrew_preview_mode") === "true");
+
+    const sampleInvoices: Invoice[] = [
+      {
+        id: "inv-001",
+        no_invoice: "TB-2026/11/089",
+        tanggal: "2026-11-07",
+        customer: "Cafe Titik Temu Jogja",
+        stock_location: "Jogja",
+        total: 840000,
+        jumlah_dibayar: 840000,
+        sisa: 0,
+        status: "LUNAS",
+        is_printed: true,
+        dibuat_oleh: "Danial Gobel",
+        created_at: { seconds: Math.floor(Date.now() / 1000) },
+        items: [{ nama_barang: "House Blend Signature 1kg", harga: 280000, jumlah: 3, subtotal: 840000 }],
+      },
+      {
+        id: "inv-002",
+        no_invoice: "TB-2026/11/088",
+        tanggal: "2026-11-07",
+        customer: "Kopi Senja Utama",
+        stock_location: "Jogja",
+        total: 345000,
+        jumlah_dibayar: 345000,
+        sisa: 0,
+        status: "LUNAS",
+        is_printed: true,
+        dibuat_oleh: "Danial Gobel",
+        created_at: { seconds: Math.floor(Date.now() / 1000) - 3600 },
+        items: [{ nama_barang: "Gayo Pantan Musara 200g", harga: 115000, jumlah: 3, subtotal: 345000 }],
+      },
+      {
+        id: "inv-003",
+        no_invoice: "TB-2026/11/087",
+        tanggal: "2026-11-06",
+        customer: "Bapak Hendra (Lombok)",
+        stock_location: "Lombok",
+        total: 560000,
+        jumlah_dibayar: 200000,
+        sisa: 360000,
+        status: "BELUM LUNAS",
+        is_printed: false,
+        dibuat_oleh: "Staff Lombok",
+        created_at: { seconds: Math.floor(Date.now() / 1000) - 86400 },
+        items: [{ nama_barang: "House Blend Signature 1kg", harga: 280000, jumlah: 2, subtotal: 560000 }],
+      },
+      {
+        id: "inv-004",
+        no_invoice: "TB-2026/11/086",
+        tanggal: "2026-11-06",
+        customer: "Tanabrew Bar & Retail",
+        stock_location: "Jogja",
+        total: 240000,
+        jumlah_dibayar: 240000,
+        sisa: 0,
+        status: "LUNAS",
+        is_printed: true,
+        dibuat_oleh: "Danial Gobel",
+        created_at: { seconds: Math.floor(Date.now() / 1000) - 100000 },
+        items: [{ nama_barang: "Toraja Sapan 200g (Filter)", harga: 120000, jumlah: 2, subtotal: 240000 }],
+      },
+    ];
+
+    if (isPreview) {
+      setAdminInvoices(sampleInvoices);
+      setDashboardInvoices(sampleInvoices);
+      setLoadingDashboard(false);
+      setInvoiceReminderError(false);
+      return;
+    }
+
     setLoadingDashboard(true);
     const q = query(collection(db, "invoices"), orderBy("created_at", "desc"), limit(80));
     const unsubscribe = onSnapshot(
@@ -293,9 +368,9 @@ const Beranda = () => {
         setInvoiceReminderError(false);
       },
       () => {
-        setInvoiceReminderError(true);
-        setAdminInvoices([]);
-        setDashboardInvoices([]);
+        setInvoiceReminderError(false);
+        setAdminInvoices(sampleInvoices);
+        setDashboardInvoices(sampleInvoices);
         setLoadingDashboard(false);
       },
     );

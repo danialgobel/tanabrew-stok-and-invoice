@@ -10,6 +10,7 @@ import {
   sendInvoicePdf,
   sendTextMessage,
   disconnectWhatsApp,
+  recoverWhatsAppClient,
 } from "./whatsapp.js";
 
 dotenv.config();
@@ -176,6 +177,16 @@ app.post("/disconnect", requireAuth, async (_req, res) => {
   try {
     await disconnectWhatsApp();
     res.json({ success: true, message: "WhatsApp disconnected and session cleared." });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 7b. Self-Healing Recover WhatsApp Session
+app.post("/recover", requireAuth, async (_req, res) => {
+  try {
+    const success = await recoverWhatsAppClient();
+    res.json({ success, message: success ? "WhatsApp session recovered successfully." : "Failed to recover session." });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

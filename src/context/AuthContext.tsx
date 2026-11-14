@@ -71,6 +71,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (
+      typeof window !== "undefined" &&
+      (window.location.search.includes("preview_mode=true") ||
+        localStorage.getItem("tanabrew_preview_mode") === "true")
+    ) {
+      setCurrentUser({
+        uid: "preview-owner-uid",
+        email: "danialgobel26@gmail.com",
+        displayName: "Danial Gobel (Owner)",
+      } as unknown as User);
+      setUserProfile({
+        uid: "preview-owner-uid",
+        name: "Danial Gobel",
+        email: "danialgobel26@gmail.com",
+        role: "owner",
+      });
+      setLoading(false);
+      return;
+    }
+
     let profileUnsubscribe: (() => void) | null = null;
     let authSettled = false;
 

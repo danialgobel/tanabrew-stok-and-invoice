@@ -265,7 +265,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
     const cleanPdfBase64 = pdfBase64.includes(";base64,") ? pdfBase64.split(";base64,").pop() : pdfBase64.replace(/^data:[^;]+;base64,/, "");
 
-    const response = await fetch(`${waServiceUrl}/send-invoice`, {
+    let response = await fetch(`${waServiceUrl}/send-invoice`, {
       method: "POST",
       headers,
       body: JSON.stringify({
@@ -276,12 +276,37 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       }),
     });
 
-    const respText = await response.text();
+    let respText = await response.text();
     let respJson: Record<string, any> = {};
     try {
       respJson = JSON.parse(respText);
     } catch {
       respJson = { error: respText };
+    }
+
+    // Auto-retry once if daemon encountered a detached frame or transient browser recovery
+    if (!response.ok || respJson.success !== true) {
+      const isTransient = /detached Frame|Execution context|Cannot find context/i.test(respJson.error || respText);
+      if (isTransient) {
+        console.warn("[whatsapp-send] Transient detached frame reported by daemon. Waiting 4s for daemon self-healing and retrying...");
+        await new Promise((r) => setTimeout(r, 4000));
+        try {
+          response = await fetch(`${waServiceUrl}/send-invoice`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              groupId,
+              pdfBase64: cleanPdfBase64,
+              fileName,
+              caption,
+            }),
+          });
+          respText = await response.text();
+          respJson = JSON.parse(respText);
+        } catch {
+          respJson = { error: respText };
+        }
+      }
     }
 
     if (!response.ok || respJson.success !== true) {

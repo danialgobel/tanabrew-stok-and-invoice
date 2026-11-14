@@ -236,6 +236,60 @@ export const Obrolan = () => {
       ];
     });
 
+    const sampleTeamMembers: TeamMember[] = [
+      { uid: "preview-owner-uid", name: "Danial Gobel", email: "danialgobel26@gmail.com", role: "owner", is_online: true },
+      { uid: "user-barista-01", name: "Ahmad Barista", email: "barista.jogja@tanabrew.com", role: "staff", is_online: true },
+      { uid: "user-admin-lombok", name: "Siti Rahma", email: "lombok@tanabrew.com", role: "admin", is_online: false },
+      { uid: "user-webdev", name: "Danial Dev", email: "webdev@tanabrew.com", role: "webdev", is_online: true },
+    ];
+
+    const sampleMessages: TeamMessage[] = [
+      {
+        id: "msg-1",
+        sender_uid: "preview-owner-uid",
+        sender_name: "Danial Gobel",
+        sender_role: "owner",
+        message: "Halo tim, stok House Blend untuk pesanan Cafe Titik Temu Jogja sudah diproses ya?",
+        created_at: { seconds: Math.floor(Date.now() / 1000) - 3600 },
+      },
+      {
+        id: "msg-2",
+        sender_uid: "user-barista-01",
+        sender_name: "Ahmad Barista",
+        sender_role: "staff",
+        message: "Siap Mas Danial! Sudah dikemas 3 pack @ 1kg, tinggal menunggu kurir pickup.",
+        created_at: { seconds: Math.floor(Date.now() / 1000) - 2400 },
+      },
+      {
+        id: "msg-3",
+        sender_uid: "user-admin-lombok",
+        sender_name: "Siti Rahma",
+        sender_role: "admin",
+        message: "Untuk pengiriman green beans Flores Bajawa ke Lombok sudah masuk invoice #TB-2026/11/087 ya Mas.",
+        created_at: { seconds: Math.floor(Date.now() / 1000) - 1800 },
+      },
+      {
+        id: "msg-4",
+        sender_uid: "preview-owner-uid",
+        sender_name: "Danial Gobel",
+        sender_role: "owner",
+        message: "Mantap, pastikan resinya di-share di grup WhatsApp juga ya. Terima kasih semuanya!",
+        created_at: { seconds: Math.floor(Date.now() / 1000) - 600 },
+      },
+    ];
+
+    const isPreview =
+      typeof window !== "undefined" &&
+      (window.location.search.includes("preview_mode=true") ||
+        localStorage.getItem("tanabrew_preview_mode") === "true");
+
+    if (isPreview) {
+      setTeamMembers(sampleTeamMembers);
+      setMessages(sampleMessages);
+      setLoading(false);
+      return;
+    }
+
     // Realtime users / team members subscription
     const unsubUsers = onSnapshot(
       collection(db, "users"),

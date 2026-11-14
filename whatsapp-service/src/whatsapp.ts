@@ -105,11 +105,14 @@ export async function initWhatsApp(forceNewSession = false, headless = true): Pr
             "--no-zygote",
             "--disable-gpu",
             "--disable-extensions",
-            "--disable-background-networking",
             "--disable-default-apps",
             "--disable-sync",
             "--mute-audio",
-            "--js-flags=--max-old-space-size=256",
+            "--disable-background-timer-throttling",
+            "--disable-backgrounding-occluded-windows",
+            "--disable-features=IsolateOrigins,site-per-process",
+            "--disable-site-isolation-trials",
+            "--js-flags=--max-old-space-size=1024",
           ],
         },
       });
@@ -133,6 +136,7 @@ export async function initWhatsApp(forceNewSession = false, headless = true): Pr
         currentQrDataUrl = null;
         currentPairingCode = null;
         lastErrorMessage = null;
+        startKeepAlive();
         logger.info({ user: client?.info?.wid?._serialized }, "WhatsApp connection READY! (Chrome Session Active)");
       });
 
@@ -143,12 +147,14 @@ export async function initWhatsApp(forceNewSession = false, headless = true): Pr
         currentQrDataUrl = null;
         currentPairingCode = null;
         lastErrorMessage = null;
+        startKeepAlive();
         logger.info("WhatsApp client successfully AUTHENTICATED.");
       });
 
       client.on("auth_failure", (msg: string) => {
         isConnecting = false;
         isConnected = false;
+        stopKeepAlive();
         lastErrorMessage = `Auth failure: ${msg}`;
         logger.error({ msg }, "WhatsApp authentication failed");
       });
@@ -156,6 +162,7 @@ export async function initWhatsApp(forceNewSession = false, headless = true): Pr
       client.on("disconnected", (reason: string) => {
         isConnected = false;
         isConnecting = false;
+        stopKeepAlive();
         lastErrorMessage = `Disconnected: ${reason}`;
         logger.warn({ reason }, "WhatsApp connection disconnected.");
       });
@@ -340,16 +347,154 @@ export async function getWhatsAppGroups(): Promise<WhatsAppGroupInfo[]> {
   ];
 }
 
+// =========================================================================
+// 🔄 HEARTBEAT KEEPALIVE & SELF-HEALING RECOVERY (ANTI-DETACHED FRAME)
+// Menjaga execution context Chromium tetap aktif dan memulihkan sesi otomatis
+// =========================================================================
+let keepAliveTimer: NodeJS.Timeout | null = null;
+let isRecovering = false;
+
+export function stopKeepAlive() {
+  if (keepAliveTimer) {
+    clearInterval(keepAliveTimer);
+    keepAliveTimer = null;
+  }
+}
+
+export function startKeepAlive() {
+  stopKeepAlive();
+  keepAliveTimer = setInterval(async () => {
+    if (!client || !isConnected || isRecovering) return;
+    try {
+      const page = (client as any).pupPage;
+      if (page && !page.isClosed()) {
+        await page.evaluate(() => (globalThis as any).document?.visibilityState);
+      }
+    } catch (err: any) {
+      const errMsg = err?.message || "";
+      if (/detached Frame|Execution context was destroyed|Cannot find context/i.test(errMsg)) {
+        logger.warn({ errMsg }, "[KEEPALIVE] Detached frame detected during background heartbeat! Auto-healing WhatsApp session...");
+        recoverWhatsAppClient().catch((recErr) => {
+          logger.error({ recErr }, "[KEEPALIVE] Background auto-healing failed");
+        });
+      }
+    }
+  }, 45000);
+}
+
+export async function recoverWhatsAppClient(): Promise<boolean> {
+  if (isRecovering) {
+    logger.info("[RECOVERY] Recovery already in progress, waiting for existing recovery attempt...");
+    for (let i = 0; i < 30; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      if (!isRecovering && isConnected) return true;
+    }
+    return isConnected;
+  }
+
+  isRecovering = true;
+  stopKeepAlive();
+  logger.warn("[RECOVERY] Starting WhatsApp client self-healing recovery...");
+
+  try {
+    // 1. First attempt: Quick in-place page reload (very fast, keeps browser open)
+    const page = (client as any)?.pupPage;
+    if (page && !page.isClosed()) {
+      try {
+        logger.info("[RECOVERY] Attempting fast page reload...");
+        await page.reload({ waitUntil: "load", timeout: 25000 });
+        await new Promise((r) => setTimeout(r, 3000));
+
+        const isWWebAlive = await page.evaluate(() => {
+          return typeof (globalThis as any).window?.WWebJS !== "undefined";
+        }).catch(() => false);
+
+        if (isWWebAlive) {
+          isConnected = true;
+          isRecovering = false;
+          startKeepAlive();
+          logger.info("[RECOVERY] ✅ Fast page reload succeeded, WhatsApp session restored!");
+          return true;
+        }
+      } catch (reloadErr: any) {
+        logger.warn({ reloadErr: reloadErr?.message }, "[RECOVERY] Fast page reload failed, proceeding to full client reboot...");
+      }
+    }
+
+    // 2. Second attempt: Full client reboot (destroys browser and re-attaches using saved session in wa_session)
+    if (client) {
+      try {
+        await client.destroy();
+      } catch (destroyErr: any) {
+        logger.warn({ destroyErr: destroyErr?.message }, "[RECOVERY] Error destroying client during recovery");
+      }
+      client = null;
+    }
+
+    initPromise = null;
+    isConnected = false;
+    isConnecting = true;
+
+    // Re-initialize with forceNewSession = false so saved session in SESSION_DIR is preserved!
+    await initWhatsApp(false);
+
+    // Poll for up to 30 seconds for isConnected to become true
+    const maxWaitMs = 30000;
+    const startTime = Date.now();
+    while (Date.now() - startTime < maxWaitMs) {
+      if (isConnected) {
+        logger.info("[RECOVERY] ✅ WhatsApp client successfully recovered and ready!");
+        isRecovering = false;
+        startKeepAlive();
+        return true;
+      }
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+
+    isRecovering = false;
+    return isConnected;
+  } catch (error: any) {
+    logger.error({ error }, "[RECOVERY] Failed to recover WhatsApp client");
+    isRecovering = false;
+    return false;
+  }
+}
+
 export async function sendTextMessage(groupId: string, text: string): Promise<{ messageId: string }> {
   if (!client || !isConnected) {
-    throw new Error("WhatsApp tidak terhubung. Pastikan server WhatsApp aktif.");
+    logger.info("WhatsApp not connected before sending text message, attempting automatic recovery...");
+    const ok = await recoverWhatsAppClient();
+    if (!ok || !client || !isConnected) {
+      throw new Error("WhatsApp tidak terhubung. Pastikan server WhatsApp aktif.");
+    }
   }
   const cleanGroupId = validateRecipient(groupId);
-  logger.info({ cleanGroupId, text }, "Sending test text message to verified WhatsApp group...");
-  const sent = await client.sendMessage(cleanGroupId, text);
-  const messageId = sent?.id?._serialized || sent?.id?.id || "msg-" + Date.now();
-  logger.info({ messageId, cleanGroupId }, "Text message successfully delivered to WhatsApp group!");
-  return { messageId };
+
+  const doSend = async (): Promise<{ messageId: string }> => {
+    logger.info({ cleanGroupId, text }, "Sending test text message to verified WhatsApp group...");
+    const sent = await client!.sendMessage(cleanGroupId, text);
+    const messageId = sent?.id?._serialized || sent?.id?.id || "msg-" + Date.now();
+    logger.info({ messageId, cleanGroupId }, "Text message successfully delivered to WhatsApp group!");
+    return { messageId };
+  };
+
+  try {
+    return await doSend();
+  } catch (error: any) {
+    const errMsg = error?.message || "";
+    const isDetachedFrame = /detached Frame|Execution context was destroyed|Cannot find context/i.test(errMsg);
+
+    if (isDetachedFrame) {
+      logger.warn({ errMsg }, "Detached Frame encountered during sendTextMessage! Initiating self-healing recovery and retry...");
+      const recovered = await recoverWhatsAppClient();
+      if (recovered && client && isConnected) {
+        logger.info("Recovery successful! Retrying text message dispatch now...");
+        return await doSend();
+      }
+    }
+
+    throw error;
+  }
 }
 
 export async function sendInvoicePdf(params: {
@@ -359,7 +504,11 @@ export async function sendInvoicePdf(params: {
   caption: string;
 }): Promise<{ messageId: string }> {
   if (!client || !isConnected) {
-    throw new Error("WhatsApp tidak terhubung. Pastikan server WhatsApp aktif.");
+    logger.info("WhatsApp not connected before sending invoice PDF, attempting automatic recovery...");
+    const ok = await recoverWhatsAppClient();
+    if (!ok || !client || !isConnected) {
+      throw new Error("WhatsApp tidak terhubung. Pastikan server WhatsApp aktif.");
+    }
   }
 
   const { groupId, pdfBuffer, fileName, caption } = params;
@@ -375,25 +524,44 @@ export async function sendInvoicePdf(params: {
     throw new Error(`File PDF tidak valid atau kosong (hanya ${pdfBuffer?.length || 0} bytes).`);
   }
 
-  try {
+  const cleanFileName = fileName.endsWith(".pdf") ? fileName : `${fileName}.pdf`;
+  const media = new MessageMedia(
+    "application/pdf",
+    pdfBuffer.toString("base64"),
+    cleanFileName
+  );
+
+  const doSend = async (): Promise<{ messageId: string }> => {
     logger.info({ cleanGroupId, fileName, sizeBytes: pdfBuffer.length }, "Sending invoice PDF to WhatsApp group via Chrome...");
-
-    const cleanFileName = fileName.endsWith(".pdf") ? fileName : `${fileName}.pdf`;
-    const media = new MessageMedia(
-      "application/pdf",
-      pdfBuffer.toString("base64"),
-      cleanFileName
-    );
-
-    const sent = await client.sendMessage(cleanGroupId, media, {
+    const sent = await client!.sendMessage(cleanGroupId, media, {
       caption: caption || `Invoice ${cleanFileName}`,
       sendMediaAsDocument: true,
     });
-
     const messageId = sent?.id?._serialized || sent?.id?.id || "msg-" + Date.now();
     logger.info({ messageId, cleanGroupId }, "Invoice PDF successfully delivered to WhatsApp group!");
     return { messageId };
+  };
+
+  try {
+    return await doSend();
   } catch (error: any) {
+    const errMsg = error?.message || "";
+    const isDetachedFrame = /detached Frame|Execution context was destroyed|Cannot find context/i.test(errMsg);
+
+    if (isDetachedFrame) {
+      logger.warn({ errMsg }, "Detached frame encountered during sendInvoicePdf! Initiating self-healing recovery and retry...");
+      const recovered = await recoverWhatsAppClient();
+      if (recovered && client && isConnected) {
+        logger.info("Recovery successful! Retrying invoice PDF dispatch now...");
+        try {
+          return await doSend();
+        } catch (retryError: any) {
+          logger.error({ retryError }, "Retry failed after recovery in sendInvoicePdf");
+          throw new Error(`Gagal mengirim setelah pemulihan frame: ${retryError?.message || retryError}`);
+        }
+      }
+    }
+
     logger.error({ error, cleanGroupId, fileName }, "Failed to send invoice PDF to WhatsApp group");
     throw new Error(error?.message || "Gagal mengirim dokumen PDF ke grup WhatsApp.");
   }

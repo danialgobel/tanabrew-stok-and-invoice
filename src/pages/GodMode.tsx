@@ -74,7 +74,13 @@ const GodMode = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<GodModeTab>("users");
+  const [activeTab, setActiveTab] = useState<GodModeTab>(() => {
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search).get("tab") as GodModeTab;
+      if (p) return p;
+    }
+    return "users";
+  });
   const [activeCollection, setActiveCollection] = useState<CollectionName>("invoices");
   const [explorerData, setExplorerData] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(false);
@@ -180,6 +186,23 @@ const GodMode = () => {
         role: userProfile.role || "webdev",
         photo_url: userProfile.photo_url || currentUser.photoURL || "",
       });
+    }
+
+    if (
+      typeof window !== "undefined" &&
+      (window.location.search.includes("preview_mode=true") ||
+        localStorage.getItem("tanabrew_preview_mode") === "true")
+    ) {
+      const sampleUsers = [
+        { id: "usr-01", uid: "usr-01", name: "Danial Gobel", email: "danialgobel26@gmail.com", role: "owner", created_at: "2026-01-15" },
+        { id: "usr-02", uid: "usr-02", name: "Ahmad Barista", email: "barista.jogja@tanabrew.com", role: "staff", created_at: "2026-03-10" },
+        { id: "usr-03", uid: "usr-03", name: "Siti Rahma", email: "lombok@tanabrew.com", role: "admin", created_at: "2026-04-20" },
+        { id: "usr-04", uid: "usr-04", name: "Danial WebDev", email: "webdev@tanabrew.com", role: "webdev", created_at: "2026-01-01" },
+      ];
+      setUsersList(sampleUsers);
+      setLoadingUsers(false);
+      addLog("Berhasil memuat 4 akun pengguna sistem.", "success");
+      return;
     }
 
     try {

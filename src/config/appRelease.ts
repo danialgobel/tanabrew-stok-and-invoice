@@ -15,27 +15,27 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_RELEASE: AppReleaseInfo = {
-  version: "3.7.2",
-  versionLabel: "v3.7.2",
-  releaseDate: "6 November 2026",
-  title: "Akses Penuh Developer Pelunasan Invoice & Autokirim Dokumen LUNAS (6 November 2026)",
-  subtitle: "Penyelarasan hak akses penuh peran Developer untuk menandai lunas invoice serta pengiriman otomatis PDF berstatus LUNAS ke WhatsApp",
+  version: "3.7.3",
+  versionLabel: "v3.7.3",
+  releaseDate: "14 November 2026",
+  title: "Ketahanan Koneksi WhatsApp Kasir & Detached Frame Auto-Recovery (14 November 2026)",
+  subtitle: "Mekanisme pemulihan otomatis sesi Chromium WhatsApp saat idle serta proteksi retry ganda saat pelunasan faktur",
   highlights: [
     {
-      title: "Otorisasi Penuh Pelunasan Invoice untuk Developer",
-      desc: "Menyelaraskan pemeriksaan hak akses peran Developer/Webdev agar memiliki wewenang penuh menandai lunas invoice di tab Riwayat secara instan.",
+      title: "Pemulihan Otomatis Sesi WhatsApp (Anti-Detached Frame)",
+      desc: "Menambahkan heartbeat keepalive 45 detik dan parameter Chromium isolasi tunggal agar browser WhatsApp Web tidak mengalami 'detached frame' saat laptop kasir ditinggal lama atau idle.",
       badge: "Perbaikan",
       badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20",
     },
     {
-      title: "Pengiriman Otomatis PDF Lunas ke WhatsApp",
-      desc: "Saat invoice ditandai lunas, sistem secara otomatis menerbitkan dokumen PDF faktur resmi berstatus LUNAS warna hijau dan mengirimkannya langsung ke grup WhatsApp.",
+      title: "Proteksi Retry Ganda Pelunasan Faktur",
+      desc: "Jika terjadi jeda koneksi sementara saat owner/kasir menandai invoice lunas, sistem secara otomatis melakukan self-healing dan mencoba kirim ulang dalam hitungan detik tanpa membatalkan transaksi.",
       badge: "Fitur",
       badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     },
     {
-      title: "Integritas Format Dokumen Faktur (100% Presisi)",
-      desc: "Tampilan, ukuran, tata letak, margin, dan tabel faktur PDF tetap persis sama seperti cetakan manual asli, hanya memperbarui status pembayaran menjadi LUNAS dan sisa Rp0.",
+      title: "Penyempurnaan Pesan Status Pengiriman",
+      desc: "Menghilangkan pesan error teknis rumit di antarmuka Riwayat dan menggantinya dengan petunjuk tombol kirim ulang yang ramah pengguna.",
       badge: "Peningkatan",
       badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
@@ -43,6 +43,27 @@ export const CURRENT_RELEASE: AppReleaseInfo = {
 };
 
 export const RELEASE_HISTORY: AppReleaseInfo[] = [
+  {
+    version: "3.7.2",
+    versionLabel: "v3.7.2",
+    releaseDate: "6 November 2026",
+    title: "Akses Penuh Developer Pelunasan Invoice & Autokirim Dokumen LUNAS",
+    subtitle: "Penyelarasan hak akses penuh peran Developer untuk menandai lunas invoice serta pengiriman otomatis PDF berstatus LUNAS ke WhatsApp",
+    highlights: [
+      {
+        title: "Otorisasi Penuh Pelunasan Invoice untuk Developer",
+        desc: "Menyelaraskan pemeriksaan hak akses peran Developer/Webdev agar memiliki wewenang penuh menandai lunas invoice di tab Riwayat secara instan.",
+        badge: "Perbaikan",
+        badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20",
+      },
+      {
+        title: "Pengiriman Otomatis PDF Lunas ke WhatsApp",
+        desc: "Saat invoice ditandai lunas, sistem secara otomatis menerbitkan dokumen PDF faktur resmi berstatus LUNAS warna hijau dan mengirimkannya langsung ke grup WhatsApp.",
+        badge: "Fitur",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      },
+    ],
+  },
   {
     version: "3.7.1",
     versionLabel: "v3.7.1",

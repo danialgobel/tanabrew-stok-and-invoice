@@ -250,3 +250,13 @@ Cloudflare Tunnel akan otomatis mencoba menyambung ulang (*auto-reconnect*). Jik
 **Solusi**:
 1. Klik shortcut **`Cek Status WhatsApp Tanabrew`**. Jika berstatus *"Menunggu Penautan"*, buka modal WhatsApp di web kasir.
 2. Masukkan nomor HP kasir untuk menerima **Kode Pairing 8 Digit** atau scan QR Code yang muncul di layar.
+
+### Q: Muncul pesan "Attempted to use detached Frame"?
+**Penyebab & Solusi**:
+Hal ini terjadi jika sesi browser WhatsApp Web di laptop kasir dibiarkan idle/tidak ada transaksi dalam waktu lama sehingga Chromium mendaur ulang konteks DOM iframenya.
+Mulai versi `v3.7.3`, sistem telah diproteksi dengan:
+1. **Heartbeat Keepalive**: Ping otomatis setiap 45 detik untuk menjaga frame Chromium tetap aktif dan hangat (*warm context*).
+2. **Chromium Single-Process Frame Isolation**: Flag `--disable-features=IsolateOrigins,site-per-process` untuk mencegah frame terlepas.
+3. **Auto-Recovery & Retry Ganda**: Server daemon dan gateway Vercel secara mandiri melakukan *self-healing* dan mencoba kirim ulang dalam 4 detik.
+4. Jika invoice sempat gagal sebelum update ini, cukup tekan tombol **`Kirim Sekarang`** pada baris invoice yang bersangkutan di tab Riwayat.
+
